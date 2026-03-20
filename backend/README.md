@@ -172,30 +172,6 @@ The Execution Service manages order execution, broker integration, and trade lif
 
    docker-compose ps
 
-### Running Locally
-
-1. Start each service in a separate terminal:
-
-   # Terminal 1
-
-   cd data_service
-   python app.py
-
-   # Terminal 2
-
-   cd ai_engine
-   python app.py
-
-   # Terminal 3
-
-   cd risk_service
-   python app.py
-
-   # Terminal 4
-
-   cd execution_service
-   python app.py
-
 ## Configuration
 
 Configuration is managed through environment variables and configuration files. The main configuration file is `config/.env`, which contains settings for all services.
