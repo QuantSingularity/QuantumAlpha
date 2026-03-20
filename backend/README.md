@@ -157,8 +157,6 @@ The Execution Service manages order execution, broker integration, and trade lif
 
    cp config/.env.example config/.env
 
-# Edit .env file with your configuration
-
 5. Initialize the database:
 
    python scripts/init_db.py
