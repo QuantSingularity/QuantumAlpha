@@ -141,12 +141,13 @@ The Execution Service manages order execution, broker integration, and trade lif
 1. Clone the repository:
 
    git clone https://github.com/quantsingularity/quantumalpha.git
+
    cd backend
 
 2. Create and activate a virtual environment:
 
    python -m venv venv
-   source venv/bin/activate # On Windows: venv\Scripts\activate
+   source venv/bin/activate
 
 3. Install dependencies:
 
@@ -156,7 +157,7 @@ The Execution Service manages order execution, broker integration, and trade lif
 
    cp config/.env.example config/.env
 
-   # Edit .env file with your configuration
+# Edit .env file with your configuration
 
 5. Initialize the database:
 
