@@ -26,7 +26,7 @@ seaborn==0.12.2
 plotly==5.16.1
 statsmodels==0.14.0
 
-# Deep Learning - UPDATED: 2.13.0 -> 2.15.0 (fixes typing-extensions conflict with pydantic>=2.3.0)
+# Deep Learning
 tensorflow==2.15.0
 
 # Financial data providers
@@ -111,3 +111,7 @@ black==23.7.0
 flake8==6.0.0
 mypy==1.5.1
 pre-commit==3.4.0
+
+
+gymnasium>=0.29.0
+stable-baselines3>=2.1.0

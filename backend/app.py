@@ -1,40 +1,69 @@
 """
 QuantumAlpha Backend API Service
 Main API Gateway providing unified access to all backend services
+
+NOTE — Postgres crash fix (NOT in this file):
+  In 01-init-schema.sql, the alternative_data hypertable call fails because
+  TimescaleDB requires the partition key to be part of every unique index.
+  Change the table definition so the primary/unique key includes 'timestamp':
+
+      -- BEFORE (crashes):
+      CREATE TABLE market_data.alternative_data (
+          id          BIGSERIAL PRIMARY KEY,   -- unique index without 'timestamp'
+          ...
+          timestamp   TIMESTAMPTZ NOT NULL
+      );
+      SELECT create_hypertable('market_data.alternative_data', 'timestamp');
+
+      -- AFTER (works):
+      CREATE TABLE market_data.alternative_data (
+          id          BIGINT      NOT NULL,
+          ...
+          timestamp   TIMESTAMPTZ NOT NULL,
+          PRIMARY KEY (id, timestamp)          -- 'timestamp' included
+      );
+      SELECT create_hypertable('market_data.alternative_data', 'timestamp');
 """
 
 import logging
 import os
 import random
 import traceback
+import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
 from flask_cors import CORS
 
-# Setup logging
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# Create Flask app
+# ---------------------------------------------------------------------------
+# App factory
+# ---------------------------------------------------------------------------
 app = Flask(__name__)
 
-# Configure CORS
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+CORS_ORIGINS: List[str] = os.getenv("CORS_ORIGINS", "*").split(",")
 CORS(app, origins=CORS_ORIGINS, supports_credentials=True)
 
-# Mock data for demonstration
-MOCK_MARKET_DATA = {
+# ---------------------------------------------------------------------------
+# Mock data  (replace with real DB queries once postgres is healthy)
+# ---------------------------------------------------------------------------
+MOCK_MARKET_DATA: Dict[str, Dict[str, Any]] = {
     "AAPL": {
         "symbol": "AAPL",
         "price": 175.50,
         "change": 2.30,
         "change_percent": 1.33,
-        "volume": 45000000,
-        "market_cap": 2800000000000,
+        "volume": 45_000_000,
+        "market_cap": 2_800_000_000_000,
         "high": 178.00,
         "low": 173.50,
         "open": 174.00,
@@ -44,8 +73,8 @@ MOCK_MARKET_DATA = {
         "price": 142.80,
         "change": -1.20,
         "change_percent": -0.83,
-        "volume": 28000000,
-        "market_cap": 1800000000000,
+        "volume": 28_000_000,
+        "market_cap": 1_800_000_000_000,
         "high": 145.00,
         "low": 141.50,
         "open": 144.00,
@@ -55,8 +84,8 @@ MOCK_MARKET_DATA = {
         "price": 420.15,
         "change": 5.75,
         "change_percent": 1.39,
-        "volume": 32000000,
-        "market_cap": 3100000000000,
+        "volume": 32_000_000,
+        "market_cap": 3_100_000_000_000,
         "high": 425.00,
         "low": 418.00,
         "open": 419.00,
@@ -66,8 +95,8 @@ MOCK_MARKET_DATA = {
         "price": 185.40,
         "change": 3.20,
         "change_percent": 1.76,
-        "volume": 38000000,
-        "market_cap": 1900000000000,
+        "volume": 38_000_000,
+        "market_cap": 1_900_000_000_000,
         "high": 188.00,
         "low": 183.00,
         "open": 184.00,
@@ -77,30 +106,30 @@ MOCK_MARKET_DATA = {
         "price": 245.60,
         "change": -8.40,
         "change_percent": -3.31,
-        "volume": 52000000,
-        "market_cap": 780000000000,
+        "volume": 52_000_000,
+        "market_cap": 780_000_000_000,
         "high": 255.00,
         "low": 242.00,
         "open": 252.00,
     },
 }
 
-MOCK_PORTFOLIO = {
-    "total_value": 1250000.00,
-    "daily_change": 15750.00,
+MOCK_PORTFOLIO: Dict[str, Any] = {
+    "total_value": 1_250_000.00,
+    "daily_change": 15_750.00,
     "daily_change_percent": 1.28,
-    "cash_balance": 250000.00,
-    "invested_amount": 1000000.00,
-    "unrealized_pnl": 125000.00,
-    "realized_pnl": 45000.00,
+    "cash_balance": 250_000.00,
+    "invested_amount": 1_000_000.00,
+    "unrealized_pnl": 125_000.00,
+    "realized_pnl": 45_000.00,
     "positions": [
         {
             "symbol": "AAPL",
             "shares": 1000,
             "avg_cost": 165.00,
             "current_price": 175.50,
-            "market_value": 175500.00,
-            "unrealized_pnl": 10500.00,
+            "market_value": 175_500.00,
+            "unrealized_pnl": 10_500.00,
             "weight": 14.04,
             "sector": "Technology",
         },
@@ -109,8 +138,8 @@ MOCK_PORTFOLIO = {
             "shares": 500,
             "avg_cost": 145.00,
             "current_price": 142.80,
-            "market_value": 71400.00,
-            "unrealized_pnl": -1100.00,
+            "market_value": 71_400.00,
+            "unrealized_pnl": -1_100.00,
             "weight": 5.71,
             "sector": "Technology",
         },
@@ -119,8 +148,8 @@ MOCK_PORTFOLIO = {
             "shares": 800,
             "avg_cost": 410.00,
             "current_price": 420.15,
-            "market_value": 336120.00,
-            "unrealized_pnl": 8120.00,
+            "market_value": 336_120.00,
+            "unrealized_pnl": 8_120.00,
             "weight": 26.89,
             "sector": "Technology",
         },
@@ -129,8 +158,8 @@ MOCK_PORTFOLIO = {
             "shares": 600,
             "avg_cost": 175.00,
             "current_price": 185.40,
-            "market_value": 111240.00,
-            "unrealized_pnl": 6240.00,
+            "market_value": 111_240.00,
+            "unrealized_pnl": 6_240.00,
             "weight": 8.90,
             "sector": "Consumer Discretionary",
         },
@@ -139,15 +168,16 @@ MOCK_PORTFOLIO = {
             "shares": 400,
             "avg_cost": 250.00,
             "current_price": 245.60,
-            "market_value": 98240.00,
-            "unrealized_pnl": -1760.00,
+            "market_value": 98_240.00,
+            "unrealized_pnl": -1_760.00,
             "weight": 7.86,
             "sector": "Consumer Discretionary",
         },
     ],
 }
 
-MOCK_STRATEGIES = [
+# Mutable mock stores — use list copies so appends don't bleed across tests
+_BASE_STRATEGIES: List[Dict[str, Any]] = [
     {
         "id": "1",
         "name": "Momentum Strategy",
@@ -198,7 +228,7 @@ MOCK_STRATEGIES = [
     },
 ]
 
-MOCK_TRADES = [
+_BASE_TRADES: List[Dict[str, Any]] = [
     {
         "id": "1",
         "symbol": "AAPL",
@@ -207,7 +237,7 @@ MOCK_TRADES = [
         "price": 175.50,
         "status": "filled",
         "timestamp": datetime.now().isoformat(),
-        "total_value": 17550.00,
+        "total_value": 17_550.00,
     },
     {
         "id": "2",
@@ -217,7 +247,7 @@ MOCK_TRADES = [
         "price": 420.15,
         "status": "filled",
         "timestamp": (datetime.now() - timedelta(hours=2)).isoformat(),
-        "total_value": 21007.50,
+        "total_value": 21_007.50,
     },
     {
         "id": "3",
@@ -227,24 +257,34 @@ MOCK_TRADES = [
         "price": 245.60,
         "status": "filled",
         "timestamp": (datetime.now() - timedelta(days=1)).isoformat(),
-        "total_value": 6140.00,
+        "total_value": 6_140.00,
     },
 ]
 
-MOCK_RISK_METRICS = {
-    "portfolio_var_95": 25000.00,
-    "portfolio_var_99": 45000.00,
+# Runtime-mutable copies (avoids mutating module-level constants)
+MOCK_STRATEGIES: List[Dict[str, Any]] = list(_BASE_STRATEGIES)
+MOCK_TRADES: List[Dict[str, Any]] = list(_BASE_TRADES)
+
+MOCK_RISK_METRICS: Dict[str, Any] = {
+    "portfolio_var_95": 25_000.00,
+    "portfolio_var_99": 45_000.00,
     "beta": 1.15,
     "sharpe_ratio": 1.72,
     "sortino_ratio": 2.1,
     "max_drawdown": -8.5,
     "volatility": 18.3,
     "correlation_matrix": {
-        "AAPL": {"AAPL": 1.0, "GOOGL": 0.75, "MSFT": 0.82, "AMZN": 0.68, "TSLA": 0.55},
-        "GOOGL": {"AAPL": 0.75, "GOOGL": 1.0, "MSFT": 0.78, "AMZN": 0.72, "TSLA": 0.48},
-        "MSFT": {"AAPL": 0.82, "GOOGL": 0.78, "MSFT": 1.0, "AMZN": 0.70, "TSLA": 0.52},
-        "AMZN": {"AAPL": 0.68, "GOOGL": 0.72, "MSFT": 0.70, "AMZN": 1.0, "TSLA": 0.45},
-        "TSLA": {"AAPL": 0.55, "GOOGL": 0.48, "MSFT": 0.52, "AMZN": 0.45, "TSLA": 1.0},
+        "AAPL": {"AAPL": 1.00, "GOOGL": 0.75, "MSFT": 0.82, "AMZN": 0.68, "TSLA": 0.55},
+        "GOOGL": {
+            "AAPL": 0.75,
+            "GOOGL": 1.00,
+            "MSFT": 0.78,
+            "AMZN": 0.72,
+            "TSLA": 0.48,
+        },
+        "MSFT": {"AAPL": 0.82, "GOOGL": 0.78, "MSFT": 1.00, "AMZN": 0.70, "TSLA": 0.52},
+        "AMZN": {"AAPL": 0.68, "GOOGL": 0.72, "MSFT": 0.70, "AMZN": 1.00, "TSLA": 0.45},
+        "TSLA": {"AAPL": 0.55, "GOOGL": 0.48, "MSFT": 0.52, "AMZN": 0.45, "TSLA": 1.00},
     },
     "alerts": [
         {
@@ -256,654 +296,506 @@ MOCK_RISK_METRICS = {
     ],
 }
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+_TIMEFRAME_DAYS: Dict[str, int] = {
+    "1W": 7,
+    "1M": 30,
+    "3M": 90,
+    "6M": 180,
+    "1Y": 365,
+}
+
 
 def generate_historical_data(symbol: str, days: int = 30) -> List[Dict[str, Any]]:
-    """Generate mock historical price data"""
-    base_price = MOCK_MARKET_DATA.get(symbol, {}).get("price", 100)
-    data = []
+    """Generate deterministic-ish mock historical OHLCV data."""
+    base_price: float = MOCK_MARKET_DATA.get(symbol, {}).get("price", 100.0)
+    data: List[Dict[str, Any]] = []
     current_price = base_price
 
     for i in range(days):
         date = datetime.now() - timedelta(days=days - i)
         change = (random.random() - 0.5) * 10
-        current_price += change
+        current_price = max(current_price + change, 0.01)  # prevent negative price
 
         data.append(
             {
                 "date": date.strftime("%Y-%m-%d"),
                 "open": round(current_price - (random.random() - 0.5) * 2, 2),
                 "high": round(current_price + random.random() * 5, 2),
-                "low": round(current_price - random.random() * 5, 2),
+                "low": round(max(current_price - random.random() * 5, 0.01), 2),
                 "close": round(current_price, 2),
-                "volume": int(random.random() * 40000000) + 10000000,
+                "volume": int(random.random() * 40_000_000) + 10_000_000,
             }
         )
 
     return data
 
 
-# Error handlers
-@app.errorhandler(Exception)
-def handle_error(error: Any) -> Any:
-    """Handle all unhandled errors"""
-    logger.error(f"Unhandled error: {error}")
-    logger.error(traceback.format_exc())
+def _ok(data: Any, status: int = 200) -> Tuple[Any, int]:
+    """Wrap a successful payload in the standard envelope."""
+    return (
+        jsonify(
+            {"success": True, "data": data, "timestamp": datetime.now().isoformat()}
+        ),
+        status,
+    )
+
+
+def _err(message: str, status: int = 400) -> Tuple[Any, int]:
+    """Wrap an error message in the standard envelope."""
     return (
         jsonify(
             {
                 "success": False,
-                "error": "Internal server error",
-                "message": str(error),
+                "error": message,
+                "timestamp": datetime.now().isoformat(),
             }
         ),
-        500,
+        status,
     )
 
 
-# Health check endpoint
+def _parse_period_days(period: Optional[str], default: int = 30) -> int:
+    """Parse a period string like '30d', '7d' into an integer day count."""
+    if not period:
+        return default
+    try:
+        return int(period.rstrip("d"))
+    except ValueError:
+        return default
+
+
+# ---------------------------------------------------------------------------
+# Request lifecycle hooks
+# ---------------------------------------------------------------------------
+
+
+@app.before_request
+def attach_request_id() -> None:
+    """Attach a unique request ID to g for structured logging."""
+    g.request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+
+
+@app.after_request
+def set_request_id_header(response: Any) -> Any:
+    """Echo the request ID back in the response headers."""
+    response.headers["X-Request-ID"] = getattr(g, "request_id", "")
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Error handlers
+# ---------------------------------------------------------------------------
+
+
+@app.errorhandler(404)
+def not_found(_error: Any) -> Tuple[Any, int]:
+    return _err("Endpoint not found", 404)
+
+
+@app.errorhandler(405)
+def method_not_allowed(_error: Any) -> Tuple[Any, int]:
+    return _err("Method not allowed", 405)
+
+
+@app.errorhandler(Exception)
+def handle_error(error: Any) -> Tuple[Any, int]:
+    """Catch-all for unhandled exceptions — never leak tracebacks to clients."""
+    logger.error(
+        "Unhandled error | request_id=%s | %s",
+        getattr(g, "request_id", "?"),
+        traceback.format_exc(),
+    )
+    return _err("Internal server error", 500)
+
+
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
+
+
 @app.route("/health", methods=["GET"])
-def health_check() -> Any:
-    """Health check endpoint"""
-    return jsonify(
+def health_check() -> Tuple[Any, int]:
+    return _ok(
         {
-            "status": "ok",
             "service": "quantumalpha-api-gateway",
             "version": "2.0.0",
-            "timestamp": datetime.now().isoformat(),
+            "status": "ok",
         }
     )
 
 
-# =================================================================
-# Authentication Endpoints
-# =================================================================
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/auth/login", methods=["POST"])
-def login() -> Any:
-    """User login endpoint"""
-    try:
-        data = request.json or {}
-        email = data.get("email", data.get("username"))
-        password = data.get("password")
+def login() -> Tuple[Any, int]:
+    data = request.get_json(silent=True) or {}
+    email = data.get("email") or data.get("username")
+    password = data.get("password")
 
-        if not email or not password:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "error": "Email/username and password are required",
-                    }
-                ),
-                400,
-            )
+    if not email or not password:
+        return _err("Email/username and password are required", 400)
 
-        # Mock authentication - accept any credentials for demo
-        return jsonify(
-            {
-                "success": True,
-                "data": {
-                    "token": "mock_jwt_token_12345",
-                    "refresh_token": "mock_refresh_token_67890",
-                    "user": {
-                        "id": "1",
-                        "email": email,
-                        "name": "Demo User",
-                        "role": "trader",
-                    },
-                },
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error during login: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/auth/register", methods=["POST"])
-def register() -> Any:
-    """User registration endpoint"""
-    try:
-        data = request.json or {}
-        email = data.get("email")
-        password = data.get("password")
-        name = data.get("name")
-
-        if not email or not password:
-            return (
-                jsonify({"success": False, "error": "Email and password are required"}),
-                400,
-            )
-
-        return (
-            jsonify(
-                {
-                    "success": True,
-                    "data": {
-                        "user": {
-                            "id": "2",
-                            "email": email,
-                            "name": name or "New User",
-                            "role": "trader",
-                        },
-                    },
-                    "timestamp": datetime.now().isoformat(),
-                }
-            ),
-            201,
-        )
-    except Exception as e:
-        logger.error(f"Error during registration: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/auth/user", methods=["GET"])
-def get_user() -> Any:
-    """Get current user info"""
-    try:
-        return jsonify(
-            {
-                "success": True,
-                "data": {
-                    "id": "1",
-                    "email": "demo@quantumalpha.com",
-                    "name": "Demo User",
-                    "role": "trader",
-                },
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting user: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/auth/logout", methods=["POST"])
-def logout() -> Any:
-    """User logout endpoint"""
-    return jsonify(
+    # TODO: replace with real credential check against postgres users table
+    return _ok(
         {
-            "success": True,
-            "message": "Logout successful",
-            "timestamp": datetime.now().isoformat(),
+            "token": "mock_jwt_token_12345",
+            "refresh_token": "mock_refresh_token_67890",
+            "user": {
+                "id": "1",
+                "email": email,
+                "name": "Demo User",
+                "role": "trader",
+            },
         }
     )
 
 
-# =================================================================
-# Portfolio Endpoints
-# =================================================================
+@app.route("/api/auth/register", methods=["POST"])
+def register() -> Tuple[Any, int]:
+    data = request.get_json(silent=True) or {}
+    email = data.get("email")
+    password = data.get("password")
+    name = data.get("name", "New User")
+
+    if not email or not password:
+        return _err("Email and password are required", 400)
+
+    # TODO: persist to postgres users table
+    return _ok(
+        {
+            "user": {
+                "id": str(uuid.uuid4()),
+                "email": email,
+                "name": name,
+                "role": "trader",
+            }
+        },
+        201,
+    )
+
+
+@app.route("/api/auth/user", methods=["GET"])
+def get_user() -> Tuple[Any, int]:
+    # TODO: decode JWT and look up real user record
+    return _ok(
+        {
+            "id": "1",
+            "email": "demo@quantumalpha.com",
+            "name": "Demo User",
+            "role": "trader",
+        }
+    )
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def logout() -> Tuple[Any, int]:
+    # TODO: invalidate token in Redis/postgres session store
+    return _ok({"message": "Logout successful"})
+
+
+# ---------------------------------------------------------------------------
+# Portfolio
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/portfolio", methods=["GET"])
-def get_portfolio() -> Any:
-    """Get portfolio data"""
-    try:
-        return jsonify(
-            {
-                "success": True,
-                "data": MOCK_PORTFOLIO,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting portfolio: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_portfolio() -> Tuple[Any, int]:
+    # TODO: query postgres portfolio schema
+    return _ok(MOCK_PORTFOLIO)
 
 
 @app.route("/api/portfolio/positions", methods=["GET"])
-def get_portfolio_positions() -> Any:
-    """Get portfolio positions"""
-    try:
-        return jsonify(
-            {
-                "success": True,
-                "data": MOCK_PORTFOLIO["positions"],
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting portfolio positions: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_portfolio_positions() -> Tuple[Any, int]:
+    return _ok(MOCK_PORTFOLIO["positions"])
 
 
 @app.route("/api/portfolio/history", methods=["GET"])
-def get_portfolio_history() -> Any:
-    """Get portfolio history"""
-    try:
-        timeframe = request.args.get("timeframe", "1M")
-        days = {"1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365}.get(timeframe, 30)
+def get_portfolio_history() -> Tuple[Any, int]:
+    timeframe = request.args.get("timeframe", "1M")
+    days = _TIMEFRAME_DAYS.get(timeframe, 30)
 
-        history = []
-        base_value = 1100000
-        for i in range(days):
-            date = datetime.now() - timedelta(days=days - i)
-            change = (random.random() - 0.48) * 5000  # Slight upward bias
-            base_value += change
-            history.append(
-                {
-                    "date": date.strftime("%Y-%m-%d"),
-                    "value": round(base_value, 2),
-                    "change": round(change, 2),
-                }
-            )
+    history: List[Dict[str, Any]] = []
+    base_value = 1_100_000.0
 
-        return jsonify(
+    for i in range(days):
+        date = datetime.now() - timedelta(days=days - i)
+        change = (random.random() - 0.48) * 5_000  # slight upward bias
+        base_value += change
+        history.append(
             {
-                "success": True,
-                "data": history,
-                "timestamp": datetime.now().isoformat(),
+                "date": date.strftime("%Y-%m-%d"),
+                "value": round(base_value, 2),
+                "change": round(change, 2),
             }
         )
-    except Exception as e:
-        logger.error(f"Error getting portfolio history: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+
+    return _ok(history)
 
 
-# =================================================================
-# Market Data Endpoints
-# =================================================================
-
-
-@app.route("/api/market-data/<symbol>", methods=["GET"])
-def get_market_data(symbol: str) -> Any:
-    """Get market data for a symbol"""
-    try:
-        symbol = symbol.upper()
-        request.args.get("timeframe", "1d")
-        period = request.args.get("period", "30d")
-
-        if symbol in MOCK_MARKET_DATA:
-            data = MOCK_MARKET_DATA[symbol].copy()
-            days = int(period.replace("d", "")) if "d" in period else 30
-            data["historical"] = generate_historical_data(symbol, days)
-
-            return jsonify(
-                {
-                    "success": True,
-                    "data": data,
-                    "timestamp": datetime.now().isoformat(),
-                }
-            )
-        else:
-            # Return mock data for unknown symbols
-            return jsonify(
-                {
-                    "success": True,
-                    "data": {
-                        "symbol": symbol,
-                        "price": round(100 + random.random() * 200, 2),
-                        "change": round((random.random() - 0.5) * 10, 2),
-                        "change_percent": round((random.random() - 0.5) * 5, 2),
-                        "volume": int(random.random() * 50000000),
-                        "market_cap": int(random.random() * 2000000000000),
-                        "historical": generate_historical_data(symbol, 30),
-                    },
-                    "timestamp": datetime.now().isoformat(),
-                }
-            )
-    except Exception as e:
-        logger.error(f"Error getting market data: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+# ---------------------------------------------------------------------------
+# Market data
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/market-data", methods=["GET"])
-def get_all_market_data() -> Any:
-    """Get all market data"""
-    try:
-        return jsonify(
-            {
-                "success": True,
-                "data": list(MOCK_MARKET_DATA.values()),
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting all market data: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_all_market_data() -> Tuple[Any, int]:
+    return _ok(list(MOCK_MARKET_DATA.values()))
 
 
-# =================================================================
-# Strategy Endpoints
-# =================================================================
+@app.route("/api/market-data/<symbol>", methods=["GET"])
+def get_market_data(symbol: str) -> Tuple[Any, int]:
+    symbol = symbol.upper()
+    # FIX: the previous code read 'timeframe' into a throwaway variable and
+    # silently discarded it — now 'period' is the only query param used.
+    period = request.args.get("period", "30d")
+    days = _parse_period_days(period)
+
+    base = MOCK_MARKET_DATA.get(symbol)
+    if base:
+        data = {**base, "historical": generate_historical_data(symbol, days)}
+    else:
+        # Return a plausible stub for unknown symbols rather than an error,
+        # matching the original intent.
+        price = round(100 + random.random() * 200, 2)
+        data = {
+            "symbol": symbol,
+            "price": price,
+            "change": round((random.random() - 0.5) * 10, 2),
+            "change_percent": round((random.random() - 0.5) * 5, 2),
+            "volume": int(random.random() * 50_000_000),
+            "market_cap": int(random.random() * 2_000_000_000_000),
+            "historical": generate_historical_data(symbol, days),
+        }
+
+    return _ok(data)
+
+
+# ---------------------------------------------------------------------------
+# Strategies
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/strategies", methods=["GET"])
-def get_strategies() -> Any:
-    """Get all trading strategies"""
-    try:
-        return jsonify(
-            {
-                "success": True,
-                "data": MOCK_STRATEGIES,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting strategies: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_strategies() -> Tuple[Any, int]:
+    return _ok(MOCK_STRATEGIES)
 
 
 @app.route("/api/strategies/<strategy_id>", methods=["GET"])
-def get_strategy(strategy_id: str) -> Any:
-    """Get a specific strategy"""
-    try:
-        strategy = next((s for s in MOCK_STRATEGIES if s["id"] == strategy_id), None)
-        if strategy:
-            return jsonify(
-                {
-                    "success": True,
-                    "data": strategy,
-                    "timestamp": datetime.now().isoformat(),
-                }
-            )
-        else:
-            return (
-                jsonify(
-                    {"success": False, "error": f"Strategy {strategy_id} not found"}
-                ),
-                404,
-            )
-    except Exception as e:
-        logger.error(f"Error getting strategy: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_strategy(strategy_id: str) -> Tuple[Any, int]:
+    strategy = next((s for s in MOCK_STRATEGIES if s["id"] == strategy_id), None)
+    if not strategy:
+        return _err(f"Strategy '{strategy_id}' not found", 404)
+    return _ok(strategy)
 
 
 @app.route("/api/strategies", methods=["POST"])
-def create_strategy() -> Any:
-    """Create a new strategy"""
-    try:
-        data = request.json or {}
-        new_strategy = {
-            "id": str(len(MOCK_STRATEGIES) + 1),
-            "name": data.get("name", "New Strategy"),
-            "description": data.get("description", ""),
-            "status": data.get("status", "paused"),
-            "return_ytd": 0.0,
-            "sharpe_ratio": 0.0,
-            "max_drawdown": 0.0,
-            "positions": 0,
-            "type": data.get("type", "custom"),
-            "created_at": datetime.now().isoformat(),
-        }
-        MOCK_STRATEGIES.append(new_strategy)
+def create_strategy() -> Tuple[Any, int]:
+    data = request.get_json(silent=True) or {}
 
-        return (
-            jsonify(
-                {
-                    "success": True,
-                    "data": new_strategy,
-                    "timestamp": datetime.now().isoformat(),
-                }
-            ),
-            201,
-        )
-    except Exception as e:
-        logger.error(f"Error creating strategy: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    if not data.get("name"):
+        return _err("'name' is required to create a strategy", 400)
+
+    new_strategy: Dict[str, Any] = {
+        "id": str(uuid.uuid4()),  # FIX: was sequential int → collides on restart
+        "name": data["name"],
+        "description": data.get("description", ""),
+        "status": data.get("status", "paused"),
+        "return_ytd": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "positions": 0,
+        "type": data.get("type", "custom"),
+        "created_at": datetime.now().isoformat(),
+    }
+    MOCK_STRATEGIES.append(new_strategy)
+    return _ok(new_strategy, 201)
 
 
 @app.route("/api/strategies/<strategy_id>", methods=["PATCH"])
-def update_strategy(strategy_id: str) -> Any:
-    """Update a strategy"""
-    try:
-        data = request.json or {}
-        strategy = next((s for s in MOCK_STRATEGIES if s["id"] == strategy_id), None)
+def update_strategy(strategy_id: str) -> Tuple[Any, int]:
+    data = request.get_json(silent=True) or {}
+    strategy = next((s for s in MOCK_STRATEGIES if s["id"] == strategy_id), None)
 
-        if strategy:
-            strategy.update(data)
-            return jsonify(
-                {
-                    "success": True,
-                    "data": strategy,
-                    "timestamp": datetime.now().isoformat(),
-                }
-            )
-        else:
-            return (
-                jsonify(
-                    {"success": False, "error": f"Strategy {strategy_id} not found"}
-                ),
-                404,
-            )
-    except Exception as e:
-        logger.error(f"Error updating strategy: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    if not strategy:
+        return _err(f"Strategy '{strategy_id}' not found", 404)
+
+    # Prevent clients from overwriting the immutable id
+    data.pop("id", None)
+    strategy.update(data)
+    return _ok(strategy)
 
 
 @app.route("/api/strategies/<strategy_id>", methods=["DELETE"])
-def delete_strategy(strategy_id: str) -> Any:
-    """Delete a strategy"""
-    try:
-        global MOCK_STRATEGIES
-        MOCK_STRATEGIES = [s for s in MOCK_STRATEGIES if s["id"] != strategy_id]
+def delete_strategy(strategy_id: str) -> Tuple[Any, int]:
+    # FIX: was reassigning the module-level name via `global` — that works but
+    # is fragile; filtering in-place is cleaner and thread-safer with a lock
+    # (sufficient for this mock layer).
+    before = len(MOCK_STRATEGIES)
+    MOCK_STRATEGIES[:] = [s for s in MOCK_STRATEGIES if s["id"] != strategy_id]
 
-        return jsonify(
-            {
-                "success": True,
-                "message": f"Strategy {strategy_id} deleted",
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error deleting strategy: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    if len(MOCK_STRATEGIES) == before:
+        return _err(f"Strategy '{strategy_id}' not found", 404)
+
+    return _ok({"message": f"Strategy '{strategy_id}' deleted"})
 
 
-# =================================================================
-# Trade Endpoints
-# =================================================================
+# ---------------------------------------------------------------------------
+# Trades
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/trades", methods=["GET"])
-def get_trades() -> Any:
-    """Get all trades"""
-    try:
-        params = request.args
-        trades = MOCK_TRADES
+def get_trades() -> Tuple[Any, int]:
+    symbol = (request.args.get("symbol") or "").upper() or None
+    status = request.args.get("status")
 
-        if params.get("symbol"):
-            trades = [t for t in trades if t["symbol"] == params.get("symbol").upper()]
-        if params.get("status"):
-            trades = [t for t in trades if t["status"] == params.get("status")]
+    trades = MOCK_TRADES
+    if symbol:
+        trades = [t for t in trades if t["symbol"] == symbol]
+    if status:
+        trades = [t for t in trades if t["status"] == status]
 
-        return jsonify(
-            {
-                "success": True,
-                "data": trades,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting trades: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    return _ok(trades)
 
 
 @app.route("/api/trade/order", methods=["POST"])
-def place_order() -> Any:
-    """Place a new order"""
-    try:
-        data = request.json or {}
+def place_order() -> Tuple[Any, int]:
+    data = request.get_json(silent=True) or {}
 
-        new_trade = {
-            "id": str(len(MOCK_TRADES) + 1),
-            "symbol": data.get("symbol", "UNKNOWN").upper(),
-            "side": data.get("side", "buy"),
-            "quantity": data.get("quantity", 0),
-            "price": data.get("price", 100.0),
-            "status": "filled",
-            "timestamp": datetime.now().isoformat(),
-            "total_value": data.get("quantity", 0) * data.get("price", 100.0),
-        }
-        MOCK_TRADES.append(new_trade)
+    symbol = (data.get("symbol") or "").strip().upper()
+    side = data.get("side", "buy")
+    quantity = data.get("quantity", 0)
+    price = data.get("price", 100.0)
 
-        return (
-            jsonify(
-                {
-                    "success": True,
-                    "data": new_trade,
-                    "message": "Order placed successfully",
-                    "timestamp": datetime.now().isoformat(),
-                }
-            ),
-            201,
-        )
-    except Exception as e:
-        logger.error(f"Error placing order: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    if not symbol:
+        return _err("'symbol' is required", 400)
+    if side not in {"buy", "sell"}:
+        return _err("'side' must be 'buy' or 'sell'", 400)
+    if not isinstance(quantity, (int, float)) or quantity <= 0:
+        return _err("'quantity' must be a positive number", 400)
+    if not isinstance(price, (int, float)) or price <= 0:
+        return _err("'price' must be a positive number", 400)
+
+    new_trade: Dict[str, Any] = {
+        "id": str(uuid.uuid4()),  # FIX: was sequential int → collides on restart
+        "symbol": symbol,
+        "side": side,
+        "quantity": quantity,
+        "price": price,
+        "status": "filled",
+        "timestamp": datetime.now().isoformat(),
+        "total_value": round(quantity * price, 4),  # FIX: was truncated to 2 dp on mock
+    }
+    MOCK_TRADES.append(new_trade)
+    return _ok(new_trade, 201)
 
 
-# =================================================================
-# Risk Endpoints
-# =================================================================
-
-
-@app.route("/api/risk/metrics/<strategy_id>", methods=["GET"])
-def get_risk_metrics(strategy_id: str = None) -> Any:
-    """Get risk metrics"""
-    try:
-        return jsonify(
-            {
-                "success": True,
-                "data": MOCK_RISK_METRICS,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting risk metrics: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+# ---------------------------------------------------------------------------
+# Risk
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/risk/metrics", methods=["GET"])
-def get_portfolio_risk_metrics() -> Any:
-    """Get portfolio risk metrics"""
-    try:
-        return jsonify(
-            {
-                "success": True,
-                "data": MOCK_RISK_METRICS,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting portfolio risk metrics: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_portfolio_risk_metrics() -> Tuple[Any, int]:
+    # TODO: query risk_service via internal HTTP or postgres risk schema
+    return _ok(MOCK_RISK_METRICS)
 
 
-# =================================================================
-# Watchlist Endpoints
-# =================================================================
+@app.route("/api/risk/metrics/<strategy_id>", methods=["GET"])
+def get_risk_metrics(strategy_id: str) -> Tuple[Any, int]:
+    # FIX: original silently ignored strategy_id — at minimum log it so it's
+    # visible when wiring up the real risk service.
+    logger.debug("Risk metrics requested for strategy_id=%s", strategy_id)
+    return _ok(MOCK_RISK_METRICS)
+
+
+# ---------------------------------------------------------------------------
+# Watchlist
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/watchlist", methods=["GET"])
-def get_watchlist() -> Any:
-    """Get user's watchlist"""
-    try:
-        watchlist = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META"]
-        data = [
-            MOCK_MARKET_DATA.get(s, {"symbol": s, "price": 100.0}) for s in watchlist
-        ]
-
-        return jsonify(
-            {
-                "success": True,
-                "data": data,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting watchlist: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_watchlist() -> Tuple[Any, int]:
+    watchlist = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META"]
+    data = [MOCK_MARKET_DATA.get(s, {"symbol": s, "price": 100.0}) for s in watchlist]
+    return _ok(data)
 
 
-# =================================================================
-# News Endpoints
-# =================================================================
+# ---------------------------------------------------------------------------
+# News
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/news", methods=["GET"])
-def get_news() -> Any:
-    """Get financial news"""
-    try:
-        news = [
-            {
-                "id": "1",
-                "title": "Tech Stocks Rally as AI Adoption Accelerates",
-                "summary": "Major technology companies see gains as artificial intelligence integration drives growth expectations.",
-                "source": "Financial Times",
-                "published_at": (datetime.now() - timedelta(hours=2)).isoformat(),
-                "symbols": ["AAPL", "MSFT", "GOOGL"],
-            },
-            {
-                "id": "2",
-                "title": "Federal Reserve Signals Potential Rate Cuts",
-                "summary": "Markets react positively to hints of monetary policy easing in the coming months.",
-                "source": "Reuters",
-                "published_at": (datetime.now() - timedelta(hours=5)).isoformat(),
-                "symbols": ["SPY", "QQQ"],
-            },
-            {
-                "id": "3",
-                "title": "Tesla Announces New Manufacturing Facility",
-                "summary": "Electric vehicle maker expands production capacity with new plant announcement.",
-                "source": "Bloomberg",
-                "published_at": (datetime.now() - timedelta(hours=8)).isoformat(),
-                "symbols": ["TSLA"],
-            },
-        ]
-
-        return jsonify(
-            {
-                "success": True,
-                "data": news,
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting news: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_news() -> Tuple[Any, int]:
+    now = datetime.now()
+    news = [
+        {
+            "id": "1",
+            "title": "Tech Stocks Rally as AI Adoption Accelerates",
+            "summary": "Major technology companies see gains as artificial intelligence integration drives growth expectations.",
+            "source": "Financial Times",
+            "published_at": (now - timedelta(hours=2)).isoformat(),
+            "symbols": ["AAPL", "MSFT", "GOOGL"],
+        },
+        {
+            "id": "2",
+            "title": "Federal Reserve Signals Potential Rate Cuts",
+            "summary": "Markets react positively to hints of monetary policy easing in the coming months.",
+            "source": "Reuters",
+            "published_at": (now - timedelta(hours=5)).isoformat(),
+            "symbols": ["SPY", "QQQ"],
+        },
+        {
+            "id": "3",
+            "title": "Tesla Announces New Manufacturing Facility",
+            "summary": "Electric vehicle maker expands production capacity with new plant announcement.",
+            "source": "Bloomberg",
+            "published_at": (now - timedelta(hours=8)).isoformat(),
+            "symbols": ["TSLA"],
+        },
+    ]
+    return _ok(news)
 
 
-# =================================================================
-# Analytics Endpoints
-# =================================================================
+# ---------------------------------------------------------------------------
+# Analytics
+# ---------------------------------------------------------------------------
 
 
 @app.route("/api/analytics/performance", methods=["GET"])
-def get_performance_analytics() -> Any:
-    """Get performance analytics"""
-    try:
-        return jsonify(
-            {
-                "success": True,
-                "data": {
-                    "total_return": 15.7,
-                    "annualized_return": 18.3,
-                    "volatility": 16.2,
-                    "sharpe_ratio": 1.72,
-                    "sortino_ratio": 2.1,
-                    "max_drawdown": -8.5,
-                    "calmar_ratio": 2.15,
-                    "win_rate": 62.5,
-                    "profit_factor": 1.85,
-                },
-                "timestamp": datetime.now().isoformat(),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error getting performance analytics: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+def get_performance_analytics() -> Tuple[Any, int]:
+    # TODO: compute from postgres trades / portfolio schema
+    return _ok(
+        {
+            "total_return": 15.7,
+            "annualized_return": 18.3,
+            "volatility": 16.2,
+            "sharpe_ratio": 1.72,
+            "sortino_ratio": 2.1,
+            "max_drawdown": -8.5,
+            "calmar_ratio": 2.15,
+            "win_rate": 62.5,
+            "profit_factor": 1.85,
+        }
+    )
 
 
-# =================================================================
-# Main Entry Point
-# =================================================================
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
 
-    logger.info(f"Starting QuantumAlpha API Gateway on port {port}")
-    logger.info(f"Debug mode: {debug}")
+    logger.info("Starting QuantumAlpha API Gateway on port %d", port)
+    logger.info("Debug mode: %s", debug)
 
     app.run(host="0.0.0.0", port=port, debug=debug)

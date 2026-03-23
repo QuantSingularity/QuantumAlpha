@@ -7,12 +7,13 @@ import html
 import re
 from decimal import Decimal, InvalidOperation
 from functools import wraps
-from typing import Any, Union
+from typing import Any, Dict, Optional, Type, Union
 
 import bleach
 import structlog
 from flask import jsonify, request
-from marshmallow import Schema, ValidationError, fields, pre_load, validate
+from marshmallow import Schema, ValidationError as MarshmallowValidationError
+from marshmallow import fields, pre_load, validate
 from marshmallow.decorators import validates, validates_schema
 
 logger = structlog.get_logger(__name__)
@@ -267,7 +268,7 @@ class BaseSchema(Schema):
                 try:
                     SecurityValidator.validate_safe_string(value, field)
                 except ValidationError as e:
-                    raise ValidationError({field: e.message})
+                    raise MarshmallowValidationError({field: e.message})
 
 
 class UserRegistrationSchema(BaseSchema):
@@ -293,7 +294,7 @@ class UserRegistrationSchema(BaseSchema):
     @validates("terms_accepted")
     def validate_terms(self, value: Any) -> None:
         if not value:
-            raise ValidationError("Terms and conditions must be accepted")
+            raise MarshmallowValidationError("Terms and conditions must be accepted")
 
 
 class UserLoginSchema(BaseSchema):
@@ -352,13 +353,15 @@ class OrderSchema(BaseSchema):
         price = data.get("price")
         stop_price = data.get("stop_price")
         if order_type in ["limit", "stop_limit"] and price is None:
-            raise ValidationError({"price": "Price is required for limit orders"})
+            raise MarshmallowValidationError(
+                {"price": "Price is required for limit orders"}
+            )
         if order_type in ["stop", "stop_limit"] and stop_price is None:
-            raise ValidationError(
+            raise MarshmallowValidationError(
                 {"stop_price": "Stop price is required for stop orders"}
             )
         if order_type == "market" and price is not None:
-            raise ValidationError(
+            raise MarshmallowValidationError(
                 {"price": "Price should not be specified for market orders"}
             )
 
@@ -384,13 +387,105 @@ class PortfolioSchema(BaseSchema):
     @validates("initial_cash")
     def validate_initial_cash_value(self, value: Any) -> None:
         if value <= 0:
-            raise ValidationError("Initial cash must be positive")
+            raise MarshmallowValidationError("Initial cash must be positive")
         if value > 1000000000:
-            raise ValidationError("Initial cash cannot exceed $1 billion")
+            raise MarshmallowValidationError("Initial cash cannot exceed $1 billion")
         return value
 
 
-def validate_json(schema_class: Schema) -> None:
+def validate_schema(
+    data: Dict[str, Any],
+    schema: Type[Schema],
+    partial: bool = False,
+    context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Validate and deserialize a data dict against a Marshmallow schema class.
+
+    This is the primary entry point used by common/__init__.py and all
+    microservices that need programmatic (non-decorator) schema validation.
+
+    Args:
+        data:    Raw input dict to validate (e.g. request payload, DB row).
+        schema:  A Marshmallow Schema *class* (not an instance) to validate
+                 against.  All built-in schemas in this module are accepted,
+                 as are any custom subclasses of BaseSchema.
+        partial: When True, required-field checks are skipped — useful for
+                 PATCH/partial-update endpoints.
+        context: Optional dict passed through to the schema as
+                 ``schema.context``; handy for cross-field rules that need
+                 request-level state (e.g. the current user).
+
+    Returns:
+        A dict of validated, deserialized field values as produced by
+        ``schema.load()``.
+
+    Raises:
+        ValidationError: (the *custom* one defined above, NOT Marshmallow's)
+            raised with a human-readable ``message`` and ``field`` set to
+            ``"__all__"`` when the schema reports errors, so callers only
+            ever need to catch one exception type.
+
+    Example::
+
+        from common.validation import validate_schema, OrderSchema
+
+        validated = validate_schema(request.get_json(), OrderSchema)
+        place_order(validated["symbol"], validated["quantity"])
+    """
+    if not isinstance(data, dict):
+        raise ValidationError(
+            "Input data must be a JSON object (dict).",
+            field="__all__",
+            code="invalid_type",
+        )
+
+    try:
+        instance = schema(partial=partial)
+        if context:
+            instance.context.update(context)
+        return instance.load(data)
+    except MarshmallowValidationError as exc:
+        # Flatten Marshmallow's nested error dict into a single readable string
+        # while preserving the raw details on the exception for callers that
+        # want to inspect them.
+        flat_errors = _flatten_marshmallow_errors(exc.messages)
+        err = ValidationError(
+            message=f"Validation failed: {flat_errors}",
+            field="__all__",
+            code="schema_validation_error",
+        )
+        # Attach the original structured messages for introspection
+        err.details = exc.messages
+        raise err
+
+
+def _flatten_marshmallow_errors(errors: Any, prefix: str = "") -> str:
+    """
+    Recursively flatten Marshmallow's nested error dict/list into a
+    comma-separated string suitable for log messages and API error responses.
+
+    Examples
+    --------
+    {"email": ["Not a valid email."]}
+        -> "email: Not a valid email."
+    {"price": {"amount": ["Must be greater than 0."]}}
+        -> "price.amount: Must be greater than 0."
+    """
+    parts = []
+    if isinstance(errors, dict):
+        for field, messages in errors.items():
+            child_prefix = f"{prefix}.{field}" if prefix else field
+            parts.append(_flatten_marshmallow_errors(messages, child_prefix))
+    elif isinstance(errors, list):
+        joined = "; ".join(str(m) for m in errors)
+        parts.append(f"{prefix}: {joined}" if prefix else joined)
+    else:
+        parts.append(f"{prefix}: {errors}" if prefix else str(errors))
+    return ", ".join(filter(None, parts))
+
+
+def validate_json(schema_class: Type[Schema]) -> None:
     """Decorator to validate JSON request data"""
 
     def decorator(func):
@@ -406,18 +501,26 @@ def validate_json(schema_class: Schema) -> None:
                 json_data = request.get_json()
                 if json_data is None:
                     return (jsonify({"error": "Invalid JSON data"}), 400)
-                schema = schema_class()
-                validated_data = schema.load(json_data)
+                validated_data = validate_schema(json_data, schema_class)
                 kwargs["validated_data"] = validated_data
                 return func(*args, **kwargs)
             except ValidationError as e:
-                logger.warning(f"Validation error: {e.messages}")
+                logger.warning(
+                    "Validation error",
+                    message=e.message,
+                    details=getattr(e, "details", None),
+                )
                 return (
-                    jsonify({"error": "Validation failed", "details": e.messages}),
+                    jsonify(
+                        {
+                            "error": "Validation failed",
+                            "details": getattr(e, "details", e.message),
+                        }
+                    ),
                     400,
                 )
             except Exception as e:
-                logger.error(f"Validation decorator error: {e}")
+                logger.error("Validation decorator error", error=str(e))
                 return (jsonify({"error": "Internal validation error"}), 500)
 
         return wrapper
@@ -454,7 +557,7 @@ def validate_query_params(**param_validators) -> None:
                     400,
                 )
             except Exception as e:
-                logger.error(f"Query validation error: {e}")
+                logger.error("Query validation error", error=str(e))
                 return (jsonify({"error": "Internal validation error"}), 500)
 
         return wrapper
@@ -490,7 +593,7 @@ class RateLimitValidator:
             self.redis.incr(key)
             return True
         except Exception as e:
-            logger.error(f"Rate limit check error: {e}")
+            logger.error("Rate limit check error", error=str(e))
             return True
 
 
@@ -517,15 +620,302 @@ def sanitize_search_query(query: str) -> str:
     return query.strip()
 
 
+# =============================================================================
+# Service Request Schemas
+# Used by data_service, execution_service, risk_service, and ai_engine to
+# validate inbound API request payloads via validate_schema().
+# =============================================================================
+
+
+class MarketDataRequest(BaseSchema):
+    """
+    Validates requests to the data_service market-data endpoints.
+
+    Used by:
+        from common.validation import MarketDataRequest
+    """
+
+    symbol = fields.Str(
+        required=True,
+        validate=validate.Length(min=1, max=20),
+    )
+    timeframe = fields.Str(
+        required=False,
+        validate=validate.OneOf(["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]),
+        load_default="1d",
+    )
+    # ISO-8601 date strings; validated further in validates_schema
+    start_date = fields.DateTime(required=False, allow_none=True, load_default=None)
+    end_date = fields.DateTime(required=False, allow_none=True, load_default=None)
+    # Convenience shorthand: "7d", "30d", "90d", "1y" etc.
+    period = fields.Str(
+        required=False,
+        validate=validate.Regexp(
+            r"^\d+[dwmy]$", error="period must match pattern e.g. '30d', '3m', '1y'"
+        ),
+        load_default=None,
+    )
+    limit = fields.Int(
+        required=False,
+        validate=validate.Range(min=1, max=5000),
+        load_default=500,
+    )
+
+    @validates("symbol")
+    def validate_symbol_field(self, value: Any) -> None:
+        return FinancialValidator.validate_symbol(value)
+
+    @validates_schema
+    def validate_date_range(self, data: Any, **kwargs) -> None:
+        start = data.get("start_date")
+        end = data.get("end_date")
+        if start and end and end <= start:
+            raise MarshmallowValidationError(
+                {"end_date": "end_date must be after start_date"}
+            )
+
+
+class OrderRequest(BaseSchema):
+    """
+    Validates new-order payloads sent to the execution_service.
+
+    Used by:
+        from common.validation import OrderRequest
+    """
+
+    portfolio_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
+    symbol = fields.Str(required=True, validate=validate.Length(min=1, max=20))
+    side = fields.Str(
+        required=True,
+        validate=validate.OneOf(["buy", "sell"]),
+    )
+    order_type = fields.Str(
+        required=True,
+        validate=validate.OneOf(["market", "limit", "stop", "stop_limit"]),
+    )
+    quantity = fields.Decimal(required=True, places=8)
+    price = fields.Decimal(required=False, places=8, allow_none=True)
+    stop_price = fields.Decimal(required=False, places=8, allow_none=True)
+    time_in_force = fields.Str(
+        required=False,
+        validate=validate.OneOf(["day", "gtc", "ioc", "fok"]),
+        load_default="day",
+    )
+    # Optional broker routing hint
+    broker_account_id = fields.Str(required=False, allow_none=True, load_default=None)
+
+    @validates("symbol")
+    def validate_symbol_field(self, value: Any) -> None:
+        return FinancialValidator.validate_symbol(value)
+
+    @validates("quantity")
+    def validate_quantity_field(self, value: Any) -> None:
+        return FinancialValidator.validate_quantity(value)
+
+    @validates("price")
+    def validate_price_field(self, value: Any) -> None:
+        if value is not None:
+            return FinancialValidator.validate_price(value)
+
+    @validates("stop_price")
+    def validate_stop_price_field(self, value: Any) -> None:
+        if value is not None:
+            return FinancialValidator.validate_price(value)
+
+    @validates_schema
+    def validate_order_fields(self, data: Any, **kwargs) -> None:
+        order_type = data.get("order_type")
+        price = data.get("price")
+        stop_price = data.get("stop_price")
+        if order_type in ["limit", "stop_limit"] and price is None:
+            raise MarshmallowValidationError(
+                {"price": "price is required for limit / stop-limit orders"}
+            )
+        if order_type in ["stop", "stop_limit"] and stop_price is None:
+            raise MarshmallowValidationError(
+                {"stop_price": "stop_price is required for stop / stop-limit orders"}
+            )
+        if order_type == "market" and price is not None:
+            raise MarshmallowValidationError(
+                {"price": "price must not be set for market orders"}
+            )
+
+
+class CancelOrderRequest(BaseSchema):
+    """
+    Validates order-cancellation requests sent to the execution_service.
+
+    Used by:
+        from common.validation import CancelOrderRequest
+    """
+
+    order_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
+    reason = fields.Str(
+        required=False,
+        validate=validate.Length(max=255),
+        load_default=None,
+        allow_none=True,
+    )
+
+    @validates("order_id")
+    def validate_order_id_safety(self, value: Any) -> None:
+        return SecurityValidator.validate_safe_string(value, "order_id")
+
+
+class RiskMetricsRequest(BaseSchema):
+    """
+    Validates requests for portfolio risk-metric calculations in risk_service.
+
+    Used by:
+        from common.validation import RiskMetricsRequest
+    """
+
+    portfolio_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
+    timeframe = fields.Str(
+        required=False,
+        validate=validate.OneOf(["1d", "1w", "1m", "3m", "6m", "1y", "ytd"]),
+        load_default="1m",
+    )
+    # Confidence levels for VaR/CVaR; defaults match standard risk practice
+    confidence_levels = fields.List(
+        fields.Float(validate=validate.Range(min=0.01, max=0.9999)),
+        required=False,
+        load_default=[0.95, 0.99],
+    )
+    include_positions = fields.Bool(required=False, load_default=True)
+
+
+class PositionSizeRequest(BaseSchema):
+    """
+    Validates position-sizing requests in risk_service.
+
+    Used by:
+        from common.validation import PositionSizeRequest
+    """
+
+    portfolio_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
+    symbol = fields.Str(required=True, validate=validate.Length(min=1, max=20))
+    # Either a fixed dollar risk amount OR a percentage of portfolio — one required
+    risk_amount = fields.Decimal(required=False, places=2, allow_none=True)
+    risk_percent = fields.Decimal(
+        required=False,
+        places=4,
+        allow_none=True,
+        validate=validate.Range(min=Decimal("0.0001"), max=Decimal("1.0")),
+    )
+    entry_price = fields.Decimal(required=True, places=8)
+    stop_price = fields.Decimal(required=True, places=8)
+    side = fields.Str(
+        required=False,
+        validate=validate.OneOf(["buy", "sell"]),
+        load_default="buy",
+    )
+
+    @validates("symbol")
+    def validate_symbol_field(self, value: Any) -> None:
+        return FinancialValidator.validate_symbol(value)
+
+    @validates("entry_price")
+    def validate_entry_price(self, value: Any) -> None:
+        return FinancialValidator.validate_price(value)
+
+    @validates("stop_price")
+    def validate_stop_price(self, value: Any) -> None:
+        return FinancialValidator.validate_price(value)
+
+    @validates_schema
+    def validate_risk_input(self, data: Any, **kwargs) -> None:
+        if data.get("risk_amount") is None and data.get("risk_percent") is None:
+            raise MarshmallowValidationError(
+                {"risk_amount": "One of risk_amount or risk_percent is required"}
+            )
+        entry = data.get("entry_price")
+        stop = data.get("stop_price")
+        side = data.get("side", "buy")
+        if entry and stop:
+            if side == "buy" and stop >= entry:
+                raise MarshmallowValidationError(
+                    {
+                        "stop_price": "stop_price must be below entry_price for buy orders"
+                    }
+                )
+            if side == "sell" and stop <= entry:
+                raise MarshmallowValidationError(
+                    {
+                        "stop_price": "stop_price must be above entry_price for sell orders"
+                    }
+                )
+
+
+class StressTestRequest(BaseSchema):
+    """
+    Validates stress-test scenario requests in risk_service.
+
+    Used by:
+        from common.validation import StressTestRequest
+    """
+
+    portfolio_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
+    scenario_name = fields.Str(
+        required=True,
+        validate=[
+            validate.Length(min=1, max=100),
+            validate.OneOf(
+                [
+                    "2008_financial_crisis",
+                    "covid_crash_2020",
+                    "dot_com_bubble",
+                    "black_monday_1987",
+                    "custom",
+                ],
+                error="Unknown scenario. Use one of the predefined scenarios or 'custom'.",
+            ),
+        ],
+    )
+    # Arbitrary parameters for custom or parameterised scenarios
+    parameters = fields.Dict(required=False, load_default=None, allow_none=True)
+    # For custom scenarios: per-asset shock percentages keyed by symbol
+    shocks = fields.Dict(
+        keys=fields.Str(),
+        values=fields.Float(validate=validate.Range(min=-1.0, max=10.0)),
+        required=False,
+        load_default=None,
+        allow_none=True,
+    )
+
+    @validates("scenario_name")
+    def validate_scenario_safety(self, value: Any) -> None:
+        return SecurityValidator.validate_safe_string(value, "scenario_name")
+
+    @validates_schema
+    def validate_custom_scenario(self, data: Any, **kwargs) -> None:
+        if data.get("scenario_name") == "custom" and not data.get("shocks"):
+            raise MarshmallowValidationError(
+                {"shocks": "shocks dict is required for custom scenarios"}
+            )
+
+
 __all__ = [
+    # Core exceptions & validators
     "ValidationError",
     "SecurityValidator",
     "FinancialValidator",
     "UserValidator",
+    # Auth schemas
     "UserRegistrationSchema",
     "UserLoginSchema",
+    # Trading schemas
     "OrderSchema",
     "PortfolioSchema",
+    # Service request schemas
+    "MarketDataRequest",
+    "OrderRequest",
+    "CancelOrderRequest",
+    "RiskMetricsRequest",
+    "PositionSizeRequest",
+    "StressTestRequest",
+    # Functions
+    "validate_schema",
     "validate_json",
     "validate_query_params",
     "RateLimitValidator",
