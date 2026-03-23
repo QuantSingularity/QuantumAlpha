@@ -111,7 +111,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    command: ["python", "data_service/app.py"] # FIX: replaced exec(open()) with direct script path
+    command: ["python", "data_service/app.py"]
 
   # ----------------------------------------------------------------
   # AI Engine Service
@@ -144,7 +144,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    command: ["python", "ai_engine/app.py"] # FIX: replaced exec(open()) with direct script path
+    command: ["python", "ai_engine/app.py"]
 
   # ----------------------------------------------------------------
   # Risk Service
@@ -175,7 +175,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    command: ["python", "risk_service/app.py"] # FIX: replaced exec(open()) with direct script path
+    command: ["python", "risk_service/app.py"]
 
   # ----------------------------------------------------------------
   # Execution Service
@@ -206,7 +206,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    command: ["python", "execution_service/app.py"] # FIX: replaced exec(open()) with direct script path
+    command: ["python", "execution_service/app.py"]
 
   # ----------------------------------------------------------------
   # Web Frontend
