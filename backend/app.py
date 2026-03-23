@@ -2,27 +2,6 @@
 QuantumAlpha Backend API Service
 Main API Gateway providing unified access to all backend services
 
-NOTE — Postgres crash fix (NOT in this file):
-  In 01-init-schema.sql, the alternative_data hypertable call fails because
-  TimescaleDB requires the partition key to be part of every unique index.
-  Change the table definition so the primary/unique key includes 'timestamp':
-
-      -- BEFORE (crashes):
-      CREATE TABLE market_data.alternative_data (
-          id          BIGSERIAL PRIMARY KEY,   -- unique index without 'timestamp'
-          ...
-          timestamp   TIMESTAMPTZ NOT NULL
-      );
-      SELECT create_hypertable('market_data.alternative_data', 'timestamp');
-
-      -- AFTER (works):
-      CREATE TABLE market_data.alternative_data (
-          id          BIGINT      NOT NULL,
-          ...
-          timestamp   TIMESTAMPTZ NOT NULL,
-          PRIMARY KEY (id, timestamp)          -- 'timestamp' included
-      );
-      SELECT create_hypertable('market_data.alternative_data', 'timestamp');
 """
 
 import logging
@@ -551,8 +530,6 @@ def get_all_market_data() -> Tuple[Any, int]:
 @app.route("/api/market-data/<symbol>", methods=["GET"])
 def get_market_data(symbol: str) -> Tuple[Any, int]:
     symbol = symbol.upper()
-    # FIX: the previous code read 'timeframe' into a throwaway variable and
-    # silently discarded it — now 'period' is the only query param used.
     period = request.args.get("period", "30d")
     days = _parse_period_days(period)
 
@@ -602,7 +579,7 @@ def create_strategy() -> Tuple[Any, int]:
         return _err("'name' is required to create a strategy", 400)
 
     new_strategy: Dict[str, Any] = {
-        "id": str(uuid.uuid4()),  # FIX: was sequential int → collides on restart
+        "id": str(uuid.uuid4()),
         "name": data["name"],
         "description": data.get("description", ""),
         "status": data.get("status", "paused"),
@@ -633,9 +610,7 @@ def update_strategy(strategy_id: str) -> Tuple[Any, int]:
 
 @app.route("/api/strategies/<strategy_id>", methods=["DELETE"])
 def delete_strategy(strategy_id: str) -> Tuple[Any, int]:
-    # FIX: was reassigning the module-level name via `global` — that works but
-    # is fragile; filtering in-place is cleaner and thread-safer with a lock
-    # (sufficient for this mock layer).
+
     before = len(MOCK_STRATEGIES)
     MOCK_STRATEGIES[:] = [s for s in MOCK_STRATEGIES if s["id"] != strategy_id]
 
@@ -683,14 +658,14 @@ def place_order() -> Tuple[Any, int]:
         return _err("'price' must be a positive number", 400)
 
     new_trade: Dict[str, Any] = {
-        "id": str(uuid.uuid4()),  # FIX: was sequential int → collides on restart
+        "id": str(uuid.uuid4()),
         "symbol": symbol,
         "side": side,
         "quantity": quantity,
         "price": price,
         "status": "filled",
         "timestamp": datetime.now().isoformat(),
-        "total_value": round(quantity * price, 4),  # FIX: was truncated to 2 dp on mock
+        "total_value": round(quantity * price, 4),
     }
     MOCK_TRADES.append(new_trade)
     return _ok(new_trade, 201)
@@ -709,7 +684,6 @@ def get_portfolio_risk_metrics() -> Tuple[Any, int]:
 
 @app.route("/api/risk/metrics/<strategy_id>", methods=["GET"])
 def get_risk_metrics(strategy_id: str) -> Tuple[Any, int]:
-    # FIX: original silently ignored strategy_id — at minimum log it so it's
     # visible when wiring up the real risk service.
     logger.debug("Risk metrics requested for strategy_id=%s", strategy_id)
     return _ok(MOCK_RISK_METRICS)

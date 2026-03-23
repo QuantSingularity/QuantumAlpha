@@ -11,26 +11,18 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-# ---------------------------------------------------------------------------
-# gymnasium / gym compatibility shim
-# ---------------------------------------------------------------------------
-# OpenAI Gym was renamed to Gymnasium in 2023.  stable-baselines3 >= 2.0
-# requires gymnasium; older versions used gym.  We import whichever is
-# available so the service starts regardless of what is installed, then
-# normalise the step() return value (gymnasium returns 5-tuple; gym returns
-# 4-tuple) in TradingEnvironment.step().
-# ---------------------------------------------------------------------------
+
 try:
     import gymnasium as gym
     from gymnasium import spaces
 
-    _GYM_TUPLE_LEN = 5  # (obs, reward, terminated, truncated, info)
+    _GYM_TUPLE_LEN = 5
     _USING_GYMNASIUM = True
 except ImportError:
-    import gym  # type: ignore[no-redef]
-    from gym import spaces  # type: ignore[no-redef]
+    import gym
+    from gym import spaces
 
-    _GYM_TUPLE_LEN = 4  # (obs, reward, done, info)
+    _GYM_TUPLE_LEN = 4
     _USING_GYMNASIUM = False
 
 import numpy as np
@@ -43,12 +35,9 @@ from stable_baselines3.common.evaluation import evaluate_policy
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common import NotFoundError, ServiceError, ValidationError, setup_logger
 
-# FIX: original code created two loggers and let the second (structlog) shadow
-# the first (setup_logger).  Use only setup_logger so log config is consistent
-# with the rest of the ai-engine.
+
 logger = setup_logger("reinforcement_learning", logging.INFO)
 
-# Algorithms supported and their stable-baselines3 classes
 _ALGORITHM_MAP: Dict[str, Any] = {
     "ppo": PPO,
     "a2c": A2C,
@@ -78,7 +67,7 @@ class TradingEnvironment(gym.Env):
         self.initial_balance = initial_balance
         self.transaction_fee = transaction_fee
 
-        n_features = df.shape[1] + 3  # market cols + balance, position, pos_value
+        n_features = df.shape[1] + 3
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(n_features,), dtype=np.float32
@@ -176,8 +165,7 @@ class TradingEnvironment(gym.Env):
         info: Dict[str, Any] = {}
 
         if _USING_GYMNASIUM:
-            return obs, reward, terminated, False, info  # truncated=False
-        # Legacy gym 4-tuple
+            return obs, reward, terminated, False, info
         return obs, reward, terminated, info
 
     def render(self, mode: str = "human") -> None:
@@ -379,8 +367,6 @@ class ReinforcementLearningService:
         clean_data = data.dropna()
         AlgoClass = _ALGORITHM_MAP[algorithm]
 
-        # FIX: DQN requires a plain (non-vectorised) env for some SB3 versions,
-        # but DummyVecEnv is safe for all four algorithms — wrap consistently.
         env = DummyVecEnv(
             [lambda: TradingEnvironment(clean_data, initial_balance, transaction_fee)]
         )
