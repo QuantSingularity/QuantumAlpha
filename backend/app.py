@@ -510,7 +510,7 @@ def get_market_data(symbol: str) -> Any:
     """Get market data for a symbol"""
     try:
         symbol = symbol.upper()
-        timeframe = request.args.get("timeframe", "1d")
+        request.args.get("timeframe", "1d")
         period = request.args.get("period", "30d")
 
         if symbol in MOCK_MARKET_DATA:

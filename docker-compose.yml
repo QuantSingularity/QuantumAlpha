@@ -15,7 +15,11 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-quantumalpha_user} -d ${DB_NAME:-quantumalpha_db}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-quantumalpha_user} -d ${DB_NAME:-quantumalpha_db}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -107,7 +111,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    command: ["python", "data_service/app.py"]  # FIX: replaced exec(open()) with direct script path
+    command: ["python", "data_service/app.py"] # FIX: replaced exec(open()) with direct script path
 
   # ----------------------------------------------------------------
   # AI Engine Service
@@ -140,7 +144,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    command: ["python", "ai_engine/app.py"]  # FIX: replaced exec(open()) with direct script path
+    command: ["python", "ai_engine/app.py"] # FIX: replaced exec(open()) with direct script path
 
   # ----------------------------------------------------------------
   # Risk Service
@@ -171,7 +175,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    command: ["python", "risk_service/app.py"]  # FIX: replaced exec(open()) with direct script path
+    command: ["python", "risk_service/app.py"] # FIX: replaced exec(open()) with direct script path
 
   # ----------------------------------------------------------------
   # Execution Service
@@ -202,7 +206,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    command: ["python", "execution_service/app.py"]  # FIX: replaced exec(open()) with direct script path
+    command: ["python", "execution_service/app.py"] # FIX: replaced exec(open()) with direct script path
 
   # ----------------------------------------------------------------
   # Web Frontend
@@ -223,7 +227,15 @@ services:
       - quantumalpha-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

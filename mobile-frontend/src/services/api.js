@@ -31,7 +31,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor for handling errors
@@ -75,7 +75,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 // Auth API
@@ -90,7 +90,8 @@ export const authAPI = {
 export const portfolioAPI = {
   getPortfolio: () => api.get("/portfolio"),
   getPositions: () => api.get("/portfolio/positions"),
-  getHistory: (timeframe) => api.get(`/portfolio/history?timeframe=${timeframe}`),
+  getHistory: (timeframe) =>
+    api.get(`/portfolio/history?timeframe=${timeframe}`),
 };
 
 // Market Data API
