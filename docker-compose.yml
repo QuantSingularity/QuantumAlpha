@@ -1,11 +1,9 @@
-version: "3.8"
-
 services:
   # ----------------------------------------------------------------
-  # Infrastructure Services
+  # Database Services
   # ----------------------------------------------------------------
   postgres:
-    image: timescale/timescaledb:latest-pg14 # Using TimescaleDB for time-series data
+    image: timescale/timescaledb:2.14.2-pg15
     container_name: quantumalpha-postgres
     environment:
       POSTGRES_USER: ${DB_USER:-quantumalpha_user}
@@ -13,34 +11,24 @@ services:
       POSTGRES_DB: ${DB_NAME:-quantumalpha_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Assuming an init-db script exists in the scripts directory, uncomment to use
-      # - ./scripts/init-db:/docker-entrypoint-initdb.d
+      - ./backend/scripts/init-db:/docker-entrypoint-initdb.d:ro
     ports:
       - "${DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-quantumalpha_user} -d ${DB_NAME:-quantumalpha_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - quantumalpha-network
     restart: unless-stopped
-    # Resource limits from the infrastructure file for robustness
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
 
   redis:
     image: redis:7-alpine
     container_name: quantumalpha-redis
-    # Exposing only to localhost for security, as in infrastructure file
     ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -51,121 +39,94 @@ services:
     networks:
       - quantumalpha-network
     restart: unless-stopped
-    # Resource limits from the infrastructure file
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 256M
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.3.0
-    container_name: quantumalpha-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    # Ports exposed only to localhost for security, as in infrastructure file
-    ports:
-      - "127.0.0.1:2181:2181"
-    networks:
-      - quantumalpha-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 256M
-
-  kafka:
-    image: confluentinc/cp-kafka:7.3.0
-    container_name: quantumalpha-kafka
-    depends_on:
-      zookeeper:
-        condition: service_started
-    # Ports exposed only to localhost for security, as in infrastructure file
-    ports:
-      - "127.0.0.1:${KAFKA_PORT:-9092}:9092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    networks:
-      - quantumalpha-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
 
   # ----------------------------------------------------------------
-  # Backend Microservices (Using the shared Dockerfile with build args)
-  # NOTE: The root Dockerfile is used here, assuming it's a multi-stage build or a generic Python service builder.
+  # Backend API Service (Unified)
+  # ----------------------------------------------------------------
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: quantumalpha-api-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - PORT=8080
+      - FLASK_DEBUG=false
+      - DATABASE_URL=postgresql://${DB_USER:-quantumalpha_user}:${DB_PASSWORD:-quantumalpha_pass}@postgres:5432/${DB_NAME:-quantumalpha_db}
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-quantumalpha-jwt-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:-quantumalpha-secret-key-change-in-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app:ro
+    networks:
+      - quantumalpha-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    command: ["python", "app.py"]
+
+  # ----------------------------------------------------------------
+  # Data Service
   # ----------------------------------------------------------------
   data-service:
     build:
       context: ./backend
-      dockerfile: Dockerfile # Points to QuantumAlpha/backend/Dockerfile
-      args:
-        SERVICE_NAME: data_service
+      dockerfile: Dockerfile
     container_name: quantumalpha-data-service
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_started
+      api-gateway:
+        condition: service_healthy
     environment:
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SERVICE_PORT: 8001
-      # Inherit other DB/Redis/Kafka env vars from docker-compose environment or defaults
+      - PORT=8001
+      - FLASK_DEBUG=false
+      - DATABASE_URL=postgresql://${DB_USER:-quantumalpha_user}:${DB_PASSWORD:-quantumalpha_pass}@postgres:5432/${DB_NAME:-quantumalpha_db}
+      - REDIS_URL=redis://redis:6379/0
     ports:
       - "8001:8001"
     networks:
       - quantumalpha-network
     restart: unless-stopped
-    command: ["python", "-m", "data_service.app"]
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    command: ["python", "data_service/app.py"]  # FIX: replaced exec(open()) with direct script path
 
+  # ----------------------------------------------------------------
+  # AI Engine Service
+  # ----------------------------------------------------------------
   ai-engine:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: ai_engine
     container_name: quantumalpha-ai-engine
     depends_on:
-      data-service:
-        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      DATA_SERVICE_HOST: data-service
-      SERVICE_PORT: 8002
+      - PORT=8002
+      - FLASK_DEBUG=false
+      - DATABASE_URL=postgresql://${DB_USER:-quantumalpha_user}:${DB_PASSWORD:-quantumalpha_pass}@postgres:5432/${DB_NAME:-quantumalpha_db}
+      - REDIS_URL=redis://redis:6379/0
     ports:
       - "8002:8002"
     volumes:
@@ -173,111 +134,78 @@ services:
     networks:
       - quantumalpha-network
     restart: unless-stopped
-    command: ["python", "-m", "ai_engine.app"]
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 2G
-        reservations:
-          cpus: "1.0"
-          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    command: ["python", "ai_engine/app.py"]  # FIX: replaced exec(open()) with direct script path
 
+  # ----------------------------------------------------------------
+  # Risk Service
+  # ----------------------------------------------------------------
   risk-service:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: risk_service
     container_name: quantumalpha-risk-service
     depends_on:
-      ai-engine:
-        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      DATA_SERVICE_HOST: data-service
-      AI_ENGINE_HOST: ai-engine
-      SERVICE_PORT: 8003
+      - PORT=8003
+      - FLASK_DEBUG=false
+      - DATABASE_URL=postgresql://${DB_USER:-quantumalpha_user}:${DB_PASSWORD:-quantumalpha_pass}@postgres:5432/${DB_NAME:-quantumalpha_db}
+      - REDIS_URL=redis://redis:6379/0
     ports:
       - "8003:8003"
     networks:
       - quantumalpha-network
     restart: unless-stopped
-    command: ["python", "-m", "risk_service.app"]
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    command: ["python", "risk_service/app.py"]  # FIX: replaced exec(open()) with direct script path
 
+  # ----------------------------------------------------------------
+  # Execution Service
+  # ----------------------------------------------------------------
   execution-service:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: execution_service
     container_name: quantumalpha-execution-service
     depends_on:
-      risk-service:
-        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      DATA_SERVICE_HOST: data-service
-      AI_ENGINE_HOST: ai-engine
-      RISK_SERVICE_HOST: risk-service
-      SERVICE_PORT: 8004
+      - PORT=8004
+      - FLASK_DEBUG=false
+      - DATABASE_URL=postgresql://${DB_USER:-quantumalpha_user}:${DB_PASSWORD:-quantumalpha_pass}@postgres:5432/${DB_NAME:-quantumalpha_db}
+      - REDIS_URL=redis://redis:6379/0
     ports:
       - "8004:8004"
     networks:
       - quantumalpha-network
     restart: unless-stopped
-    command: ["python", "-m", "execution_service.app"]
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-
-  api-gateway:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: api_gateway
-    container_name: quantumalpha-api-gateway
-    depends_on:
-      execution-service:
-        condition: service_started
-    environment:
-      SERVICE_PORT: 8080
-      # All other service hosts are implicitly available via the network
-    ports:
-      - "8080:8080"
-    networks:
-      - quantumalpha-network
-    restart: unless-stopped
-    command: ["python", "-m", "api_gateway.app"]
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    command: ["python", "execution_service/app.py"]  # FIX: replaced exec(open()) with direct script path
 
   # ----------------------------------------------------------------
-  # Frontend Applications
+  # Web Frontend
   # ----------------------------------------------------------------
   web-frontend:
     build:
@@ -286,61 +214,48 @@ services:
     container_name: quantumalpha-web-frontend
     depends_on:
       api-gateway:
-        condition: service_started
+        condition: service_healthy
     environment:
-      # Vite uses VITE_ prefix for environment variables
-      VITE_API_BASE_URL: http://api-gateway:8080
+      - VITE_API_URL=http://api-gateway:8080/api
     ports:
-      - "3000:3000"
+      - "3000:80"
     networks:
       - quantumalpha-network
     restart: unless-stopped
-    command: ["npm", "run", "dev", "--", "--host"]
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # ----------------------------------------------------------------
-  # Monitoring Stack
+  # Mobile Frontend (Expo Development Server)
   # ----------------------------------------------------------------
-  prometheus:
-    image: prom/prometheus:v2.42.0
-    container_name: quantumalpha-prometheus
-    volumes:
-      - ./monitoring/prometheus:/etc/prometheus
-      - prometheus_data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-    ports:
-      - "9090:9090"
-    networks:
-      - quantumalpha-network
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:9.4.7
-    container_name: quantumalpha-grafana
-    depends_on:
-      prometheus:
-        condition: service_started
-    ports:
-      - "3001:3000" # Expose on 3001 to avoid conflict with web-frontend on 3000
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - grafana_data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
-    networks:
-      - quantumalpha-network
-    restart: unless-stopped
+  # mobile-frontend:
+  #   build:
+  #     context: ./mobile-frontend
+  #     dockerfile: Dockerfile
+  #   container_name: quantumalpha-mobile-frontend
+  #   depends_on:
+  #     api-gateway:
+  #       condition: service_healthy
+  #   environment:
+  #     - REACT_NATIVE_PACKAGER_HOSTNAME=${MOBILE_HOST:-localhost}
+  #     - API_BASE_URL=http://api-gateway:8080/api
+  #   ports:
+  #     - "8081:8081"
+  #     - "19000:19000"
+  #     - "19001:19001"
+  #     - "19002:19002"
+  #   volumes:
+  #     - ./mobile-frontend:/app
+  #     - /app/node_modules
+  #   networks:
+  #     - quantumalpha-network
+  #   restart: unless-stopped
+  #   stdin_open: true
+  #   tty: true
 
 # ----------------------------------------------------------------
 # Volumes and Networks
@@ -349,8 +264,6 @@ volumes:
   postgres_data:
   redis_data:
   ai_engine_models:
-  prometheus_data:
-  grafana_data:
 
 networks:
   quantumalpha-network:

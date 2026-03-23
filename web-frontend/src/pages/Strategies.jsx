@@ -38,8 +38,8 @@ import {
   Snackbar,
 } from "@mui/material";
 import {
-  Add,
-  PlayArrow,
+  Plus,
+  PlayA,
   Pause,
   Settings,
   TrendingUp,
@@ -499,7 +499,7 @@ const Strategies = () => {
                 {strategy.status === "active" ? (
                   <Pause size={18} />
                 ) : (
-                  <PlayArrow size={18} />
+                  <Play size={18} />
                 )}
               </IconButton>
             </Tooltip>
@@ -681,7 +681,7 @@ const Strategies = () => {
                     {strategy.status === "active" ? (
                       <Pause size={16} />
                     ) : (
-                      <PlayArrow size={16} />
+                      <Play size={16} />
                     )}
                   </IconButton>
                   <IconButton
@@ -771,7 +771,7 @@ const Strategies = () => {
                 </Button>
                 <Button
                   variant="contained"
-                  startIcon={<Add size={20} />}
+                  startIcon={<Plus size={20} />}
                   onClick={handleCreateStrategy}
                   sx={{
                     background: "linear-gradient(45deg, #00d4ff, #0099cc)",
