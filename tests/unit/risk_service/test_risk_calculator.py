@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 Unit tests for the Risk Service's Risk Calculator.
 """

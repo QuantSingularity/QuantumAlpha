@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 Integration tests for AI engine to risk service integration.
 """

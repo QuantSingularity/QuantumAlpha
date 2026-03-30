@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 Shared pytest fixtures for QuantumAlpha tests.
 """

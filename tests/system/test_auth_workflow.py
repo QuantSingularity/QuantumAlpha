@@ -1,3 +1,5 @@
+from typing import Any
+
 """
 System tests for user authentication and authorization workflow.
 """
