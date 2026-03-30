@@ -11,7 +11,7 @@ import numpy as np
 class MockConfigManager:
     """Mock ConfigManager for testing."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> Any:
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize MockConfigManager.
 
@@ -91,7 +91,7 @@ class MockConfigManager:
 class MockDatabaseManager:
     """Mock DatabaseManager for testing."""
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         """Initialize MockDatabaseManager."""
         self.postgres_session = MagicMock()
         self.redis_connection = MagicMock()
@@ -118,7 +118,7 @@ class MockDatabaseManager:
 class MockMarketDataAPI:
     """Mock Market Data API for testing."""
 
-    def __init__(self, data: Optional[List[Dict[str, Any]]] = None) -> Any:
+    def __init__(self, data: Optional[List[Dict[str, Any]]] = None) -> None:
         """
         Initialize MockMarketDataAPI.
 
@@ -163,7 +163,7 @@ class MockMarketDataAPI:
 class MockModelManager:
     """Mock Model Manager for testing."""
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         """Initialize MockModelManager."""
         self.models = {
             "model1": {
@@ -269,7 +269,7 @@ class MockModelManager:
 class MockBrokerAPI:
     """Mock Broker API for testing."""
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         """Initialize MockBrokerAPI."""
         self.orders = {}
         self.executions = {}

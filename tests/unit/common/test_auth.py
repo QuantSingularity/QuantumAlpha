@@ -27,7 +27,7 @@ except ImportError:
 
     class AuthManager:
 
-        def __init__(self, config_manager: Any, db_manager: Any) -> Any:
+        def __init__(self, config_manager: Any, db_manager: Any) -> None:
             self.config_manager = config_manager
             self.db_manager = db_manager
             self.jwt_secret = "test_secret"

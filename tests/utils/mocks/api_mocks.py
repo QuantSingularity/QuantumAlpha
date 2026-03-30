@@ -23,7 +23,7 @@ class MockResponse:
         headers: Optional[Dict[str, str]] = None,
         content: Optional[bytes] = None,
         reason: str = "OK",
-    ) -> Any:
+    ) -> None:
         """
         Initialize the mock response.
 
@@ -554,7 +554,7 @@ class APIMockFactory:
 class MockAPIClient:
     """Mock API client for testing."""
 
-    def __init__(self, base_url: str = "https://api.example.com") -> Any:
+    def __init__(self, base_url: str = "https://api.example.com") -> None:
         """
         Initialize the mock API client.
 

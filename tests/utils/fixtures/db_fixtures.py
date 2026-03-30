@@ -15,7 +15,7 @@ import pytest
 class TestDatabaseFixture:
     """SQLite database fixture for testing."""
 
-    def __init__(self, db_path: Optional[str] = None) -> Any:
+    def __init__(self, db_path: Optional[str] = None) -> None:
         """
         Initialize the test database fixture.
 
@@ -326,7 +326,7 @@ def test_db() -> Any:
 class MockDatabaseManager:
     """Mock database manager for testing."""
 
-    def __init__(self, db_fixture: TestDatabaseFixture) -> Any:
+    def __init__(self, db_fixture: TestDatabaseFixture) -> None:
         """
         Initialize the mock database manager.
 

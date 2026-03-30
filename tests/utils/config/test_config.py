@@ -15,7 +15,7 @@ import yaml
 class TestConfig:
     """Test configuration manager."""
 
-    def __init__(self, config_data: Optional[Dict[str, Any]] = None) -> Any:
+    def __init__(self, config_data: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the test configuration manager.
 
@@ -193,7 +193,7 @@ class TestConfig:
 class MockConfigManager:
     """Mock configuration manager for testing."""
 
-    def __init__(self, test_config: TestConfig) -> Any:
+    def __init__(self, test_config: TestConfig) -> None:
         """
         Initialize the mock configuration manager.
 
@@ -296,7 +296,7 @@ def mock_config_manager(test_config: Any) -> Any:
 class TestEnvironment:
     """Test environment manager."""
 
-    def __init__(self) -> Any:
+    def __init__(self) -> None:
         """Initialize the test environment manager."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root_dir = self.temp_dir.name

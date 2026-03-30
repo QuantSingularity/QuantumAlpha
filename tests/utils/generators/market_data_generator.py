@@ -13,7 +13,7 @@ import pandas as pd
 class MarketDataGenerator:
     """Generator for synthetic market data."""
 
-    def __init__(self, seed: Optional[int] = None) -> Any:
+    def __init__(self, seed: Optional[int] = None) -> None:
         """
         Initialize the market data generator.
 
