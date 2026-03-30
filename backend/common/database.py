@@ -325,7 +325,7 @@ class DatabaseMigrationManager:
     def check_migration_status(self) -> Dict[str, Any]:
         """Check database migration status"""
         try:
-            with self.db_manager.session_scope() as session:
+            with self.db_manager.session_scope():
                 inspector = self.db_manager.engine.dialect.get_table_names(
                     self.db_manager.engine.connect()
                 )

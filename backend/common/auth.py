@@ -225,7 +225,7 @@ class AuthManager:
             db_session.query(UserSession)
             .filter(
                 UserSession.user_id == user_id,
-                UserSession.is_active == True,
+                UserSession.is_active,
                 UserSession.expires_at > datetime.now(timezone.utc),
             )
             .order_by(UserSession.created_at.desc())
@@ -263,7 +263,7 @@ class AuthManager:
         db_session = get_db_session()
         session = (
             db_session.query(UserSession)
-            .filter(UserSession.user_id == user_id, UserSession.is_active == True)
+            .filter(UserSession.user_id == user_id, UserSession.is_active)
             .first()
         )
         if session:

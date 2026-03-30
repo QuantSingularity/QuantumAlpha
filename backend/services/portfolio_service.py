@@ -249,7 +249,7 @@ class PortfolioService:
                         and_(
                             Portfolio.id == portfolio_id,
                             Portfolio.user_id == user_id,
-                            Portfolio.is_deleted == False,
+                            not Portfolio.is_deleted,
                         )
                     )
                     .first()
@@ -273,9 +273,7 @@ class PortfolioService:
                 portfolios = (
                     session.query(Portfolio)
                     .filter(
-                        and_(
-                            Portfolio.user_id == user_id, Portfolio.is_deleted == False
-                        )
+                        and_(Portfolio.user_id == user_id, not Portfolio.is_deleted)
                     )
                     .order_by(Portfolio.created_at.desc())
                     .all()

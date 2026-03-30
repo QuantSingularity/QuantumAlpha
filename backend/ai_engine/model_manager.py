@@ -360,7 +360,7 @@ class ModelManager:
                     save_best_only=True,
                 ),
             ]
-            history = model.fit(
+            model.fit(
                 X_train,
                 y_train,
                 epochs=epochs,
@@ -476,7 +476,7 @@ class ModelManager:
                     save_best_only=True,
                 ),
             ]
-            history = model.fit(
+            model.fit(
                 X_train,
                 y_train,
                 epochs=epochs,
@@ -599,7 +599,7 @@ class ModelManager:
                     save_best_only=True,
                 ),
             ]
-            history = model.fit(
+            model.fit(
                 X_train,
                 y_train,
                 epochs=epochs,
