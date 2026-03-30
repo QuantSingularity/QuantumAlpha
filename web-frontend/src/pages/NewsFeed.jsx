@@ -1,45 +1,43 @@
-import React, { useState, useEffect } from "react";
 import {
+  Alert,
+  Avatar,
   Box,
-  Paper,
-  Typography,
+  Button,
   Card,
   CardContent,
   CardMedia,
-  Grid,
   Chip,
-  Button,
+  Fade,
+  Grid,
   IconButton,
-  TextField,
   InputAdornment,
   Menu,
   MenuItem,
-  Avatar,
-  Divider,
-  Fade,
+  Paper,
   Skeleton,
-  Alert,
   Snackbar,
+  TextField,
+  Typography,
 } from "@mui/material";
 import {
-  Newspaper,
-  Search,
-  Filter,
   Bookmark,
   BookmarkCheck,
-  Share,
-  ExternalLink,
   Clock,
-  TrendingUp,
-  TrendingDown,
-  MoreVertical,
-  RotateCcw,
+  ExternalLink,
   Eye,
-  ThumbsUp,
-  MessageCircle,
   Globe,
+  MessageCircle,
+  MoreVertical,
+  Newspaper,
+  RotateCcw,
+  Search,
+  Share,
+  ThumbsUp,
+  TrendingDown,
+  TrendingUp,
   Zap,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const NewsFeed = () => {
   const [newsItems, setNewsItems] = useState([]);
@@ -196,7 +194,7 @@ const NewsFeed = () => {
       setNewsItems(mockNews);
       setLoading(false);
     }, 1500);
-  }, []);
+  }, [mockNews]);
 
   const filteredNews = newsItems.filter((item) => {
     const matchesSearch =

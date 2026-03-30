@@ -1,16 +1,21 @@
-import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import {
-  Container,
-  Grid,
-  Paper,
-  Typography,
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
-  Tabs,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  Grid,
+  IconButton,
+  Paper,
+  Skeleton,
+  Switch,
   Tab,
   Table,
   TableBody,
@@ -18,50 +23,39 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Alert,
-  Skeleton,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Tabs,
   TextField,
-  Switch,
-  FormControlLabel,
-  Divider,
+  Typography,
 } from "@mui/material";
 import {
-  ArrowLeft,
-  TrendingUp,
-  TrendingDown,
   Activity,
-  DollarSign,
-  BarChart3,
-  Settings,
-  Play,
-  Pause,
-  RefreshCw,
-  Edit,
-  Trash2,
   AlertTriangle,
+  ArrowLeft,
+  BarChart3,
+  Edit,
+  Pause,
+  Play,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
+  Area,
+  AreaChart,
   CartesianGrid,
-  Tooltip,
   Legend,
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import {
-  useGetStrategyQuery,
-  useUpdateStrategyMutation,
   useDeleteStrategyMutation,
   useGetRiskMetricsQuery,
+  useGetStrategyQuery,
+  useUpdateStrategyMutation,
 } from "../services/api";
 import { formatCurrency, formatPercentage } from "../utils/format";
 
@@ -86,7 +80,7 @@ const StrategyDetails = () => {
   });
 
   // Handle tab change
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (_event, newValue) => {
     setSelectedTab(newValue);
   };
 

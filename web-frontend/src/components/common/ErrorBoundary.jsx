@@ -1,5 +1,5 @@
-import React from "react";
 import { Alert, AlertTitle } from "@mui/material";
+import React from "react";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -41,9 +41,9 @@ class ErrorBoundary extends React.Component {
           </p>
           {process.env.NODE_ENV === "development" && (
             <details style={{ whiteSpace: "pre-wrap", marginTop: "10px" }}>
-              {this.state.error && this.state.error.toString()}
+              {this.state.error?.toString()}
               <br />
-              {this.state.errorInfo && this.state.errorInfo.componentStack}
+              {this.state.errorInfo?.componentStack}
             </details>
           )}
         </Alert>

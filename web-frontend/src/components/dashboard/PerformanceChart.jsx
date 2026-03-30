@@ -1,21 +1,20 @@
-import React from "react";
+import { useTheme } from "@mui/material/styles";
 import {
-  LineChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
-import { useTheme } from "@mui/material/styles";
 
 const PerformanceChart = ({ data, height = 300 }) => {
   const theme = useTheme();
 
   const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
+    if (active && payload?.length) {
       return (
         <div
           style={{

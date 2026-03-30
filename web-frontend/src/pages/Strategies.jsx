@@ -1,28 +1,27 @@
-import React, { useState, useEffect } from "react";
 import {
-  Container,
-  Grid,
-  Paper,
-  Typography,
+  Alert,
+  Avatar,
   Box,
   Button,
   Card,
-  CardContent,
   CardActions,
+  CardContent,
   Chip,
-  IconButton,
+  Container,
   Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
-  TextField,
+  DialogContent,
+  DialogTitle,
+  Fade,
   FormControl,
+  Grid,
+  IconButton,
   InputLabel,
-  Select,
+  LinearProgress,
   MenuItem,
-  Switch,
-  FormControlLabel,
-  Tabs,
+  Paper,
+  Select,
+  Snackbar,
   Tab,
   Table,
   TableBody,
@@ -30,49 +29,38 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  LinearProgress,
-  Avatar,
-  Fade,
+  Tabs,
+  TextField,
   Tooltip,
-  Alert,
-  Snackbar,
+  Typography,
 } from "@mui/material";
 import {
-  Plus,
-  PlayA,
-  Pause,
-  Settings,
-  TrendingUp,
-  TrendingDown,
   Activity,
   BarChart3,
-  Eye,
-  Edit,
-  Delete,
+  Brain,
   Copy,
+  Delete,
   Download,
+  Edit,
+  Eye,
+  Pause,
+  Plus,
+  Shield,
   Upload,
   Zap,
-  Brain,
-  Target,
-  Shield,
-  Clock,
-  DollarSign,
 } from "lucide-react";
-import { useSelector, useDispatch } from "react-redux";
+import { useState } from "react";
 import {
-  LineChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
 } from "recharts";
 
 // Mock data for strategies
@@ -194,7 +182,7 @@ const Strategies = () => {
     allocation: 0,
   });
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (_event, newValue) => {
     setSelectedTab(newValue);
   };
 
@@ -1177,7 +1165,7 @@ const Strategies = () => {
                   onChange={(e) =>
                     setNewStrategy({
                       ...newStrategy,
-                      allocation: parseInt(e.target.value) || 0,
+                      allocation: parseInt(e.target.value, 10) || 0,
                     })
                   }
                   inputProps={{ min: 0, max: 100 }}

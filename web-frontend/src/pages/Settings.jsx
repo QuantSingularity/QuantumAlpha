@@ -1,67 +1,52 @@
-import React, { useState } from "react";
 import {
-  Container,
-  Grid,
-  Paper,
-  Typography,
+  Alert,
+  Avatar,
+  Badge,
   Box,
-  Card,
-  CardContent,
-  Switch,
-  FormControlLabel,
-  TextField,
   Button,
+  Card,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
+  Fade,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  IconButton,
+  InputLabel,
   List,
   ListItem,
   ListItemIcon,
-  ListItemText,
   ListItemSecondaryAction,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
+  ListItemText,
   MenuItem,
-  Chip,
-  Alert,
-  Snackbar,
-  Tabs,
-  Tab,
+  Paper,
+  Select,
   Slider,
-  Avatar,
-  Badge,
-  Fade,
+  Snackbar,
+  Switch,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
 } from "@mui/material";
 import {
-  Settings as SettingsIcon,
-  User,
-  Shield,
-  Bell,
-  Palette,
-  Globe,
-  Key,
-  Smartphone,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  Save,
-  RefreshCw,
-  Trash2,
-  Plus,
-  Edit,
-  Check,
-  X,
   AlertTriangle,
-  DollarSign,
-  TrendingUp,
-  Activity,
-  Zap,
+  Bell,
+  Edit,
+  Key,
+  Mail,
+  RefreshCw,
+  Save,
+  Shield,
+  Smartphone,
+  Trash2,
+  User,
 } from "lucide-react";
+import { useState } from "react";
 
 const Settings = () => {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -70,7 +55,7 @@ const Settings = () => {
     message: "",
     severity: "success",
   });
-  const [showPassword, setShowPassword] = useState(false);
+  const [_showPassword, _setShowPassword] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: "",
@@ -143,7 +128,7 @@ const Settings = () => {
     },
   });
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (_event, newValue) => {
     setSelectedTab(newValue);
   };
 
@@ -561,7 +546,7 @@ const Settings = () => {
             </Typography>
             <Slider
               value={settings.security.sessionTimeout}
-              onChange={(e, value) =>
+              onChange={(_e, value) =>
                 handleSettingChange("security", "sessionTimeout", value)
               }
               min={5}
@@ -884,7 +869,7 @@ const Settings = () => {
               </Typography>
               <Slider
                 value={settings.trading.maxPositionSize}
-                onChange={(e, value) =>
+                onChange={(_e, value) =>
                   handleSettingChange("trading", "maxPositionSize", value)
                 }
                 min={1}
@@ -967,7 +952,7 @@ const Settings = () => {
                   handleSettingChange(
                     "trading",
                     "stopLossDefault",
-                    parseInt(e.target.value),
+                    parseInt(e.target.value, 10),
                   )
                 }
                 inputProps={{ min: 1, max: 50 }}
@@ -994,7 +979,7 @@ const Settings = () => {
                   handleSettingChange(
                     "trading",
                     "takeProfitDefault",
-                    parseInt(e.target.value),
+                    parseInt(e.target.value, 10),
                   )
                 }
                 inputProps={{ min: 1, max: 100 }}

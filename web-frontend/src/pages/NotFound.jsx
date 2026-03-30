@@ -1,7 +1,6 @@
-import React from "react";
+import { Box, Button, Container, Paper, Typography } from "@mui/material";
+import { ArrowLeft, Home, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Container, Box, Typography, Button, Paper } from "@mui/material";
-import { Home, ArrowLeft, Search } from "lucide-react";
 
 const NotFound = () => {
   const navigate = useNavigate();

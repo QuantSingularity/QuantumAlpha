@@ -1,7 +1,6 @@
-import React from "react";
-import { useSelector, useDispatch } from "react-redux";
 import { IconButton, Tooltip } from "@mui/material";
 import { Moon, Sun } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
 import { toggleDarkMode } from "../store/slices/themeSlice";
 
 const DarkModeToggle = ({ size = 24, showTooltip = true }) => {

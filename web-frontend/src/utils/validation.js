@@ -74,7 +74,7 @@ export const isValidPhone = (phone) => {
  */
 export const isInRange = (value, min, max) => {
   const num = parseFloat(value);
-  if (isNaN(num)) return false;
+  if (Number.isNaN(num)) return false;
   return num >= min && num <= max;
 };
 

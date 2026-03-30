@@ -56,7 +56,7 @@ export const api = createApi({
     }),
     getStrategy: builder.query({
       query: (id) => `/strategies/${id}`,
-      providesTags: (result, error, id) => [{ type: "Strategy", id }],
+      providesTags: (_result, _error, id) => [{ type: "Strategy", id }],
     }),
     createStrategy: builder.mutation({
       query: (strategy) => ({
@@ -72,7 +72,7 @@ export const api = createApi({
         method: "PATCH",
         body: patch,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: "Strategy", id }],
+      invalidatesTags: (_result, _error, { id }) => [{ type: "Strategy", id }],
     }),
     deleteStrategy: builder.mutation({
       query: (id) => ({

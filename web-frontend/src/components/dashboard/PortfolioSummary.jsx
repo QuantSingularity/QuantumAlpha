@@ -1,13 +1,4 @@
-import React from "react";
-import {
-  Box,
-  Typography,
-  Grid,
-  Paper,
-  Button,
-  Alert,
-  Skeleton,
-} from "@mui/material";
+import { Alert, Box, Skeleton, Typography } from "@mui/material";
 
 const PortfolioSummary = ({
   portfolioValue,

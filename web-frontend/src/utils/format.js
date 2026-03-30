@@ -9,7 +9,7 @@
  * @returns {string} Formatted currency string
  */
 export const formatCurrency = (value, currency = "USD") => {
-  if (value === null || value === undefined || isNaN(value)) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return "$0.00";
   }
 
@@ -28,7 +28,7 @@ export const formatCurrency = (value, currency = "USD") => {
  * @returns {string} Formatted percentage string
  */
 export const formatPercentage = (value, decimals = 2) => {
-  if (value === null || value === undefined || isNaN(value)) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return "0.00%";
   }
 
@@ -41,7 +41,7 @@ export const formatPercentage = (value, decimals = 2) => {
  * @returns {string} Formatted number string
  */
 export const formatCompactNumber = (value) => {
-  if (value === null || value === undefined || isNaN(value)) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return "0";
   }
 
@@ -71,7 +71,7 @@ export const formatDate = (date, format = "short") => {
   if (!date) return "";
 
   const d = new Date(date);
-  if (isNaN(d.getTime())) return "";
+  if (Number.isNaN(d.getTime())) return "";
 
   const options = {
     short: { year: "numeric", month: "short", day: "numeric" },
@@ -98,7 +98,7 @@ export const formatDate = (date, format = "short") => {
  * @returns {string} Formatted number string
  */
 export const formatNumber = (value, decimals = 2) => {
-  if (value === null || value === undefined || isNaN(value)) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return "0";
   }
 
@@ -117,7 +117,7 @@ export const formatRelativeTime = (date) => {
   if (!date) return "";
 
   const d = new Date(date);
-  if (isNaN(d.getTime())) return "";
+  if (Number.isNaN(d.getTime())) return "";
 
   const now = new Date();
   const diffMs = now - d;

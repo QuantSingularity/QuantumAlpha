@@ -1,67 +1,55 @@
-import React, { useState, useEffect } from "react";
 import {
-  Container,
-  Grid,
-  Paper,
-  Typography,
+  Avatar,
   Box,
+  Button,
   Card,
   CardContent,
-  Tabs,
-  Tab,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
   Chip,
+  Container,
+  Fade,
+  FormControl,
+  Grid,
+  LinearProgress,
+  MenuItem,
+  Paper,
+  Select,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Avatar,
-  Fade,
-  Alert,
-  LinearProgress,
-  Divider,
+  Tabs,
+  Typography,
 } from "@mui/material";
 import {
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
-  PieChart,
   Activity,
-  Target,
-  Shield,
-  Zap,
-  DollarSign,
-  Calendar,
   Download,
   Filter,
   RefreshCw,
+  Shield,
+  Target,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
+import { useState } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
   Area,
-  BarChart,
   Bar,
-  PieChart as RechartsPieChart,
+  BarChart,
+  CartesianGrid,
   Cell,
-  RadialBarChart,
-  RadialBar,
   ComposedChart,
+  Legend,
+  Line,
+  PieChart as RechartsPieChart,
+  ResponsiveContainer,
   Scatter,
   ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 
 // Mock data for analytics
@@ -188,7 +176,7 @@ const Analytics = () => {
   const [timeframe, setTimeframe] = useState("6M");
   const [refreshing, setRefreshing] = useState(false);
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (_event, newValue) => {
     setSelectedTab(newValue);
   };
 

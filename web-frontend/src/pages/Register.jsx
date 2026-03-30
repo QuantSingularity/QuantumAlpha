@@ -1,31 +1,31 @@
-import React, { useState } from "react";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
 import {
-  Container,
-  Box,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Link,
   Alert,
-  InputAdornment,
-  IconButton,
-  LinearProgress,
-  Grid,
-  Divider,
+  Box,
+  Button,
   Checkbox,
+  Container,
+  Divider,
   FormControlLabel,
+  Grid,
+  IconButton,
+  InputAdornment,
+  LinearProgress,
+  Link,
+  Paper,
+  TextField,
+  Typography,
 } from "@mui/material";
 import {
-  User,
-  Mail,
-  Lock,
+  ArrowRight,
   Eye,
   EyeOff,
-  ArrowRight,
+  Lock,
+  Mail,
   Shield,
+  User,
 } from "lucide-react";
+import { useState } from "react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useRegisterMutation } from "../services/api";
 import { isValidEmail, validatePassword } from "../utils/validation";
 
@@ -110,7 +110,7 @@ const Register = () => {
     }
 
     try {
-      const result = await register({
+      const _result = await register({
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,

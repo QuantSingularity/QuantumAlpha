@@ -1,9 +1,9 @@
 import {
-  formatCurrency,
-  formatPercentage,
   formatCompactNumber,
+  formatCurrency,
   formatDate,
   formatNumber,
+  formatPercentage,
   formatRelativeTime,
 } from "../../utils/format";
 

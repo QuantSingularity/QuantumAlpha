@@ -1,18 +1,17 @@
-import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
+import Analytics from "./pages/Analytics";
 import Dashboard from "./pages/Dashboard";
+import Login from "./pages/Login";
+import NewsFeed from "./pages/NewsFeed";
+import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
+import Register from "./pages/Register";
+import Settings from "./pages/Settings";
 import Strategies from "./pages/Strategies";
 import StrategyDetails from "./pages/StrategyDetails";
-import Analytics from "./pages/Analytics";
-import Settings from "./pages/Settings";
-import Profile from "./pages/Profile";
 import Watchlist from "./pages/Watchlist";
-import NewsFeed from "./pages/NewsFeed";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import NotFound from "./pages/NotFound";
 
 const App = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);

@@ -41,7 +41,7 @@ const themeSlice = createSlice({
     toggleHighContrast: (state) => {
       state.highContrast = !state.highContrast;
     },
-    resetTheme: (state) => {
+    resetTheme: (_state) => {
       return initialState;
     },
   },

@@ -1,34 +1,30 @@
-import React, { useState, useEffect } from "react";
 import {
+  Alert,
+  Avatar,
+  Badge,
   Box,
-  Paper,
-  Typography,
+  Fade,
+  IconButton,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  Avatar,
-  Chip,
-  Button,
-  IconButton,
-  Fade,
-  Alert,
+  Paper,
   Snackbar,
-  Badge,
+  Typography,
 } from "@mui/material";
 import {
-  Bell,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
   Activity,
   AlertTriangle,
-  Info,
+  Bell,
   CheckCircle,
-  X,
-  Settings,
   Clock,
+  DollarSign,
+  Settings,
+  TrendingUp,
+  X,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const NotificationPanel = () => {
   const [notifications, setNotifications] = useState([

@@ -1,6 +1,5 @@
-import React from "react";
-import { Snackbar, Alert, Slide } from "@mui/material";
-import { useSelector, useDispatch } from "react-redux";
+import { Alert, Slide, Snackbar } from "@mui/material";
+import { useDispatch, useSelector } from "react-redux";
 import { removeNotification } from "../../store/slices/uiSlice";
 
 const NotificationPanel = () => {

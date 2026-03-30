@@ -1,58 +1,48 @@
-import React, { useState, useEffect } from "react";
 import {
-  Container,
-  Grid,
-  Paper,
-  Typography,
+  Avatar,
   Box,
   Button,
   Card,
   CardContent,
-  useTheme,
-  useMediaQuery,
-  Skeleton,
-  Alert,
-  Fade,
   Chip,
+  Container,
+  Fade,
+  Grid,
   IconButton,
-  Avatar,
+  Paper,
+  Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
   Activity,
-  BarChart3,
-  Zap,
-  ArrowUpRight,
   ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  DollarSign,
   Eye,
-  Settings,
   Plus,
+  Settings,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
-import { useSelector, useDispatch } from "react-redux";
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
-  LineChart,
-  Line,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
 } from "recharts";
+import ErrorBoundary from "../components/common/ErrorBoundary";
 import {
   useGetPortfolioQuery,
   useGetStrategiesQuery,
   useGetTradesQuery,
 } from "../services/api";
-import PortfolioSummary from "../components/dashboard/PortfolioSummary";
-import PerformanceChart from "../components/dashboard/PerformanceChart";
-import StrategyTable from "../components/dashboard/StrategyTable";
-import RecentTradesList from "../components/dashboard/RecentTradesList";
-import ErrorBoundary from "../components/common/ErrorBoundary";
 import { toggleModal } from "../store/slices/uiSlice";
 
 // Mock data for demonstration
@@ -124,8 +114,8 @@ const mockTrades = [
 const Dashboard = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [animationDelay, setAnimationDelay] = useState(0);
+  const _isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [_animationDelay, setAnimationDelay] = useState(0);
 
   // Get data from Redux store and API
   const { portfolioValue, dailyChange, percentChange, historicalData } =
@@ -494,7 +484,7 @@ const Dashboard = () => {
                   <Box
                     sx={{ display: "flex", flexDirection: "column", gap: 2 }}
                   >
-                    {displayStrategies.map((strategy, index) => (
+                    {displayStrategies.map((strategy, _index) => (
                       <Card
                         key={strategy.id}
                         sx={{
@@ -615,7 +605,7 @@ const Dashboard = () => {
                   <Box
                     sx={{ display: "flex", flexDirection: "column", gap: 2 }}
                   >
-                    {displayTrades.map((trade, index) => (
+                    {displayTrades.map((trade, _index) => (
                       <Card
                         key={trade.id}
                         sx={{

@@ -1,56 +1,50 @@
-import React, { useState } from "react";
 import {
-  Box,
-  Container,
-  Grid,
-  Paper,
-  Typography,
-  TextField,
-  Button,
   Avatar,
+  Box,
+  Button,
   Card,
   CardContent,
-  Divider,
-  Switch,
-  FormControlLabel,
   Chip,
-  IconButton,
-  Alert,
+  Container,
+  Divider,
   Fade,
-  Tab,
-  Tabs,
+  Grid,
+  IconButton,
   List,
   ListItem,
   ListItemIcon,
-  ListItemText,
   ListItemSecondaryAction,
+  ListItemText,
+  Paper,
+  Switch,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
 } from "@mui/material";
 import {
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Shield,
-  Bell,
-  Eye,
-  EyeOff,
-  Camera,
-  Save,
-  Edit,
-  CreditCard,
   Activity,
-  Settings,
-  Lock,
-  Smartphone,
-  Globe,
+  Bell,
+  Calendar,
+  Camera,
   DollarSign,
+  Edit,
+  Globe,
+  Lock,
+  Mail,
+  MapPin,
+  Phone,
+  Save,
+  Shield,
+  Smartphone,
+  User,
 } from "lucide-react";
+import { useState } from "react";
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [editMode, setEditMode] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [_showPassword, _setShowPassword] = useState(false);
   const [profileData, setProfileData] = useState({
     firstName: "John",
     lastName: "Doe",
@@ -288,7 +282,7 @@ const Profile = () => {
           >
             <Tabs
               value={activeTab}
-              onChange={(e, newValue) => setActiveTab(newValue)}
+              onChange={(_e, newValue) => setActiveTab(newValue)}
               sx={{
                 borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                 "& .MuiTab-root": {

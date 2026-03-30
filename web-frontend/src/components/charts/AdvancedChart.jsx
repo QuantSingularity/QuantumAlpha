@@ -1,54 +1,46 @@
-import React, { useState, useEffect } from "react";
 import {
   Box,
-  Paper,
-  Typography,
   Button,
   ButtonGroup,
+  Card,
+  CardContent,
+  Chip,
+  Fade,
+  Grid,
   IconButton,
   Menu,
   MenuItem,
-  Chip,
-  Grid,
-  Card,
-  CardContent,
-  Fade,
-  Tooltip,
-  Select,
-  FormControl,
-  InputLabel,
+  Paper,
+  Typography,
 } from "@mui/material";
 import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  CandlestickChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-  Brush,
-} from "recharts";
-import {
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
   Activity,
-  Settings,
+  BarChart3,
   Download,
-  Maximize2,
-  MoreVertical,
-  Zap,
-  Target,
   Eye,
   EyeOff,
+  Maximize2,
+  MoreVertical,
+  Settings,
+  Target,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
+import { useState } from "react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const AdvancedChart = ({
   symbol = "AAPL",
@@ -68,7 +60,7 @@ const AdvancedChart = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Mock data for demonstration
-  const [chartData, setChartData] = useState([
+  const [chartData, _setChartData] = useState([
     {
       time: "09:30",
       open: 175.2,
@@ -232,7 +224,7 @@ const AdvancedChart = ({
     handleMenuClose();
   };
 
-  const CustomCandlestick = (props) => {
+  const _CustomCandlestick = (props) => {
     const { payload, x, y, width, height } = props;
     if (!payload) return null;
 
@@ -240,7 +232,7 @@ const AdvancedChart = ({
     const isGreen = close > open;
     const color = isGreen ? "#10b981" : "#ef4444";
     const bodyHeight = Math.abs(close - open);
-    const bodyY = Math.min(open, close);
+    const _bodyY = Math.min(open, close);
 
     return (
       <g>

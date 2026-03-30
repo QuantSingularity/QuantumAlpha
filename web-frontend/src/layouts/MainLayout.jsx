@@ -1,33 +1,31 @@
-import React from "react";
 import {
-  Box,
+  AccountCircle as AccountCircleIcon,
+  Assessment as AssessmentIcon,
+  Dashboard as DashboardIcon,
+  ExitToApp as ExitToAppIcon,
+  Menu as MenuIcon,
+  Notifications as NotificationsIcon,
+  Settings as SettingsIcon,
+  TrendingUp as TrendingUpIcon,
+} from "@mui/icons-material";
+import {
   AppBar,
-  Toolbar,
-  IconButton,
-  Typography,
+  Box,
+  Divider,
   Drawer,
+  IconButton,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider,
+  Toolbar,
+  Typography,
   useTheme,
 } from "@mui/material";
-import { useSelector, useDispatch } from "react-redux";
-import { Outlet } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
-import {
-  Menu as MenuIcon,
-  Dashboard as DashboardIcon,
-  TrendingUp as TrendingUpIcon,
-  Assessment as AssessmentIcon,
-  Settings as SettingsIcon,
-  Notifications as NotificationsIcon,
-  AccountCircle as AccountCircleIcon,
-  ExitToApp as ExitToAppIcon,
-} from "@mui/icons-material";
-import { toggleDrawer } from "../store/slices/uiSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { Outlet, useNavigate } from "react-router-dom";
 import NotificationPanel from "../components/common/NotificationPanel";
+import { toggleDrawer } from "../store/slices/uiSlice";
 
 const MainLayout = () => {
   const theme = useTheme();

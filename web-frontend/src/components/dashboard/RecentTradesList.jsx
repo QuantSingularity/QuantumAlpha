@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Box,
   Card,
@@ -9,7 +8,7 @@ import {
 } from "@mui/material";
 
 const RecentTradesList = ({ trades }) => {
-  const theme = useTheme();
+  const _theme = useTheme();
 
   return (
     <Box sx={{ overflowY: "auto", maxHeight: 300 }}>

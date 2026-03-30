@@ -1,54 +1,43 @@
-import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  IconButton,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
+  Alert,
+  Autocomplete,
   Avatar,
-  Chip,
-  Grid,
+  Box,
+  Button,
   Card,
   CardContent,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   Fade,
-  Slide,
-  Alert,
-  Snackbar,
+  Grid,
+  IconButton,
   Menu,
   MenuItem,
-  Autocomplete,
-  Divider,
+  Paper,
+  Snackbar,
+  TextField,
+  Typography,
 } from "@mui/material";
 import {
-  Plus,
-  Star,
-  TrendingUp,
-  TrendingDown,
-  MoreVertical,
+  Activity,
+  Bell,
   Delete,
-  Edit,
+  Eye,
+  MoreVertical,
+  Plus,
   Search,
-  Filter,
   SortAsc,
   SortDesc,
-  Eye,
-  Bell,
+  Star,
   Target,
-  Activity,
-  DollarSign,
-  Percent,
-  Clock,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const Watchlist = () => {
   const [watchlistItems, setWatchlistItems] = useState([
@@ -133,7 +122,7 @@ const Watchlist = () => {
   const [sortOrder, setSortOrder] = useState("asc");
   const [filterCategory, setFilterCategory] = useState("All");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
+  const [_alertDialogOpen, _setAlertDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [newSymbol, setNewSymbol] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
@@ -242,9 +231,9 @@ const Watchlist = () => {
   };
 
   const formatNumber = (num) => {
-    if (num >= 1e9) return (num / 1e9).toFixed(1) + "B";
-    if (num >= 1e6) return (num / 1e6).toFixed(1) + "M";
-    if (num >= 1e3) return (num / 1e3).toFixed(1) + "K";
+    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
+    if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
     return num.toString();
   };
 
@@ -468,7 +457,7 @@ const Watchlist = () => {
               <Grid item xs={12} md={2}>
                 <Autocomplete
                   value={filterCategory}
-                  onChange={(e, newValue) => setFilterCategory(newValue)}
+                  onChange={(_e, newValue) => setFilterCategory(newValue)}
                   options={categories}
                   renderInput={(params) => (
                     <TextField
@@ -495,7 +484,7 @@ const Watchlist = () => {
               <Grid item xs={12} md={2}>
                 <Autocomplete
                   value={sortBy}
-                  onChange={(e, newValue) => setSortBy(newValue)}
+                  onChange={(_e, newValue) => setSortBy(newValue)}
                   options={["symbol", "price", "change", "volume", "marketCap"]}
                   renderInput={(params) => (
                     <TextField
@@ -626,7 +615,7 @@ const Watchlist = () => {
               freeSolo
               options={popularSymbols}
               value={newSymbol}
-              onInputChange={(e, newValue) => setNewSymbol(newValue)}
+              onInputChange={(_e, newValue) => setNewSymbol(newValue)}
               renderInput={(params) => (
                 <TextField
                   {...params}

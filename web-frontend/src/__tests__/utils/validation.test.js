@@ -1,10 +1,10 @@
 import {
-  isValidEmail,
-  validatePassword,
-  isValidStockSymbol,
-  isValidPhone,
   isInRange,
   isRequired,
+  isValidEmail,
+  isValidPhone,
+  isValidStockSymbol,
+  validatePassword,
 } from "../../utils/validation";
 
 describe("Validation Utilities", () => {

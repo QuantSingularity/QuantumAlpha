@@ -1,60 +1,49 @@
-import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
 import {
+  Alert,
   Box,
-  Paper,
-  Typography,
-  Switch,
   Button,
   ButtonGroup,
-  IconButton,
-  Menu,
-  MenuItem,
-  Divider,
-  Grid,
   Card,
   CardContent,
-  Slider,
-  FormControlLabel,
-  Chip,
-  Avatar,
   Fade,
-  Alert,
+  FormControlLabel,
+  Grid,
+  Paper,
   Snackbar,
+  Switch,
+  Typography,
 } from "@mui/material";
 import {
-  Moon,
-  Sun,
-  Monitor,
-  Palette,
-  Settings,
-  Eye,
-  Zap,
-  Minimize2,
-  Maximize2,
-  RotateCcw,
   Check,
   Contrast,
-  Type,
+  Minimize2,
+  Monitor,
+  Moon,
+  Palette,
+  RotateCcw,
   Sparkles,
+  Sun,
+  Type,
 } from "lucide-react";
+import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
-  toggleDarkMode,
-  setTheme,
-  setPrimaryColor,
+  resetTheme,
   setAccentColor,
   setFontSize,
+  setPrimaryColor,
+  setTheme,
   toggleAnimations,
   toggleCompactMode,
+  toggleDarkMode,
   toggleHighContrast,
-  resetTheme,
 } from "../store/slices/themeSlice";
 
 const ThemeCustomizer = () => {
   const dispatch = useDispatch();
   const theme = useSelector((state) => state.theme);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [_anchorEl, _setAnchorEl] = useState(null);
+  const [_colorPickerOpen, _setColorPickerOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",

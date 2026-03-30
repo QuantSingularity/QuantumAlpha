@@ -1,8 +1,6 @@
 // This file would contain a placeholder for a new modular component.
 // Example: src/components/common/Header.jsx
 
-import React from "react";
-
 const Header = ({ title }) => {
   return (
     <header
