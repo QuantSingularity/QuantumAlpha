@@ -6,14 +6,15 @@ It supports different environments (dev, staging, prod) and handles both Postgre
 """
 
 import argparse
+import logging
 import os
 import sys
+
 import influxdb_client
 import psycopg2
 import yaml
 from dotenv import load_dotenv
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-import logging
 
 logging.basicConfig(
     level=logging.INFO,

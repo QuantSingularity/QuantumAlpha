@@ -9,6 +9,7 @@ import sys
 import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
+
 import requests
 
 sys.path.append(

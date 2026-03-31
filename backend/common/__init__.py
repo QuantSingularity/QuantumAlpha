@@ -2,27 +2,27 @@
 Common utilities for QuantumAlpha services.
 """
 
-# Logging, errors and service utilities
-from .logging_utils import (
-    setup_logger,
-    ServiceError,
-    ValidationError,
-    NotFoundError,
-    AuthenticationError,
-    AuthorizationError,
-)
-
-# Database
-from .database import DatabaseManager
-
-# Models
-from .models import Base
-
 # Auth
 from .auth import AuthManager, require_auth, require_role
 
 # Config
 from .config import get_config_manager
+
+# Database
+from .database import DatabaseManager
+
+# Logging, errors and service utilities
+from .logging_utils import (
+    AuthenticationError,
+    AuthorizationError,
+    NotFoundError,
+    ServiceError,
+    ValidationError,
+    setup_logger,
+)
+
+# Models
+from .models import Base
 
 # Utils (RateLimiter, SimpleCache, etc.)
 from .utils import RateLimiter, SimpleCache

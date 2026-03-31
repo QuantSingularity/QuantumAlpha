@@ -12,7 +12,8 @@ from typing import Any, Dict, Optional, Type, Union
 import bleach
 import structlog
 from flask import jsonify, request
-from marshmallow import Schema, ValidationError as MarshmallowValidationError
+from marshmallow import Schema
+from marshmallow import ValidationError as MarshmallowValidationError
 from marshmallow import fields, pre_load, validate
 from marshmallow.decorators import validates, validates_schema
 

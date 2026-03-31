@@ -5,6 +5,7 @@ Mock objects for QuantumAlpha tests.
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
+
 import numpy as np
 
 

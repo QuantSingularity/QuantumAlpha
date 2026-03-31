@@ -6,6 +6,7 @@ This module provides utilities to generate synthetic market data for testing pur
 
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
+
 import numpy as np
 import pandas as pd
 

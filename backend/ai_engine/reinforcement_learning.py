@@ -11,7 +11,6 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-
 try:
     import gymnasium as gym
     from gymnasium import spaces
@@ -29,12 +28,11 @@ import numpy as np
 import pandas as pd
 import requests
 from stable_baselines3 import A2C, DQN, PPO, SAC
-from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common import NotFoundError, ServiceError, ValidationError, setup_logger
-
 
 logger = setup_logger("reinforcement_learning", logging.INFO)
 
