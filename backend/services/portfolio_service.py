@@ -570,19 +570,73 @@ class PortfolioService:
             logger.error(f"Error adding position: {e}")
             raise
 
-    def get_portfolio_positions(self, portfolio_id: int) -> List[Position]:
-        """Get all positions for a portfolio"""
+    def get_portfolio_positions(self, user_id: int) -> List[Any]:
+        """Get all positions for a user's active portfolios"""
         try:
             with get_db_session() as session:
-                positions = (
-                    session.query(Position)
-                    .filter(Position.portfolio_id == portfolio_id)
+                portfolios = (
+                    session.query(Portfolio)
+                    .filter(Portfolio.user_id == user_id, Portfolio.is_active.is_(True))
                     .all()
                 )
-                return positions
+                all_positions = []
+                for portfolio in portfolios:
+                    positions = (
+                        session.query(Position)
+                        .filter(Position.portfolio_id == portfolio.id)
+                        .all()
+                    )
+                    all_positions.extend(
+                        [p.to_dict() if hasattr(p, "to_dict") else p for p in positions]
+                    )
+                return all_positions
         except Exception as e:
-            logger.error(f"Error getting positions for portfolio {portfolio_id}: {e}")
+            logger.error(f"Error getting positions for user {user_id}: {e}")
             return []
+
+    def get_portfolio_summary(self, user_id: int) -> dict:
+        """Get aggregated portfolio summary for a user"""
+        try:
+            with get_db_session() as session:
+                portfolios = (
+                    session.query(Portfolio)
+                    .filter(Portfolio.user_id == user_id, Portfolio.is_active.is_(True))
+                    .all()
+                )
+                if not portfolios:
+                    return {
+                        "total_value": 0.0,
+                        "cash_balance": 0.0,
+                        "invested_amount": 0.0,
+                        "unrealized_pnl": 0.0,
+                        "realized_pnl": 0.0,
+                        "portfolio_count": 0,
+                        "portfolios": [],
+                    }
+                total_value = sum(float(p.total_value or 0) for p in portfolios)
+                cash_balance = sum(float(p.cash_balance or 0) for p in portfolios)
+                invested_amount = sum(float(p.invested_amount or 0) for p in portfolios)
+                unrealized_pnl = sum(float(p.unrealized_pnl or 0) for p in portfolios)
+                realized_pnl = sum(float(p.realized_pnl or 0) for p in portfolios)
+                return {
+                    "total_value": round(total_value, 2),
+                    "cash_balance": round(cash_balance, 2),
+                    "invested_amount": round(invested_amount, 2),
+                    "unrealized_pnl": round(unrealized_pnl, 2),
+                    "realized_pnl": round(realized_pnl, 2),
+                    "portfolio_count": len(portfolios),
+                    "portfolios": [
+                        (
+                            p.to_dict()
+                            if hasattr(p, "to_dict")
+                            else {"id": p.id, "name": p.name}
+                        )
+                        for p in portfolios
+                    ],
+                }
+        except Exception as e:
+            logger.error(f"Error getting portfolio summary for user {user_id}: {e}")
+            return {"error": str(e)}
 
     async def get_position_metrics(self, position_id: int) -> Optional[PositionMetrics]:
         """Get detailed metrics for a specific position"""

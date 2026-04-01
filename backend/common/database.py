@@ -8,7 +8,7 @@ import redis
 import structlog
 from influxdb_client import InfluxDBClient
 from pymongo import MongoClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import QueuePool
@@ -97,7 +97,7 @@ class DatabaseManager:
             self._scoped_session = scoped_session(self._session_factory)
             self._register_postgresql_events()
             with self._engine.connect() as conn:
-                conn.execute("SELECT 1")
+                conn.execute(text("SELECT 1"))
             logger.info("PostgreSQL connection established")
         except Exception as e:
             logger.error(f"Failed to setup PostgreSQL: {e}")
@@ -250,7 +250,7 @@ class DatabaseManager:
         }
         try:
             with self._engine.connect() as conn:
-                conn.execute("SELECT 1")
+                conn.execute(text("SELECT 1"))
             health_status["postgresql"]["status"] = "healthy"
         except Exception as e:
             health_status["postgresql"]["status"] = "unhealthy"
@@ -285,6 +285,10 @@ class DatabaseManager:
         else:
             health_status["mongodb"]["status"] = "not_configured"
         return health_status
+
+    def check_health(self) -> Dict[str, Any]:
+        """Alias for health_check for consistent API"""
+        return self.health_check()
 
     def close_all_connections(self) -> None:
         """Close all database connections"""
@@ -325,31 +329,31 @@ class DatabaseMigrationManager:
     def check_migration_status(self) -> Dict[str, Any]:
         """Check database migration status"""
         try:
-            with self.db_manager.session_scope():
-                inspector = self.db_manager.engine.dialect.get_table_names(
-                    self.db_manager.engine.connect()
-                )
-                required_tables = [
-                    "users",
-                    "user_sessions",
-                    "audit_logs",
-                    "portfolios",
-                    "positions",
-                    "orders",
-                    "order_executions",
-                    "strategies",
-                    "risk_limits",
-                    "compliance_rules",
-                    "market_data",
-                ]
-                missing_tables = [
-                    table for table in required_tables if table not in inspector
-                ]
-                return {
-                    "tables_exist": len(missing_tables) == 0,
-                    "missing_tables": missing_tables,
-                    "total_tables": len(inspector),
-                }
+            from sqlalchemy import inspect as sa_inspect
+
+            inspector = sa_inspect(self.db_manager.engine)
+            existing_tables = inspector.get_table_names()
+            required_tables = [
+                "users",
+                "user_sessions",
+                "audit_logs",
+                "portfolios",
+                "positions",
+                "orders",
+                "order_executions",
+                "strategies",
+                "risk_limits",
+                "compliance_rules",
+                "market_data",
+            ]
+            missing_tables = [
+                table for table in required_tables if table not in existing_tables
+            ]
+            return {
+                "tables_exist": len(missing_tables) == 0,
+                "missing_tables": missing_tables,
+                "total_tables": len(existing_tables),
+            }
         except Exception as e:
             logger.error(f"Failed to check migration status: {e}")
             return {"error": str(e)}

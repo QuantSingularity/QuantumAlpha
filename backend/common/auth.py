@@ -113,6 +113,15 @@ class AuthManager:
         salt = bcrypt.gensalt(rounds=12)
         return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
+    def create_access_token(self, identity: Any, roles: Any = None) -> str:
+        """Create a JWT access token for the given identity"""
+        additional_claims: Dict[str, Any] = {}
+        if roles is not None:
+            additional_claims["roles"] = roles if isinstance(roles, list) else [roles]
+        return create_access_token(
+            identity=identity, additional_claims=additional_claims
+        )
+
     def verify_password(self, password: str, hashed: str) -> bool:
         """Verify password against hash"""
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
@@ -188,12 +197,12 @@ class AuthManager:
             user_agent=user_agent,
             created_at=datetime.now(timezone.utc),
             expires_at=datetime.now(timezone.utc)
-            + SecurityConfig.SESSION_TIMEOUT * timedelta(hours=1),
+            + timedelta(hours=SecurityConfig.SESSION_TIMEOUT),
             is_active=True,
         )
-        db_session = get_db_session()
-        db_session.add(session)
-        db_session.commit()
+        with get_db_session() as db_session:
+            db_session.add(session)
+            db_session.commit()
         log_security_event(
             "login_success",
             {
@@ -220,25 +229,25 @@ class AuthManager:
 
     def _enforce_session_limit(self, user_id: int) -> None:
         """Enforce maximum concurrent sessions"""
-        db_session = get_db_session()
-        active_sessions = (
-            db_session.query(UserSession)
-            .filter(
-                UserSession.user_id == user_id,
-                UserSession.is_active,
-                UserSession.expires_at > datetime.now(timezone.utc),
+        with get_db_session() as db_session:
+            active_sessions = (
+                db_session.query(UserSession)
+                .filter(
+                    UserSession.user_id == user_id,
+                    UserSession.is_active,
+                    UserSession.expires_at > datetime.now(timezone.utc),
+                )
+                .order_by(UserSession.created_at.desc())
+                .all()
             )
-            .order_by(UserSession.created_at.desc())
-            .all()
-        )
-        if len(active_sessions) >= SecurityConfig.MAX_CONCURRENT_SESSIONS:
-            sessions_to_deactivate = active_sessions[
-                SecurityConfig.MAX_CONCURRENT_SESSIONS - 1 :
-            ]
-            for session in sessions_to_deactivate:
-                session.is_active = False
-                self._blacklist_session_tokens(session.session_id)
-            db_session.commit()
+            if len(active_sessions) >= SecurityConfig.MAX_CONCURRENT_SESSIONS:
+                sessions_to_deactivate = active_sessions[
+                    SecurityConfig.MAX_CONCURRENT_SESSIONS - 1 :
+                ]
+                for session in sessions_to_deactivate:
+                    session.is_active = False
+                    self._blacklist_session_tokens(session.session_id)
+                db_session.commit()
 
     def _blacklist_session_tokens(self, session_id: str) -> None:
         """Blacklist all tokens for a session"""
@@ -260,54 +269,58 @@ class AuthManager:
             int(SecurityConfig.ACCESS_TOKEN_EXPIRES.total_seconds()),
             "blacklisted",
         )
-        db_session = get_db_session()
-        session = (
-            db_session.query(UserSession)
-            .filter(UserSession.user_id == user_id, UserSession.is_active)
-            .first()
-        )
-        if session:
-            session.is_active = False
-            db_session.commit()
+        with get_db_session() as db_session:
+            session = (
+                db_session.query(UserSession)
+                .filter(UserSession.user_id == user_id, UserSession.is_active)
+                .first()
+            )
+            if session:
+                session.is_active = False
+                db_session.commit()
         log_security_event("logout", {"user_id": user_id, "token_jti": token_jti})
 
     def authenticate_user(
         self, email: str, password: str, mfa_token: Optional[str] = None
     ) -> Optional[User]:
         """Authenticate user with email/password and optional MFA"""
-        db_session = get_db_session()
-        user = db_session.query(User).filter(User.email == email).first()
-        if not user:
-            log_security_event(
-                "login_failed", {"email": email, "reason": "user_not_found"}
-            )
-            return None
-        if self.check_account_lockout(user.id):
-            log_security_event(
-                "login_blocked",
-                {"user_id": user.id, "email": email, "reason": "account_locked"},
-            )
-            raise AuthenticationError("Account is temporarily locked")
-        if not self.verify_password(password, user.password_hash):
-            self.record_failed_attempt(user.id)
-            log_security_event(
-                "login_failed",
-                {"user_id": user.id, "email": email, "reason": "invalid_password"},
-            )
-            return None
-        if user.mfa_enabled:
-            if not mfa_token:
-                log_security_event("mfa_required", {"user_id": user.id, "email": email})
-                raise AuthenticationError("MFA token required")
-            if not self.verify_mfa_token(user.mfa_secret, mfa_token):
-                self.record_failed_attempt(user.id)
-                log_security_event("mfa_failed", {"user_id": user.id, "email": email})
+        with get_db_session() as db_session:
+            user = db_session.query(User).filter(User.email == email).first()
+            if not user:
+                log_security_event(
+                    "login_failed", {"email": email, "reason": "user_not_found"}
+                )
                 return None
-            user.mfa_verified = True
-        self.clear_failed_attempts(user.id)
-        user.last_login = datetime.now(timezone.utc)
-        db_session.commit()
-        return user
+            if self.check_account_lockout(user.id):
+                log_security_event(
+                    "login_blocked",
+                    {"user_id": user.id, "email": email, "reason": "account_locked"},
+                )
+                raise AuthenticationError("Account is temporarily locked")
+            if not self.verify_password(password, user.password_hash):
+                self.record_failed_attempt(user.id)
+                log_security_event(
+                    "login_failed",
+                    {"user_id": user.id, "email": email, "reason": "invalid_password"},
+                )
+                return None
+            if user.mfa_enabled:
+                if not mfa_token:
+                    log_security_event(
+                        "mfa_required", {"user_id": user.id, "email": email}
+                    )
+                    raise AuthenticationError("MFA token required")
+                if not self.verify_mfa_token(user.mfa_secret, mfa_token):
+                    self.record_failed_attempt(user.id)
+                    log_security_event(
+                        "mfa_failed", {"user_id": user.id, "email": email}
+                    )
+                    return None
+                user.mfa_verified = True
+            self.clear_failed_attempts(user.id)
+            user.last_login = datetime.now(timezone.utc)
+            db_session.commit()
+            return user
 
 
 def require_auth(f: Callable[..., Any]) -> Callable[..., Any]:

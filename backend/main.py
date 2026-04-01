@@ -10,6 +10,7 @@ from common.audit import audit_logger, log_security_event
 from common.auth import auth_manager, require_auth, require_role
 from common.database import cleanup_database, db_manager, initialize_database
 from common.logging_config import setup_logging
+from common.models import AuditAction
 from common.monitoring import (
     create_monitoring_blueprint,
     create_request_monitoring_middleware,
@@ -131,7 +132,7 @@ class QuantumAlphaApp:
                 "Internal server error [%s]: %s", error_id, error, exc_info=True
             )
             audit_logger.log_event(
-                action="error",
+                action=AuditAction.ERROR,
                 resource_type="system",
                 metadata={
                     "error_id": error_id,
@@ -246,7 +247,7 @@ class QuantumAlphaApp:
                     session.commit()
                     session.refresh(user)
                     audit_logger.log_event(
-                        action="create",
+                        action=AuditAction.CREATE,
                         resource_type="user",
                         resource_id=str(user.id),
                         new_values={"email": user.email, "name": user.name},
@@ -295,7 +296,7 @@ class QuantumAlphaApp:
                             identity=user.id, roles=user.roles
                         )
                         audit_logger.log_event(
-                            action="login",
+                            action=AuditAction.LOGIN,
                             resource_type="user",
                             resource_id=str(user.id),
                             user_id=user.id,
@@ -346,7 +347,7 @@ class QuantumAlphaApp:
             """User logout endpoint"""
             user_id = get_jwt_identity()
             audit_logger.log_event(
-                action="logout",
+                action=AuditAction.LOGOUT,
                 resource_type="user",
                 resource_id=str(user_id),
                 user_id=user_id,
@@ -447,19 +448,24 @@ class QuantumAlphaApp:
                 user_id = get_jwt_identity()
                 order_request = OrderRequest(
                     user_id=user_id,
+                    portfolio_id=validated_data.get("portfolio_id", 0),
                     symbol=validated_data["symbol"],
                     side=OrderSide(validated_data["side"]),
-                    type=OrderType(validated_data["type"]),
-                    quantity=Decimal(validated_data["quantity"]),
+                    order_type=OrderType(
+                        validated_data.get(
+                            "type", validated_data.get("order_type", "market")
+                        )
+                    ),
+                    quantity=Decimal(str(validated_data["quantity"])),
                     price=(
-                        Decimal(validated_data.get("price"))
+                        Decimal(str(validated_data.get("price")))
                         if validated_data.get("price")
                         else None
                     ),
                 )
                 order_result = trading_engine.place_order(order_request)
                 audit_logger.log_event(
-                    action="create",
+                    action=AuditAction.CREATE,
                     resource_type="order",
                     resource_id=str(order_result.order_id),
                     new_values=validated_data,

@@ -9,6 +9,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import requests
+from sqlalchemy import text as sa_text
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common.config import ConfigManager
@@ -311,7 +312,7 @@ class TestDatabaseIntegration(unittest.TestCase):
         """Test PostgreSQL connection"""
         session = self.db_manager.get_postgres_session()
         self.assertIsNotNone(session)
-        result = session.execute("SELECT 1 as test")
+        result = session.execute(sa_text("SELECT 1 as test"))
         row = result.fetchone()
         self.assertEqual(row[0], 1)
         session.close()
@@ -320,7 +321,7 @@ class TestDatabaseIntegration(unittest.TestCase):
         """Test TimescaleDB connection"""
         session = self.db_manager.get_timescale_session()
         self.assertIsNotNone(session)
-        result = session.execute("SELECT 1 as test")
+        result = session.execute(sa_text("SELECT 1 as test"))
         row = result.fetchone()
         self.assertEqual(row[0], 1)
         session.close()

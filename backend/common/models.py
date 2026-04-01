@@ -68,6 +68,7 @@ class AuditAction(enum.Enum):
     LOGOUT = "logout"
     TRADE = "trade"
     RISK_BREACH = "risk_breach"
+    ERROR = "error"
 
 
 class BaseModel(Base):
@@ -143,13 +144,20 @@ class User(BaseModel):
     )
 
     @validates("email")
-    def validate_email(self, key: Any, email: Any) -> None:
+    def validate_email(self, key: Any, email: Any) -> str:
         """Validate email format"""
         import re
 
         if not re.match("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$", email):
             raise ValueError("Invalid email format")
         return email.lower()
+
+    @property
+    def roles(self) -> List[str]:
+        """Return user roles as a list for JWT claims compatibility"""
+        if self.role is None:
+            return []
+        return [self.role.value if isinstance(self.role, UserRole) else str(self.role)]
 
     def get_permissions(self) -> List[str]:
         """Get user permissions based on role"""

@@ -1,0 +1,172 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# QuantumAlpha – Full Stack Docker Compose
+# ─────────────────────────────────────────────────────────────────────────────
+
+x-backend-env: &backend-env
+  PYTHONPATH: /app
+  FLASK_DEBUG: "${FLASK_DEBUG:-false}"
+  # Postgres
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "${POSTGRES_DB:-quantumalpha_db}"
+  POSTGRES_USER: "${POSTGRES_USER:-quantumalpha_user}"
+  POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-quantumalpha_pass}"
+  DATABASE_URL: "postgresql://${POSTGRES_USER:-quantumalpha_user}:${POSTGRES_PASSWORD:-quantumalpha_pass}@postgres:5432/${POSTGRES_DB:-quantumalpha_db}"
+  # Redis
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_URL: "redis://redis:6379/0"
+  # Security
+  SECRET_KEY: "${SECRET_KEY:-change-me-in-production}"
+  JWT_SECRET_KEY: "${JWT_SECRET_KEY:-change-me-jwt-in-production}"
+  CORS_ORIGINS: "${CORS_ORIGINS:-*}"
+  # App
+  PORT: "8000"
+
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: quantumalpha_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-quantumalpha_db}"
+      POSTGRES_USER: "${POSTGRES_USER:-quantumalpha_user}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-quantumalpha_pass}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT_EXPOSE:-5432}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-quantumalpha_user} -d ${POSTGRES_DB:-quantumalpha_db}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - backend
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: quantumalpha_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1
+      --loglevel warning
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT_EXPOSE:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  # ── Backend API ─────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: quantumalpha_backend
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    env_file:
+      - .env
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - backend
+      - frontend
+
+  # ── Mock / Lightweight API (no DB dependencies) ─────────────────────────────
+  backend_mock:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: quantumalpha_mock
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      FLASK_DEBUG: "false"
+      CORS_ORIGINS: "*"
+    command: ["python", "app.py"]
+    ports:
+      - "${MOCK_PORT:-8080}:8080"
+    profiles:
+      - mock
+    networks:
+      - frontend
+
+  # ── pgAdmin (optional, dev only) ────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: quantumalpha_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:-admin@quantumalpha.com}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD:-admin}"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      - postgres
+    profiles:
+      - dev
+    networks:
+      - backend
+
+  # ── Redis Commander (optional, dev only) ────────────────────────────────────
+  redis_commander:
+    image: rediscommander/redis-commander:latest
+    container_name: quantumalpha_redis_ui
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: "local:redis:6379"
+    ports:
+      - "${REDIS_UI_PORT:-8081}:8081"
+    depends_on:
+      - redis
+    profiles:
+      - dev
+    networks:
+      - backend
+
+# ─────────────────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge

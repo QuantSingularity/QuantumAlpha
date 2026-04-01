@@ -50,6 +50,15 @@ class OrderRequest:
     time_in_force: str = "day"
     user_id: Optional[int] = None
 
+    def __post_init__(self) -> None:
+        # Allow callers that pass 'type' kwarg by accepting it via order_type
+        pass
+
+    @property
+    def type(self) -> OrderType:
+        """Alias for order_type for API compatibility"""
+        return self.order_type
+
 
 @dataclass
 class ExecutionReport:
@@ -124,9 +133,9 @@ class RiskManager:
                 )
                 current_quantity = position.quantity if position else Decimal("0")
                 if order_request.side == OrderSide.BUY:
-                    current_quantity + order_request.quantity
+                    current_quantity = current_quantity + order_request.quantity
                 else:
-                    current_quantity - order_request.quantity
+                    current_quantity = current_quantity - order_request.quantity
                 order_value = await self._estimate_order_value(order_request)
                 position_weight = order_value / portfolio.total_value
                 if position_weight > portfolio.max_position_size:
@@ -527,10 +536,27 @@ class TradingEngine:
     def __init__(self) -> None:
         self.order_manager = OrderManager()
         self.risk_manager = RiskManager()
+        self._running = False
 
-    async def place_order(self, order_request: OrderRequest) -> Order:
-        """Place a new order"""
-        return await self.order_manager.submit_order(order_request)
+    def place_order(self, order_request: OrderRequest) -> Order:
+        """Place a new order (sync wrapper around async submit_order)"""
+        import asyncio
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    future = pool.submit(
+                        asyncio.run, self.order_manager.submit_order(order_request)
+                    )
+                    return future.result()
+            return loop.run_until_complete(
+                self.order_manager.submit_order(order_request)
+            )
+        except RuntimeError:
+            return asyncio.run(self.order_manager.submit_order(order_request))
 
     def cancel_order(self, order_id: int, user_id: int) -> bool:
         """Cancel an existing order"""
@@ -548,6 +574,28 @@ class TradingEngine:
             return self.order_manager.get_portfolio_orders(portfolio_id, user_id)
         else:
             return self.order_manager.get_user_orders(user_id)
+
+    def get_orders(self, user_id: int) -> List[Any]:
+        """Get all orders for a user (serialisable dicts)"""
+        orders = self.order_manager.get_user_orders(user_id)
+        return [o.to_dict() if hasattr(o, "to_dict") else o for o in orders]
+
+    def start(self) -> None:
+        """Start the trading engine"""
+        self._running = True
+        logger.info("Trading engine started")
+
+    def stop(self) -> None:
+        """Stop the trading engine"""
+        self._running = False
+        logger.info("Trading engine stopped")
+
+    def check_health(self) -> dict:
+        """Return health status of the trading engine"""
+        return {
+            "status": "healthy" if self._running else "stopped",
+            "running": self._running,
+        }
 
 
 trading_engine = TradingEngine()

@@ -107,9 +107,9 @@ class AuditLogger:
                 compliance_flags=compliance_flags,
             )
             audit_log.hash_value = self._generate_hash(audit_log)
-            db_session = get_db_session()
-            db_session.add(audit_log)
-            db_session.commit()
+            with get_db_session() as db_session:
+                db_session.add(audit_log)
+                db_session.commit()
             self._log_to_external_systems(audit_log)
             if risk_score and risk_score > 0.8:
                 self._handle_high_risk_event(audit_log)
@@ -266,21 +266,21 @@ class RiskCalculator:
         if not user_id:
             return 1.2
         try:
-            db_session = get_db_session()
-            user = db_session.query(User).filter(User.id == user_id).first()
-            if not user:
-                return 1.2
-            multiplier = 1.0
-            if (
-                user.created_at
-                and (datetime.now(timezone.utc) - user.created_at).days < 30
-            ):
-                multiplier *= 1.3
-            if user.failed_login_attempts > 0:
-                multiplier *= 1.2
-            if user.role.value == "admin":
-                multiplier *= 1.1
-            return min(2.0, multiplier)
+            with get_db_session() as db_session:
+                user = db_session.query(User).filter(User.id == user_id).first()
+                if not user:
+                    return 1.2
+                multiplier = 1.0
+                if (
+                    user.created_at
+                    and (datetime.now(timezone.utc) - user.created_at).days < 30
+                ):
+                    multiplier *= 1.3
+                if user.failed_login_attempts > 0:
+                    multiplier *= 1.2
+                if user.role.value == "admin":
+                    multiplier *= 1.1
+                return min(2.0, multiplier)
         except Exception as e:
             logger.error(f"Error calculating user risk multiplier: {e}")
             return 1.0

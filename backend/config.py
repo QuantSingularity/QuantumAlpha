@@ -23,7 +23,7 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = False  # Managed by auth module
 
     # CORS configuration
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 
     # Database configuration
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")

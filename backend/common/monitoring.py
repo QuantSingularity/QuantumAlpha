@@ -492,6 +492,19 @@ class MonitoringService:
             "system_metrics": asdict(self.system_monitor.collect_system_metrics()),
         }
 
+    def check_health(self) -> Dict[str, Any]:
+        """Synchronous health check returning basic status"""
+        try:
+            metrics = self.system_monitor.collect_system_metrics()
+            return {
+                "status": "healthy",
+                "cpu_usage": metrics.cpu_usage,
+                "memory_usage": metrics.memory_usage,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}
+
     def get_metrics(self) -> str:
         """Get Prometheus metrics"""
         return generate_latest()
