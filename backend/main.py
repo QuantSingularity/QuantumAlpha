@@ -184,7 +184,7 @@ class QuantumAlphaApp:
                     user_id = get_jwt_identity()
                     if user_id:
                         g.current_user_id = user_id
-            except:
+            except Exception:
                 pass
 
         @app.after_request
