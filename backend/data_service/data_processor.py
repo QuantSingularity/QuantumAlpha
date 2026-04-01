@@ -6,12 +6,21 @@ Handles data processing and feature engineering.
 import logging
 from typing import Any, Dict, List, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
+import pywt
+import seaborn as sns
+import statsmodels.api as sm
 import talib
 from common.exceptions import NotFoundError, ServiceError, ValidationError
 from common.logging_config import setup_logging
+from hurst import compute_Hc
+from pykalman import KalmanFilter
+from scipy import stats
 from sklearn.preprocessing import MinMaxScaler
+from statsmodels.tsa.stattools import coint, grangercausalitytests
 
 setup_logging(logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +36,6 @@ class DataProcessor:
         :param config_manager: Configuration manager instance.
         :param db_manager: Database manager instance.
         """
-        "Initialize data processor\n\n        Args:\n            config_manager: Configuration manager\n            db_manager: Database manager\n        "
         self.config_manager = config_manager
         self.db_manager = db_manager
         logger.info("Data processor initialized")
@@ -486,8 +494,10 @@ class DataProcessor:
             }
             if method not in filling_methods:
                 raise ValidationError(f"Unsupported filling method: {method}")
-            if method in ["ffill", "bfill"]:
-                df_filled = df.fillna(method=filling_methods[method])
+            if method == "ffill":
+                df_filled = df.ffill()
+            elif method == "bfill":
+                df_filled = df.bfill()
             elif method == "mean":
                 df_filled = df.fillna(df.mean())
             elif method == "median":
@@ -686,9 +696,7 @@ class DataProcessor:
             logger.info(
                 f"Creating target variable from {column} with {periods} periods shift"
             )
-            df["target_return"] = (
-                df[column].pct_change(periods=-periods).shift(-periods)
-            )
+            df["target_return"] = df[column].pct_change(periods=periods).shift(-periods)
             return df
         except Exception as e:
             logger.error(f"Error creating target variable: {e}")
