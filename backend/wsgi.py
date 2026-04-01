@@ -2,6 +2,8 @@
 WSGI entry point for production deployment via gunicorn.
 """
 
+import atexit
+
 from common.database import cleanup_database, initialize_database
 from main import QuantumAlphaApp
 from services.trading_engine import trading_engine
@@ -17,9 +19,6 @@ with application.app_context():
         import logging
 
         logging.getLogger(__name__).error("Startup error: %s", exc)
-
-# gunicorn atexit cleanup
-import atexit
 
 
 @atexit.register

@@ -6,7 +6,7 @@ Handles stress testing and scenario analysis.
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 import numpy as np

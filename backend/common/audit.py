@@ -68,13 +68,13 @@ class AuditLogger:
             elif not user_id:
                 try:
                     user_id = get_jwt_identity()
-                except:
+                except Exception:
                     pass
             if not session_id:
                 try:
                     claims = get_jwt()
                     session_id = claims.get("session_id")
-                except:
+                except Exception:
                     pass
             if not ip_address and request:
                 ip_address = self._get_client_ip()
@@ -325,14 +325,14 @@ def audit_action(action: AuditAction, resource_type: str) -> Any:
             if action == AuditAction.UPDATE and "id" in kwargs:
                 try:
                     old_values = _get_resource_values(resource_type, kwargs["id"])
-                except:
+                except Exception:
                     pass
             result = func(*args, **kwargs)
             new_values = None
             if action in [AuditAction.CREATE, AuditAction.UPDATE]:
                 try:
                     new_values = _extract_values_from_result(result)
-                except:
+                except Exception:
                     pass
             resource_id = _extract_resource_id(result, kwargs)
             audit_logger.log_event(

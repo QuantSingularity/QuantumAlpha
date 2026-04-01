@@ -6,6 +6,7 @@ Provides Kafka producer and consumer integration.
 import json
 import logging
 import threading
+import time
 from typing import Any, Callable, Dict, List, Optional
 
 from confluent_kafka import Consumer, KafkaError, KafkaException, Producer

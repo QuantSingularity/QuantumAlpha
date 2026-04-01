@@ -1135,7 +1135,7 @@ class RegulatoryReportingEngine:
                 else:
                     return False
             return True
-        except:
+        except Exception:
             return False
 
     def _get_field_value(self, report: Dict[str, Any], field_path: str) -> Any:
@@ -1146,7 +1146,7 @@ class RegulatoryReportingEngine:
             for key in keys:
                 current = current[key]
             return current
-        except:
+        except Exception:
             return None
 
     def _save_report(
@@ -1231,7 +1231,7 @@ class RegulatoryReportingEngine:
                                 continue
                             if end_date and file_date > end_date:
                                 continue
-                        except:
+                        except Exception:
                             continue
                         reports.append(
                             {
