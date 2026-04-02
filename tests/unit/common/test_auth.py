@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 Unit tests for the Common module's authentication utilities.
 """
@@ -7,6 +5,7 @@ Unit tests for the Common module's authentication utilities.
 import os
 import sys
 import unittest
+from typing import Any
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 

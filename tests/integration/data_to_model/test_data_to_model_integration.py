@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 Integration tests for data service to AI engine integration.
 """
@@ -7,6 +5,7 @@ Integration tests for data service to AI engine integration.
 import os
 import sys
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np

@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 Unit tests for the Execution Service's Order Manager.
 """
@@ -7,6 +5,7 @@ Unit tests for the Execution Service's Order Manager.
 import os
 import sys
 import unittest
+from typing import Any
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 

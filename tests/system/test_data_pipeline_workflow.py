@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 System tests for data pipeline workflow.
 """
@@ -7,6 +5,7 @@ System tests for data pipeline workflow.
 import os
 import sys
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np

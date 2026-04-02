@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 Unit tests for the AI Engine's Model Manager.
 """
@@ -8,6 +6,7 @@ import json
 import os
 import pickle
 import sys
+from typing import Any
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 

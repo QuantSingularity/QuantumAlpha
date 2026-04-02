@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 Integration tests for AI engine to risk service integration.
 """
@@ -7,6 +5,7 @@ Integration tests for AI engine to risk service integration.
 import os
 import sys
 import unittest
+from typing import Any
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 

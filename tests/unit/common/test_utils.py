@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 Unit tests for the Common module's utilities.
 """
@@ -8,6 +6,7 @@ import os
 import sys
 import unittest
 import uuid
+from typing import Any
 from datetime import datetime
 
 import numpy as np

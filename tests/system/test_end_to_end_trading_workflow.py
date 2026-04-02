@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 System tests for end-to-end trading workflow.
 """
@@ -7,6 +5,7 @@ System tests for end-to-end trading workflow.
 import os
 import sys
 import unittest
+from typing import Any
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 

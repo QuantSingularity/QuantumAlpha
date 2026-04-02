@@ -1,11 +1,10 @@
-from typing import Any
-
 """
 Shared pytest fixtures for QuantumAlpha tests.
 """
 
 import os
 import sys
+from typing import Any
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 

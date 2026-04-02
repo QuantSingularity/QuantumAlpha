@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 System tests for user authentication and authorization workflow.
 """
@@ -7,6 +5,7 @@ System tests for user authentication and authorization workflow.
 import os
 import sys
 import unittest
+from typing import Any
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 

@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 Unit tests for the AI Engine's Prediction Service.
 """
@@ -7,6 +5,7 @@ Unit tests for the AI Engine's Prediction Service.
 import os
 import sys
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 sys.path.append(

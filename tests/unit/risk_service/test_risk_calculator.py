@@ -1,5 +1,3 @@
-from typing import Any
-
 """
 Unit tests for the Risk Service's Risk Calculator.
 """
@@ -7,6 +5,7 @@ Unit tests for the Risk Service's Risk Calculator.
 import os
 import sys
 import unittest
+from typing import Any
 from unittest.mock import MagicMock
 
 import numpy as np
