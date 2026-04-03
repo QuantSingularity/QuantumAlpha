@@ -37,13 +37,13 @@ variable "private_subnets" {
 variable "eks_cluster_version" {
   description = "Kubernetes version for EKS cluster"
   type        = string
-  default     = "1.24"
+  default     = "1.29"
 }
 
 variable "eks_node_instance_types" {
   description = "EC2 instance types for EKS worker nodes"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.large"]
 }
 
 variable "eks_node_desired_size" {
@@ -79,7 +79,7 @@ variable "rds_allocated_storage" {
 variable "rds_engine_version" {
   description = "PostgreSQL engine version"
   type        = string
-  default     = "14"
+  default     = "15"
 }
 
 variable "rds_master_username" {
@@ -89,10 +89,19 @@ variable "rds_master_username" {
 }
 
 variable "rds_master_password" {
-  description = "Master password for RDS instance"
+  description = "Master password for RDS instance. Must be set via TF_VAR_rds_master_password env var or tfvars file - never hardcoded."
   type        = string
   sensitive   = true
-  default     = "postgres" # This should be changed and stored securely
+  validation {
+    condition     = length(var.rds_master_password) >= 16
+    error_message = "RDS master password must be at least 16 characters long."
+  }
+}
+
+variable "rds_allowed_cidr_blocks" {
+  description = "CIDR blocks allowed to connect to RDS"
+  type        = list(string)
+  default     = ["10.0.0.0/16"]
 }
 
 variable "elasticache_node_type" {
@@ -104,7 +113,7 @@ variable "elasticache_node_type" {
 variable "elasticache_engine_version" {
   description = "Redis engine version"
   type        = string
-  default     = "6.x"
+  default     = "7.0"
 }
 
 variable "elasticache_num_cache_nodes" {
@@ -116,7 +125,7 @@ variable "elasticache_num_cache_nodes" {
 variable "msk_kafka_version" {
   description = "Kafka version for MSK cluster"
   type        = string
-  default     = "2.8.1"
+  default     = "3.5.1"
 }
 
 variable "msk_broker_instance_type" {
@@ -135,4 +144,14 @@ variable "msk_ebs_volume_size" {
   description = "EBS volume size for MSK brokers in GB"
   type        = number
   default     = 100
+}
+
+variable "common_tags" {
+  description = "Common tags to apply to all resources"
+  type        = map(string)
+  default = {
+    Project     = "quantumalpha"
+    ManagedBy   = "terraform"
+    Compliance  = "SOX,PCI-DSS,GLBA"
+  }
 }

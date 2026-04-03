@@ -1,49 +1,34 @@
-# QuantumAlpha Terraform Variables Example
-# Copy this file to terraform.tfvars and fill in your values
-# NEVER commit terraform.tfvars to version control
+# Copy this file to terraform.tfvars and fill in values.
+# NEVER commit terraform.tfvars to source control.
 
-# AWS Configuration
-aws_region = "us-east-1"  # Change to your preferred region
+aws_region  = "us-east-1"
 environment = "dev"
 
-# VPC Configuration
-vpc_cidr = "10.0.0.0/16"
-availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+vpc_cidr        = "10.0.0.0/16"
 public_subnets  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-private_subnets = ["10.0.10.0/24", "10.0.11.0/24", "10.0.12.0/24"]
+private_subnets = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
 
-# EKS Configuration
-eks_cluster_version = "1.28"
-eks_node_instance_types = ["t3.large", "t3.xlarge"]
-eks_node_desired_size = 3
-eks_node_min_size = 2
-eks_node_max_size = 10
+eks_cluster_version     = "1.29"
+eks_node_instance_types = ["t3.large"]
+eks_node_desired_size   = 2
+eks_node_min_size       = 1
+eks_node_max_size       = 4
 
-# RDS Configuration
-rds_instance_class = "db.t3.medium"
-rds_allocated_storage = 100
-rds_engine_version = "15.4"  # PostgreSQL version
-rds_master_username = "quantumalpha_admin"
-# IMPORTANT: Set this via environment variable or AWS Secrets Manager
-# DO NOT hardcode passwords here
-# export TF_VAR_rds_master_password="your-secure-password"
-rds_master_password = ""  # Set via TF_VAR_rds_master_password env var
+rds_instance_class    = "db.t3.medium"
+rds_allocated_storage = 20
+rds_engine_version    = "15"
+rds_master_username   = "postgres"
+# Set via environment variable: export TF_VAR_rds_master_password="<strong-password-min-16-chars>"
+# rds_master_password = ""
 
-# ElastiCache Configuration
-elasticache_node_type = "cache.t3.medium"
-elasticache_engine_version = "7.0"
-elasticache_num_cache_nodes = 2
+rds_allowed_cidr_blocks = ["10.0.0.0/16"]
 
-# MSK (Kafka) Configuration - Uncomment if using MSK module
-# msk_kafka_version = "3.5.1"
-# msk_broker_instance_type = "kafka.t3.small"
-# msk_broker_count = 3
-# msk_ebs_volume_size = 100
+elasticache_node_type       = "cache.t3.small"
+elasticache_engine_version  = "7.0"
+elasticache_num_cache_nodes = 1
 
-# Tags
 common_tags = {
-  Project     = "QuantumAlpha"
-  ManagedBy   = "Terraform"
-  Environment = "dev"
-  CostCenter  = "engineering"
+  Project    = "quantumalpha"
+  ManagedBy  = "terraform"
+  Compliance = "SOX,PCI-DSS,GLBA"
 }

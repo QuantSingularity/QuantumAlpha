@@ -1,5 +1,3 @@
-# Provider configuration inherited from root module
-
 resource "aws_elasticache_subnet_group" "main" {
   name       = "quantumalpha-${var.environment}-redis-subnet-group"
   subnet_ids = var.private_subnet_ids
@@ -19,7 +17,7 @@ resource "aws_security_group" "redis" {
     from_port   = 6379
     to_port     = 6379
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"] # Allow access from within the VPC
+    cidr_blocks = ["10.0.0.0/16"]
     description = "Allow Redis traffic from within VPC"
   }
 
@@ -53,23 +51,23 @@ resource "aws_elasticache_parameter_group" "redis" {
 }
 
 resource "aws_elasticache_replication_group" "redis" {
-  replication_group_id          = "quantumalpha-${var.environment}-redis"
-  replication_group_description = "QuantumAlpha ${var.environment} Redis cluster"
-  node_type                     = var.node_type
-  number_cache_clusters         = var.environment == "prod" ? 2 : 1
-  parameter_group_name          = aws_elasticache_parameter_group.redis.name
-  subnet_group_name             = aws_elasticache_subnet_group.main.name
-  security_group_ids            = [aws_security_group.redis.id]
-  engine_version                = var.engine_version
-  port                          = 6379
-  automatic_failover_enabled    = var.environment == "prod" ? true : false
-  multi_az_enabled              = var.environment == "prod" ? true : false
-  auto_minor_version_upgrade    = true
+  replication_group_id       = "quantumalpha-${var.environment}-redis"
+  description                = "QuantumAlpha ${var.environment} Redis cluster"
+  node_type                  = var.node_type
+  num_cache_clusters         = var.num_cache_nodes
+  parameter_group_name       = aws_elasticache_parameter_group.redis.name
+  subnet_group_name          = aws_elasticache_subnet_group.main.name
+  security_group_ids         = [aws_security_group.redis.id]
+  engine_version             = var.engine_version
+  port                       = 6379
+  automatic_failover_enabled = var.num_cache_nodes > 1
+  multi_az_enabled           = var.num_cache_nodes > 1
+  auto_minor_version_upgrade = true
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
 
   tags = {
     Name        = "quantumalpha-${var.environment}-redis"
     Environment = var.environment
   }
 }
-
-

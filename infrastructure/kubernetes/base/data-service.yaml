@@ -1,8 +1,24 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: data-service-sa
+  namespace: quantumalpha
+  labels:
+    app: data-service
+automountServiceAccountToken: false
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: data-service
   namespace: quantumalpha
+  labels:
+    app: data-service
+    tier: application
+    compliance.sox: "true"
+    compliance.pci-dss: "true"
+  annotations:
+    kubernetes.io/description: "Data ingestion and processing service for QuantumAlpha"
 spec:
   replicas: 2
   selector:
@@ -12,33 +28,126 @@ spec:
     metadata:
       labels:
         app: data-service
+        tier: application
+        compliance.sox: "true"
+        compliance.pci-dss: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
     spec:
+      serviceAccountName: data-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: data-service
           image: ${ECR_REGISTRY}/quantumalpha/data-service:${IMAGE_TAG}
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
           env:
             - name: DB_HOST
-              value: "postgres"
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: DB_HOST
             - name: DB_PORT
-              value: "5432"
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: database
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: db-credentials
+                  name: postgres-credentials
                   key: username
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: db-credentials
+                  name: postgres-credentials
                   key: password
-            - name: DB_NAME
-              value: "quantumalpha"
+            - name: DB_SSL_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: DB_SSL_MODE
             - name: INFLUXDB_URL
-              value: "http://influxdb:8086"
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: INFLUXDB_URL
+            - name: INFLUXDB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb-credentials
+                  key: token
+            - name: INFLUXDB_ORG
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: INFLUXDB_ORG
+            - name: INFLUXDB_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: INFLUXDB_BUCKET
             - name: KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka:29092"
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: KAFKA_SECURITY_PROTOCOL
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: KAFKA_SECURITY_PROTOCOL
+            - name: KAFKA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: username
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: password
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: LOG_LEVEL
+            - name: AUDIT_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: AUDIT_ENABLED
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "512Mi"
@@ -52,22 +161,76 @@ spec:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /health
               port: 8080
             initialDelaySeconds: 60
             periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - data-service
+                topologyKey: kubernetes.io/hostname
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: data-service
   namespace: quantumalpha
+  labels:
+    app: data-service
+    tier: application
 spec:
   selector:
     app: data-service
   ports:
     - port: 8080
       targetPort: 8080
+      name: http
+      protocol: TCP
+    - port: 9090
+      targetPort: 9090
+      name: metrics
+      protocol: TCP
   type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: data-service-hpa
+  namespace: quantumalpha
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: data-service
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

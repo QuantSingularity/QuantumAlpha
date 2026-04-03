@@ -6,8 +6,8 @@ resources:
 
 namespace: quantumalpha-dev
 
-patchesStrategicMerge:
-  - configmap.yaml
+patches:
+  - path: configmap.yaml
 
 replicas:
   - name: data-service
@@ -20,3 +20,15 @@ replicas:
     count: 1
   - name: web-frontend
     count: 1
+
+images:
+  - name: ${ECR_REGISTRY}/quantumalpha/data-service
+    newTag: dev-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/ai-engine
+    newTag: dev-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/risk-service
+    newTag: dev-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/execution-service
+    newTag: dev-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/web-frontend
+    newTag: dev-latest

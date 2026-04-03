@@ -3,8 +3,16 @@ kind: Deployment
 metadata:
   name: zookeeper
   namespace: quantumalpha
+  labels:
+    app: zookeeper
+    tier: messaging
+    compliance.sox: "true"
+  annotations:
+    kubernetes.io/description: "Zookeeper coordination service for Kafka"
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: zookeeper
@@ -12,17 +20,75 @@ spec:
     metadata:
       labels:
         app: zookeeper
+        tier: messaging
+        compliance.sox: "true"
     spec:
+      serviceAccountName: zookeeper-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: zookeeper
-          image: confluentinc/cp-zookeeper:7.0.0
-          ports:
-            - containerPort: 2181
+          image: confluentinc/cp-zookeeper:7.4.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: ZOOKEEPER_CLIENT_PORT
               value: "2181"
             - name: ZOOKEEPER_TICK_TIME
               value: "2000"
+            - name: ZOOKEEPER_INIT_LIMIT
+              value: "5"
+            - name: ZOOKEEPER_SYNC_LIMIT
+              value: "2"
+            - name: ZOOKEEPER_MAX_CLIENT_CNXNS
+              value: "60"
+            - name: ZOOKEEPER_AUTOPURGE_SNAP_RETAIN_COUNT
+              value: "3"
+            - name: ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL
+              value: "24"
+            - name: ZOOKEEPER_4LW_COMMANDS_WHITELIST
+              value: "mntr,conf,ruok"
+            - name: ZOOKEEPER_LOG4J_ROOT_LOGLEVEL
+              value: "INFO"
+            - name: KAFKA_OPTS
+              value: "-Djava.security.auth.login.config=/etc/kafka/secrets/zookeeper_jaas.conf"
+            - name: ZOOKEEPER_AUTH_PROVIDER_1
+              value: "org.apache.zookeeper.server.auth.SASLAuthenticationProvider"
+            - name: ZOOKEEPER_REQUIRE_CLIENT_AUTH_SCHEME
+              value: "sasl"
+          ports:
+            - containerPort: 2181
+              name: client
+              protocol: TCP
+            - containerPort: 2888
+              name: server
+              protocol: TCP
+            - containerPort: 3888
+              name: leader-election
+              protocol: TCP
+          volumeMounts:
+            - name: zookeeper-storage
+              mountPath: /var/lib/zookeeper
+            - name: zookeeper-logs
+              mountPath: /var/log/zookeeper
+            - name: zookeeper-secrets
+              mountPath: /etc/kafka/secrets
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "512Mi"
@@ -30,64 +96,92 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
-          volumeMounts:
-            - name: zookeeper-data
-              mountPath: /var/lib/zookeeper/data
-            - name: zookeeper-log
-              mountPath: /var/lib/zookeeper/log
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "echo ruok | nc localhost 2181 | grep imok"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
-            tcpSocket:
-              port: 2181
+            exec:
+              command:
+                - sh
+                - -c
+                - "echo ruok | nc localhost 2181 | grep imok"
             initialDelaySeconds: 10
             periodSeconds: 10
-          livenessProbe:
-            tcpSocket:
-              port: 2181
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
       volumes:
-        - name: zookeeper-data
+        - name: zookeeper-storage
           persistentVolumeClaim:
-            claimName: zookeeper-data-pvc
-        - name: zookeeper-log
-          persistentVolumeClaim:
-            claimName: zookeeper-log-pvc
+            claimName: zookeeper-pvc
+        - name: zookeeper-logs
+          emptyDir: {}
+        - name: zookeeper-secrets
+          secret:
+            secretName: kafka-credentials
+        - name: tmp
+          emptyDir: {}
+      nodeSelector:
+        security: high
+      tolerations:
+        - key: "security"
+          operator: "Equal"
+          value: "high"
+          effect: "NoSchedule"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: zookeeper
   namespace: quantumalpha
-spec:
-  selector:
+  labels:
     app: zookeeper
+    tier: messaging
+spec:
+  type: ClusterIP
   ports:
     - port: 2181
       targetPort: 2181
-  type: ClusterIP
+      protocol: TCP
+      name: client
+    - port: 2888
+      targetPort: 2888
+      protocol: TCP
+      name: server
+    - port: 3888
+      targetPort: 3888
+      protocol: TCP
+      name: leader-election
+  selector:
+    app: zookeeper
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: zookeeper-data-pvc
+  name: zookeeper-pvc
   namespace: quantumalpha
+  labels:
+    app: zookeeper
+    tier: messaging
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 5Gi
-  storageClassName: standard
+      storage: 10Gi
+  storageClassName: gp3-encrypted
 ---
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: ServiceAccount
 metadata:
-  name: zookeeper-log-pvc
+  name: zookeeper-sa
   namespace: quantumalpha
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
-  storageClassName: standard
+  labels:
+    app: zookeeper
+automountServiceAccountToken: false

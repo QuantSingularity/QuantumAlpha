@@ -1,8 +1,20 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+automountServiceAccountToken: false
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
   namespace: monitoring
+  labels:
+    app: grafana
+    compliance.sox: "true"
 spec:
   replicas: 1
   selector:
@@ -12,12 +24,33 @@ spec:
     metadata:
       labels:
         app: grafana
+        compliance.sox: "true"
     spec:
+      serviceAccountName: grafana
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: grafana
-          image: grafana/grafana:9.0.0
+          image: grafana/grafana:10.4.2
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 472
+            runAsGroup: 472
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 3000
+              name: http
+              protocol: TCP
           env:
             - name: GF_SECURITY_ADMIN_USER
               valueFrom:
@@ -30,12 +63,40 @@ spec:
                   name: grafana-credentials
                   key: admin-password
             - name: GF_INSTALL_PLUGINS
-              value: "grafana-clock-panel,grafana-simple-json-datasource"
+              value: "grafana-clock-panel,grafana-piechart-panel"
+            - name: GF_SERVER_PROTOCOL
+              value: "http"
+            - name: GF_SECURITY_DISABLE_GRAVATAR
+              value: "true"
+            - name: GF_SECURITY_COOKIE_SECURE
+              value: "true"
+            - name: GF_SECURITY_COOKIE_SAMESITE
+              value: "strict"
+            - name: GF_SECURITY_STRICT_TRANSPORT_SECURITY
+              value: "true"
+            - name: GF_SECURITY_X_CONTENT_TYPE_OPTIONS
+              value: "true"
+            - name: GF_SECURITY_X_XSS_PROTECTION
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_LOG_MODE
+              value: "console"
+            - name: GF_LOG_LEVEL
+              value: "info"
           volumeMounts:
             - name: grafana-storage
               mountPath: /var/lib/grafana
             - name: grafana-datasources
               mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+            - name: grafana-dashboards-provisioning
+              mountPath: /etc/grafana/provisioning/dashboards
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "256Mi"
@@ -43,6 +104,22 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "200m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
       volumes:
         - name: grafana-storage
           persistentVolumeClaim:
@@ -50,18 +127,27 @@ spec:
         - name: grafana-datasources
           configMap:
             name: grafana-datasources
+        - name: grafana-dashboards-provisioning
+          configMap:
+            name: grafana-dashboards-provisioning
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: grafana
   namespace: monitoring
+  labels:
+    app: grafana
 spec:
   selector:
     app: grafana
   ports:
     - port: 3000
       targetPort: 3000
+      name: http
+      protocol: TCP
   type: ClusterIP
 ---
 apiVersion: v1
@@ -75,14 +161,34 @@ spec:
   resources:
     requests:
       storage: 5Gi
-  storageClassName: standard
+  storageClassName: gp3-encrypted
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: grafana-credentials
   namespace: monitoring
+  labels:
+    app: grafana
 type: Opaque
 data:
-  admin-user: YWRtaW4= # admin
-  admin-password: YWRtaW4xMjM= # admin123
+  admin-user: YWRtaW4=
+  admin-password: Y2hhbmdlbWVfZ3JhZmFuYV9wYXNzd29yZF9pbl9wcm9kdWN0aW9u
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provisioning
+  namespace: monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'quantumalpha'
+        orgId: 1
+        folder: 'QuantumAlpha'
+        type: file
+        disableDeletion: true
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards

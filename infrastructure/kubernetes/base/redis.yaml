@@ -48,8 +48,9 @@ spec:
               drop:
                 - ALL
           command:
-            - redis-server
-            - /etc/redis/redis.conf
+            - sh
+            - -c
+            - redis-server /etc/redis/redis.conf --requirepass "$REDIS_PASSWORD"
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -78,10 +79,9 @@ spec:
           livenessProbe:
             exec:
               command:
-                - redis-cli
-                - --raw
-                - incr
-                - ping
+                - sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping | grep PONG
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -89,8 +89,9 @@ spec:
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
+                - sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping | grep PONG
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -264,7 +265,7 @@ data:
     tcp-keepalive 60
 
     # Authentication
-    requirepass ${REDIS_PASSWORD}
+    requirepass placeholder_overridden_at_runtime
 
     # Memory management
     maxmemory 512mb

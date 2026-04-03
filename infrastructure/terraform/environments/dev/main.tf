@@ -1,5 +1,9 @@
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = var.common_tags
+  }
 }
 
 module "vpc" {
@@ -30,15 +34,19 @@ module "eks" {
 module "rds" {
   source = "../../modules/rds"
 
-  environment        = var.environment
-  vpc_id             = module.vpc.vpc_id
-  private_subnet_ids = module.vpc.private_subnet_ids
-  instance_class     = var.rds_instance_class
-  allocated_storage  = var.rds_allocated_storage
-  engine_version     = var.rds_engine_version
-  database_name      = "quantumalpha"
-  master_username    = var.rds_master_username
-  master_password    = var.rds_master_password
+  project_name           = "quantumalpha"
+  environment            = var.environment
+  vpc_id                 = module.vpc.vpc_id
+  private_subnet_ids     = module.vpc.private_subnet_ids
+  instance_class         = var.rds_instance_class
+  allocated_storage      = var.rds_allocated_storage
+  engine_version         = var.rds_engine_version
+  database_name          = "quantumalpha"
+  master_username        = var.rds_master_username
+  master_password        = var.rds_master_password
+  allowed_cidr_blocks    = var.rds_allowed_cidr_blocks
+  allowed_security_groups = [module.eks.node_security_group_id]
+  common_tags            = var.common_tags
 }
 
 module "elasticache" {
@@ -52,40 +60,23 @@ module "elasticache" {
   num_cache_nodes    = var.elasticache_num_cache_nodes
 }
 
-# MSK module commented out - create modules/msk if needed
-# module "msk" {
-#   source = "../modules/msk"
-#
-#   environment         = var.environment
-#   vpc_id              = module.vpc.vpc_id
-#   private_subnet_ids  = module.vpc.private_subnet_ids
-#   kafka_version       = var.msk_kafka_version
-#   broker_instance_type = var.msk_broker_instance_type
-#   broker_count        = var.msk_broker_count
-#   ebs_volume_size     = var.msk_ebs_volume_size
-# }
-
-# Output the EKS cluster endpoint and certificate authority data
 output "eks_cluster_endpoint" {
-  value = module.eks.cluster_endpoint
+  description = "EKS cluster API endpoint"
+  value       = module.eks.cluster_endpoint
 }
 
 output "eks_cluster_certificate_authority_data" {
-  value     = module.eks.cluster_certificate_authority_data
-  sensitive = true
+  description = "EKS cluster CA data"
+  value       = module.eks.cluster_certificate_authority_data
+  sensitive   = true
 }
 
-# Output the RDS endpoint
 output "rds_endpoint" {
-  value = module.rds.endpoint
+  description = "RDS instance endpoint"
+  value       = module.rds.endpoint
 }
 
-# Output the ElastiCache endpoint
 output "elasticache_endpoint" {
-  value = module.elasticache.endpoint
+  description = "ElastiCache primary endpoint"
+  value       = module.elasticache.endpoint
 }
-
-# Output the MSK bootstrap brokers
-# output "msk_bootstrap_brokers" {
-#   value = module.msk.bootstrap_brokers
-# }

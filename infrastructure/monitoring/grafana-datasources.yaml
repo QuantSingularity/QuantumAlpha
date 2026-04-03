@@ -12,15 +12,29 @@ data:
         url: http://prometheus:9090
         access: proxy
         isDefault: true
+        editable: false
+
       - name: InfluxDB
         type: influxdb
         url: http://influxdb:8086
         access: proxy
-        database: market_data
-        user: admin
-        secureJsonData:
-          password: adminpassword
+        editable: false
         jsonData:
+          version: Flux
           organization: quantumalpha
           defaultBucket: market_data
-          version: Flux
+          tlsSkipVerify: false
+        secureJsonData:
+          token: $INFLUXDB_TOKEN
+
+      - name: Elasticsearch
+        type: elasticsearch
+        url: http://elasticsearch:9200
+        access: proxy
+        editable: false
+        jsonData:
+          index: "quantumalpha-*"
+          timeField: "@timestamp"
+          esVersion: "7.17.0"
+          logMessageField: message
+          logLevelField: level

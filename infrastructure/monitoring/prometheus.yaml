@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: prometheus
   namespace: monitoring
+  labels:
+    app: prometheus
+    compliance.sox: "true"
 spec:
   replicas: 1
   selector:
@@ -12,101 +15,302 @@ spec:
     metadata:
       labels:
         app: prometheus
+        compliance.sox: "true"
     spec:
       serviceAccountName: prometheus
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: prometheus
-          image: prom/prometheus:v2.35.0
+          image: prom/prometheus:v2.51.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
           args:
             - "--config.file=/etc/prometheus/prometheus.yml"
             - "--storage.tsdb.path=/prometheus"
-            - "--storage.tsdb.retention.time=15d"
+            - "--storage.tsdb.retention.time=90d"
             - "--web.console.libraries=/usr/share/prometheus/console_libraries"
             - "--web.console.templates=/usr/share/prometheus/consoles"
+            - "--web.enable-lifecycle"
           ports:
             - containerPort: 9090
+              name: http
+              protocol: TCP
           volumeMounts:
             - name: prometheus-config
-              mountPath: /etc/prometheus/
+              mountPath: /etc/prometheus
+              readOnly: true
+            - name: prometheus-rules
+              mountPath: /etc/prometheus/rules
+              readOnly: true
             - name: prometheus-storage
               mountPath: /prometheus
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "512Mi"
               cpu: "250m"
             limits:
-              memory: "1Gi"
-              cpu: "500m"
+              memory: "2Gi"
+              cpu: "1000m"
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
       volumes:
         - name: prometheus-config
           configMap:
             name: prometheus-config
+        - name: prometheus-rules
+          configMap:
+            name: prometheus-rules
         - name: prometheus-storage
           persistentVolumeClaim:
-            claimName: prometheus-storage
+            claimName: prometheus-pvc
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: prometheus
   namespace: monitoring
+  labels:
+    app: prometheus
 spec:
   selector:
     app: prometheus
   ports:
     - port: 9090
       targetPort: 9090
+      name: http
+      protocol: TCP
   type: ClusterIP
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: prometheus-storage
+  name: prometheus-pvc
   namespace: monitoring
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
-  storageClassName: standard
+      storage: 50Gi
+  storageClassName: gp3-encrypted
 ---
 apiVersion: v1
-kind: ServiceAccount
+kind: ConfigMap
 metadata:
-  name: prometheus
+  name: prometheus-rules
   namespace: monitoring
+  labels:
+    app: prometheus
+    compliance.sox: "true"
+data:
+  quantumalpha-rules.yml: |
+    groups:
+      - name: quantumalpha.infrastructure
+        interval: 30s
+        rules:
+          - alert: PodCrashLooping
+            expr: rate(kube_pod_container_status_restarts_total{namespace="quantumalpha"}[5m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod {{ $labels.pod }} is crash looping"
+              description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has restarted {{ $value }} times in the last 5 minutes."
+
+          - alert: PodNotReady
+            expr: kube_pod_status_ready{namespace="quantumalpha", condition="true"} == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} is not ready"
+              description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been in a non-ready state for 5 minutes."
+
+          - alert: HighMemoryUsage
+            expr: container_memory_usage_bytes{namespace="quantumalpha"} / container_spec_memory_limit_bytes{namespace="quantumalpha"} > 0.9
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage for {{ $labels.container }}"
+              description: "Container {{ $labels.container }} memory usage is above 90% of limit."
+
+      - name: quantumalpha.database
+        rules:
+          - alert: PostgreSQLDown
+            expr: pg_up == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "PostgreSQL is down"
+              description: "PostgreSQL instance is not reachable."
+
+          - alert: RedisDown
+            expr: redis_up == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Redis is down"
+              description: "Redis instance is not reachable."
+
+      - name: quantumalpha.compliance
+        rules:
+          - alert: AuditLogGap
+            expr: time() - quantumalpha_last_audit_log_timestamp > 300
+            for: 5m
+            labels:
+              severity: critical
+              compliance: "true"
+            annotations:
+              summary: "Audit log gap detected (SOX compliance)"
+              description: "No audit log entries for more than 5 minutes."
+
+          - alert: UnauthorizedAPIAccess
+            expr: rate(quantumalpha_unauthorized_requests_total[5m]) > 10
+            for: 2m
+            labels:
+              severity: critical
+              compliance: "true"
+            annotations:
+              summary: "High rate of unauthorized API access"
+              description: "More than 10 unauthorized requests per second."
+
+          - alert: TradingHalted
+            expr: quantumalpha_trading_enabled == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Trading has been halted"
+              description: "The trading system has been halted."
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: prometheus
-rules:
-  - apiGroups: [""]
-    resources:
-      - nodes
-      - nodes/proxy
-      - services
-      - endpoints
-      - pods
-    verbs: ["get", "list", "watch"]
-  - apiGroups:
-      - extensions
-    resources:
-      - ingresses
-    verbs: ["get", "list", "watch"]
-  - nonResourceURLs: ["/metrics"]
-    verbs: ["get"]
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    compliance.sox: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+        compliance.sox: "true"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.27.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+          ports:
+            - containerPort: 9093
+              name: http
+              protocol: TCP
+          volumeMounts:
+            - name: alertmanager-config
+              mountPath: /etc/alertmanager
+              readOnly: true
+            - name: alertmanager-storage
+              mountPath: /alertmanager
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: alertmanager-config
+          secret:
+            secretName: alertmanager-config
+        - name: alertmanager-storage
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+apiVersion: v1
+kind: Service
 metadata:
-  name: prometheus
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: prometheus
-subjects:
-  - kind: ServiceAccount
-    name: prometheus
-    namespace: monitoring
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+spec:
+  selector:
+    app: alertmanager
+  ports:
+    - port: 9093
+      targetPort: 9093
+      name: http
+      protocol: TCP
+  type: ClusterIP

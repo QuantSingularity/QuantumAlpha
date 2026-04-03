@@ -6,8 +6,8 @@ resources:
 
 namespace: quantumalpha-staging
 
-patchesStrategicMerge:
-  - configmap.yaml
+patches:
+  - path: configmap.yaml
 
 replicas:
   - name: data-service
@@ -20,3 +20,15 @@ replicas:
     count: 2
   - name: web-frontend
     count: 2
+
+images:
+  - name: ${ECR_REGISTRY}/quantumalpha/data-service
+    newTag: staging-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/ai-engine
+    newTag: staging-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/risk-service
+    newTag: staging-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/execution-service
+    newTag: staging-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/web-frontend
+    newTag: staging-latest

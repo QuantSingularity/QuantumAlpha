@@ -32,6 +32,9 @@ resources:
   - execution-service.yaml
   - web-frontend.yaml
 
+  # Monitoring stack
+  - monitoring.yaml
+
 commonLabels:
   app.kubernetes.io/name: quantumalpha
   app.kubernetes.io/version: v1.0.0
@@ -54,14 +57,11 @@ namespace: quantumalpha
 
 images:
   - name: postgres
-    newTag: 14-alpine
-    digest: sha256:7e2c8b6b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b
+    newTag: 15-alpine
   - name: redis
     newTag: 7-alpine
-    digest: sha256:8e3c9b7b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b
   - name: influxdb
     newTag: 2.7-alpine
-    digest: sha256:9e4c0b8b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b
 
 replicas:
   - name: postgres

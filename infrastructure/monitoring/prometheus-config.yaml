@@ -72,9 +72,7 @@ data:
         - role: service
           namespaces:
             names:
-            - quantumalpha-dev
-            - quantumalpha-staging
-            - quantumalpha-prod
+            - quantumalpha
         relabel_configs:
         - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
           action: keep

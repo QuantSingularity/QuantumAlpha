@@ -1,0 +1,480 @@
+version: "3.9"
+
+x-common-healthcheck: &common-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 30s
+
+x-app-security: &app-security
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  user: "1000:1000"
+
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  backend:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.20.1.0/24
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.2.0/24
+
+volumes:
+  postgres_data:
+    driver: local
+  influxdb_data:
+    driver: local
+  redis_data:
+    driver: local
+  kafka_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  influxdb_password:
+    file: ./secrets/influxdb_password.txt
+  influxdb_token:
+    file: ./secrets/influxdb_token.txt
+
+services:
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: quantumalpha-postgres
+    restart: unless-stopped
+    user: "999:999"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    environment:
+      POSTGRES_DB: quantumalpha
+      POSTGRES_USER: quantumalpha
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./security/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - /tmp/postgres:/tmp
+      - /tmp/postgres-run:/var/run/postgresql
+    tmpfs:
+      - /tmp
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantumalpha -d quantumalpha"]
+      <<: *common-healthcheck
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: quantumalpha-influxdb
+    restart: unless-stopped
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD_FILE: /run/secrets/influxdb_password
+      DOCKER_INFLUXDB_INIT_ORG: quantumalpha
+      DOCKER_INFLUXDB_INIT_BUCKET: market_data
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN_FILE: /run/secrets/influxdb_token
+    secrets:
+      - influxdb_password
+      - influxdb_token
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:8086:8086"
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      <<: *common-healthcheck
+
+  redis:
+    image: redis:7-alpine
+    container_name: quantumalpha-redis
+    restart: unless-stopped
+    user: "999:999"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    command: >
+      sh -c "redis-server /etc/redis/redis.conf
+      --requirepass $$(cat /run/secrets/postgres_password)"
+    volumes:
+      - redis_data:/data
+      - ./security/redis.conf:/etc/redis/redis.conf:ro
+    tmpfs:
+      - /tmp
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      <<: *common-healthcheck
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: quantumalpha-zookeeper
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_MAX_CLIENT_CNXNS: 60
+      ZOOKEEPER_AUTOPURGE_SNAP_RETAIN_COUNT: 3
+      ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: 24
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "mntr,conf,ruok"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper
+      - ./security/zookeeper_jaas.conf:/etc/kafka/secrets/zookeeper_jaas.conf:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      <<: *common-healthcheck
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: quantumalpha-kafka
+    restart: unless-stopped
+    user: "1000:1000"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_COMPRESSION_TYPE: snappy
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - kafka_data:/var/lib/kafka
+      - ./security/kafka_jaas.conf:/etc/kafka/secrets/kafka_jaas.conf:ro
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092"]
+      <<: *common-healthcheck
+
+  # ── Application Services ────────────────────────────────────────────────────
+
+  data-service:
+    build:
+      context: ./docker/data-service
+      dockerfile: Dockerfile
+    image: quantumalpha/data-service:local
+    container_name: quantumalpha-data-service
+    restart: unless-stopped
+    <<: *app-security
+    depends_on:
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: quantumalpha
+      DB_USERNAME: quantumalpha
+      DB_SSL_MODE: disable
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_ORG: quantumalpha
+      INFLUXDB_BUCKET: market_data
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LOG_LEVEL: INFO
+      AUDIT_ENABLED: "true"
+    env_file:
+      - .env.local
+    tmpfs:
+      - /tmp
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      <<: *common-healthcheck
+
+  ai-engine:
+    build:
+      context: ./docker/ai-engine
+      dockerfile: Dockerfile
+    image: quantumalpha/ai-engine:local
+    container_name: quantumalpha-ai-engine
+    restart: unless-stopped
+    <<: *app-security
+    depends_on:
+      data-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATA_SERVICE_URL: http://data-service:8080
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_ORG: quantumalpha
+      INFLUXDB_BUCKET: market_data
+      LOG_LEVEL: INFO
+    env_file:
+      - .env.local
+    tmpfs:
+      - /tmp
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:8082:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      start_period: 60s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  risk-service:
+    build:
+      context: ./docker/risk-service
+      dockerfile: Dockerfile
+    image: quantumalpha/risk-service:local
+    container_name: quantumalpha-risk-service
+    restart: unless-stopped
+    <<: *app-security
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-engine:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: quantumalpha
+      DB_USERNAME: quantumalpha
+      DB_SSL_MODE: disable
+      AI_ENGINE_URL: http://ai-engine:8080
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      LOG_LEVEL: INFO
+      AUDIT_ENABLED: "true"
+    env_file:
+      - .env.local
+    tmpfs:
+      - /tmp
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:8083:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      <<: *common-healthcheck
+
+  execution-service:
+    build:
+      context: ./docker/execution-service
+      dockerfile: Dockerfile
+    image: quantumalpha/execution-service:local
+    container_name: quantumalpha-execution-service
+    restart: unless-stopped
+    <<: *app-security
+    depends_on:
+      risk-service:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      RISK_SERVICE_URL: http://risk-service:8080
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: quantumalpha
+      DB_USERNAME: quantumalpha
+      DB_SSL_MODE: disable
+      LOG_LEVEL: INFO
+      AUDIT_ENABLED: "true"
+    env_file:
+      - .env.local
+    tmpfs:
+      - /tmp
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:8084:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      <<: *common-healthcheck
+
+  web-frontend:
+    build:
+      context: ./docker/web-frontend
+      dockerfile: Dockerfile
+    image: quantumalpha/web-frontend:local
+    container_name: quantumalpha-web-frontend
+    restart: unless-stopped
+    depends_on:
+      data-service:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://data-service:8080
+    networks:
+      - frontend
+      - backend
+    ports:
+      - "127.0.0.1:3000:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      <<: *common-healthcheck
+
+  # ── Monitoring ───────────────────────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: quantumalpha-prometheus
+    restart: unless-stopped
+    user: "65534:65534"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=90d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./monitoring/prometheus-config.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    tmpfs:
+      - /tmp
+    networks:
+      - monitoring
+      - backend
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      <<: *common-healthcheck
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: quantumalpha-grafana
+    restart: unless-stopped
+    user: "472:472"
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme_grafana_in_production}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_STRICT_TRANSPORT_SECURITY: "true"
+      GF_LOG_LEVEL: info
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+    networks:
+      - monitoring
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      <<: *common-healthcheck
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: quantumalpha-elasticsearch
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - monitoring
+    ports:
+      - "127.0.0.1:9200:9200"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'curl -sf http://localhost:9200/_cluster/health | grep -v ''"status":"red"''',
+        ]
+      <<: *common-healthcheck
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: quantumalpha-kibana
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      SERVER_BASEPATH: ""
+      XPACK_SECURITY_ENABLED: "false"
+    networks:
+      - monitoring
+    ports:
+      - "127.0.0.1:5601:5601"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'curl -sf http://localhost:5601/api/status | grep -v ''"level":"critical"''',
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s

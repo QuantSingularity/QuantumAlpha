@@ -252,85 +252,13 @@ metadata:
     app: influxdb
 data:
   config.yml: |
-    # InfluxDB configuration for QuantumAlpha
-    # Security-hardened configuration for financial services
-
-    # HTTP settings
+    # InfluxDB 2.x configuration for QuantumAlpha
+    # InfluxDB 2.x is primarily configured via environment variables.
+    # This file sets bolt-path and engine-path for data storage locations.
+    bolt-path: /var/lib/influxdb2/influxd.bolt
+    engine-path: /var/lib/influxdb2/engine
     http-bind-address: ":8086"
-    http-https-enabled: true
-    http-https-certificate: "/etc/ssl/certs/tls.crt"
-    http-https-private-key: "/etc/ssl/private/tls.key"
-    http-max-row-limit: 10000
-    http-max-connection-limit: 1000
-    http-shared-secret: ""
-    http-realm: "InfluxDB"
-    http-unix-socket-enabled: false
-    http-bind-socket: "/var/run/influxdb.sock"
-    http-max-body-size: 25000000
-    http-max-concurrent-write-limit: 0
-    http-max-enqueued-write-limit: 0
-    http-enqueued-write-timeout: 30000000000
-
-    # Logging
-    log-enabled: true
-    log-level: "info"
-    log-format: "auto"
-    log-queries-after: "0s"
-    log-write-tracing: false
-    suppress-logo: false
-
-    # Data settings
-    engine: "tsm1"
-    index-version: "inmem"
-    max-concurrent-compactions: 0
-    max-index-log-file-size: "1m"
-    series-id-set-cache-size: 100
-
-    # WAL settings
-    wal-dir: "/var/lib/influxdb2/wal"
-    wal-logging-enabled: true
-    wal-ready-series-size: 30720
-    wal-compaction-threshold: 0.5
-    wal-max-series-size: 1048576
-    wal-flush-cold-interval: "5s"
-    wal-partition-flush-delay: "2s"
-
-    # Data retention
-    retention-enabled: true
-    retention-check-interval: "30m"
-
-    # Shard precreation
-    shard-precreation-enabled: true
-    shard-precreation-check-interval: "10m"
-    shard-precreation-advance-period: "30m"
-
-    # Monitor settings
-    monitor-store-enabled: true
-    monitor-store-database: "_internal"
-    monitor-store-interval: "10s"
-
-    # Subscriber settings
-    subscriber-enabled: true
-    subscriber-http-timeout: "30s"
-    subscriber-insecure-skip-verify: false
-    subscriber-ca-certs: ""
-    subscriber-write-concurrency: 40
-    subscriber-write-buffer-size: 1000
-
-    # Graphite settings
-    graphite-enabled: false
-
-    # CollectD settings
-    collectd-enabled: false
-
-    # OpenTSDB settings
-    opentsdb-enabled: false
-
-    # UDP settings
-    udp-enabled: false
-
-    # Continuous queries
-    continuous_queries-enabled: true
-    continuous_queries-log-enabled: true
-    continuous_queries-query-stats-enabled: false
-    continuous_queries-run-interval: "1s"
+    log-level: info
+    reporting-disabled: true
+    tls-cert: /etc/ssl/certs/tls.crt
+    tls-key: /etc/ssl/private/tls.key

@@ -8,9 +8,11 @@ resource "aws_eks_cluster" "main" {
   vpc_config {
     subnet_ids              = var.private_subnet_ids
     endpoint_private_access = true
-    endpoint_public_access  = true
+    endpoint_public_access  = false
     security_group_ids      = [aws_security_group.eks_cluster.id]
   }
+
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
@@ -18,8 +20,10 @@ resource "aws_eks_cluster" "main" {
   ]
 
   tags = {
-    Name        = var.cluster_name
-    Environment = var.environment
+    Name                 = var.cluster_name
+    Environment          = var.environment
+    "compliance.sox"     = "true"
+    "compliance.pci-dss" = "true"
   }
 }
 

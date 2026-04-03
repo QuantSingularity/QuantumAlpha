@@ -335,7 +335,7 @@ spec:
               command:
                 - sh
                 - -c
-                - "kafka-broker-api-versions --bootstrap-server localhost:9092"
+                - "nc -z localhost 9092"
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -345,7 +345,7 @@ spec:
               command:
                 - sh
                 - -c
-                - "kafka-broker-api-versions --bootstrap-server localhost:9092"
+                - "nc -z localhost 9092"
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -363,8 +363,6 @@ spec:
           emptyDir: {}
       nodeSelector:
         security: high
-      depends_on:
-        - zookeeper
 ---
 apiVersion: v1
 kind: Service

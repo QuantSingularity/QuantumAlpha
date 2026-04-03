@@ -4,10 +4,10 @@ kind: Kustomization
 resources:
   - ../../base
 
-namespace: quantumalpha-prod
+namespace: quantumalpha
 
-patchesStrategicMerge:
-  - configmap.yaml
+patches:
+  - path: configmap.yaml
 
 replicas:
   - name: data-service
@@ -20,3 +20,15 @@ replicas:
     count: 3
   - name: web-frontend
     count: 3
+
+images:
+  - name: ${ECR_REGISTRY}/quantumalpha/data-service
+    newTag: prod-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/ai-engine
+    newTag: prod-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/risk-service
+    newTag: prod-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/execution-service
+    newTag: prod-latest
+  - name: ${ECR_REGISTRY}/quantumalpha/web-frontend
+    newTag: prod-latest

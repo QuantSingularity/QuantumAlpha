@@ -1,10 +1,117 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: ServiceAccount
 metadata:
   name: fluentd
   namespace: monitoring
+  labels:
+    app: fluentd
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd
+  labels:
+    app: fluentd
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - namespaces
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd
+  labels:
+    app: fluentd
+roleRef:
+  kind: ClusterRole
+  name: fluentd
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: fluentd
+    namespace: monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: monitoring
+  labels:
+    app: fluentd
+data:
+  fluent.conf: |
+    <system>
+      log_level info
+    </system>
+
+    <source>
+      @type tail
+      @id in_tail_container_logs
+      path /var/log/containers/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag kubernetes.*
+      read_from_head true
+      <parse>
+        @type multi_format
+        <pattern>
+          format json
+          time_key time
+          time_format %Y-%m-%dT%H:%M:%S.%NZ
+        </pattern>
+        <pattern>
+          format /^(?<time>.+) (?<stream>stdout|stderr) [^ ]* (?<log>.*)$/
+          time_format %Y-%m-%dT%H:%M:%S.%N%:z
+        </pattern>
+      </parse>
+    </source>
+
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+      @id filter_kube_metadata
+      kubernetes_url "https://#{ENV['KUBERNETES_SERVICE_HOST']}:#{ENV['KUBERNETES_SERVICE_PORT']}/api"
+      bearer_token_file /var/run/secrets/kubernetes.io/serviceaccount/token
+      ca_file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    </filter>
+
+    <match kubernetes.**>
+      @type elasticsearch
+      @id out_es
+      @log_level info
+      include_tag_key true
+      host "#{ENV['FLUENT_ELASTICSEARCH_HOST']}"
+      port "#{ENV['FLUENT_ELASTICSEARCH_PORT']}"
+      scheme "#{ENV['FLUENT_ELASTICSEARCH_SCHEME'] || 'http'}"
+      index_name quantumalpha
+      type_name _doc
+      logstash_format true
+      logstash_prefix quantumalpha
+      <buffer>
+        @type file
+        path /var/log/fluentd-buffers/kubernetes.system.buffer
+        flush_mode interval
+        retry_type exponential_backoff
+        flush_interval 5s
+        retry_forever false
+        retry_max_interval 30
+        chunk_limit_size 2M
+        queue_limit_length 8
+        overflow_action block
+      </buffer>
+    </match>
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: monitoring
+  labels:
+    app: fluentd
+    compliance.sox: "true"
 spec:
-  replicas: 2
   selector:
     matchLabels:
       app: fluentd
@@ -12,11 +119,27 @@ spec:
     metadata:
       labels:
         app: fluentd
+        compliance.sox: "true"
     spec:
       serviceAccountName: fluentd
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: false
       containers:
         - name: fluentd
-          image: fluent/fluentd-kubernetes-daemonset:v1.14-debian-elasticsearch7-1
+          image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch7-1
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - DAC_READ_SEARCH
           env:
             - name: FLUENT_ELASTICSEARCH_HOST
               value: "elasticsearch"
@@ -26,9 +149,14 @@ spec:
               value: "http"
             - name: FLUENTD_SYSTEMD_CONF
               value: "disable"
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           resources:
             limits:
               memory: 512Mi
+              cpu: 200m
             requests:
               cpu: 100m
               memory: 200Mi
@@ -41,6 +169,7 @@ spec:
             - name: config-volume
               mountPath: /fluentd/etc/fluent.conf
               subPath: fluent.conf
+              readOnly: true
       terminationGracePeriodSeconds: 30
       volumes:
         - name: varlog
@@ -52,82 +181,3 @@ spec:
         - name: config-volume
           configMap:
             name: fluentd-config
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: fluentd
-  namespace: monitoring
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: fluentd
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-      - namespaces
-    verbs:
-      - get
-      - list
-      - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: fluentd
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: fluentd
-subjects:
-  - kind: ServiceAccount
-    name: fluentd
-    namespace: monitoring
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: fluentd-config
-  namespace: monitoring
-data:
-  fluent.conf: |
-    <source>
-      @type tail
-      path /var/log/containers/*.log
-      pos_file /var/log/fluentd-containers.log.pos
-      tag kubernetes.*
-      read_from_head true
-      <parse>
-        @type json
-        time_format %Y-%m-%dT%H:%M:%S.%NZ
-      </parse>
-    </source>
-
-    <filter kubernetes.**>
-      @type kubernetes_metadata
-      @id filter_kube_metadata
-    </filter>
-
-    <match kubernetes.var.log.containers.**>
-      @type elasticsearch
-      host elasticsearch
-      port 9200
-      logstash_format true
-      logstash_prefix k8s
-      <buffer>
-        @type file
-        path /var/log/fluentd-buffers/kubernetes.system.buffer
-        flush_mode interval
-        retry_type exponential_backoff
-        flush_thread_count 2
-        flush_interval 5s
-        retry_forever
-        retry_max_interval 30
-        chunk_limit_size 2M
-        queue_limit_length 8
-        overflow_action block
-      </buffer>
-    </match>

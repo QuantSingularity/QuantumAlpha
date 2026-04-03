@@ -25,8 +25,6 @@ This repository contains a comprehensive infrastructure directory for QuantumAlp
 
 ```
 infrastructure/
-├── ci-cd/
-│   └── github-actions-pipeline.yml          # CI/CD with security scanning
 ├── docker-compose.yml                       # Secure multi-service orchestration
 ├── kubernetes/
 │   └── base/
@@ -66,15 +64,7 @@ infrastructure/
 
 ## Key Features
 
-### 1. CI/CD Pipeline Security
-
-- **Security Scanning**: Integrated Trivy, SAST, and dependency scanning
-- **Compliance Checks**: Automated SOX, PCI DSS, and GLBA compliance validation
-- **Secrets Management**: Secure handling of credentials and API keys
-- **Approval Gates**: Multi-stage approval process for production deployments
-- **Audit Logging**: Comprehensive deployment audit trails
-
-### 2. Container Orchestration
+### 1. Container Orchestration
 
 - **Pod Security Standards**: Restricted security policies with admission control
 - **Network Policies**: Microsegmentation with default-deny rules
@@ -82,7 +72,7 @@ infrastructure/
 - **Service Mesh**: Encrypted inter-service communication
 - **RBAC**: Fine-grained role-based access control
 
-### 3. Database Security
+### 2. Database Security
 
 - **Encryption**: AES-256 encryption at rest and TLS in transit
 - **Access Controls**: Database-level authentication and authorization
@@ -90,7 +80,7 @@ infrastructure/
 - **Backup Security**: Encrypted backups with 7-year retention
 - **Performance Monitoring**: Enhanced monitoring with Performance Insights
 
-### 4. Network Security
+### 3. Network Security
 
 - **VPC Flow Logs**: Complete network traffic monitoring
 - **Network ACLs**: Additional layer of network security
@@ -98,7 +88,7 @@ infrastructure/
 - **Security Groups**: Least-privilege firewall rules
 - **TLS Everywhere**: End-to-end encryption for all communications
 
-### 5. Monitoring & Alerting
+### 4. Monitoring & Alerting
 
 - **Prometheus Stack**: Comprehensive metrics collection
 - **Grafana Dashboards**: Financial compliance dashboards
@@ -106,7 +96,7 @@ infrastructure/
 - **Log Aggregation**: Centralized logging with retention policies
 - **Compliance Reporting**: Automated compliance status reports
 
-### 6. Secrets Management
+### 5. Secrets Management
 
 - **AWS Secrets Manager**: Centralized credential storage
 - **KMS Integration**: Hardware security module encryption

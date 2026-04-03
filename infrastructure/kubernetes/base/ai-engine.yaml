@@ -1,8 +1,23 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-engine-sa
+  namespace: quantumalpha
+  labels:
+    app: ai-engine
+automountServiceAccountToken: false
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ai-engine
   namespace: quantumalpha
+  labels:
+    app: ai-engine
+    tier: application
+    compliance.sox: "true"
+  annotations:
+    kubernetes.io/description: "AI Engine service for QuantumAlpha"
 spec:
   replicas: 2
   selector:
@@ -12,19 +27,82 @@ spec:
     metadata:
       labels:
         app: ai-engine
+        tier: application
+        compliance.sox: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
     spec:
+      serviceAccountName: ai-engine-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: ai-engine
           image: ${ECR_REGISTRY}/quantumalpha/ai-engine:${IMAGE_TAG}
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
           env:
             - name: DATA_SERVICE_URL
               value: "http://data-service:8080"
             - name: REDIS_HOST
-              value: "redis"
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: REDIS_HOST
             - name: REDIS_PORT
-              value: "6379"
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: password
+            - name: INFLUXDB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: INFLUXDB_URL
+            - name: INFLUXDB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: influxdb-credentials
+                  key: token
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: LOG_LEVEL
+            - name: METRICS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: quantumalpha-config
+                  key: METRICS_ENABLED
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "1Gi"
@@ -38,22 +116,76 @@ spec:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /health
               port: 8080
             initialDelaySeconds: 60
             periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - ai-engine
+                topologyKey: kubernetes.io/hostname
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: ai-engine
   namespace: quantumalpha
+  labels:
+    app: ai-engine
+    tier: application
 spec:
   selector:
     app: ai-engine
   ports:
     - port: 8080
       targetPort: 8080
+      name: http
+      protocol: TCP
+    - port: 9090
+      targetPort: 9090
+      name: metrics
+      protocol: TCP
   type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-engine-hpa
+  namespace: quantumalpha
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-engine
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

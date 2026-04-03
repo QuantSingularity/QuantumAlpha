@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: kibana
   namespace: monitoring
+  labels:
+    app: kibana
+    compliance.sox: "true"
 spec:
   replicas: 1
   selector:
@@ -12,15 +15,40 @@ spec:
     metadata:
       labels:
         app: kibana
+        compliance.sox: "true"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: kibana
-          image: docker.elastic.co/kibana/kibana:7.17.0
+          image: docker.elastic.co/kibana/kibana:8.13.0
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 5601
+              name: http
+              protocol: TCP
           env:
             - name: ELASTICSEARCH_HOSTS
-              value: http://elasticsearch:9200
+              value: "http://elasticsearch:9200"
+            - name: XPACK_SECURITY_ENABLED
+              value: "false"
+            - name: SERVER_PUBLICBASEURL
+              value: "http://kibana:5601"
+            - name: LOGGING_QUIET
+              value: "true"
           resources:
             requests:
               memory: "512Mi"
@@ -28,41 +56,36 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: kibana
   namespace: monitoring
+  labels:
+    app: kibana
 spec:
   selector:
     app: kibana
   ports:
     - port: 5601
       targetPort: 5601
+      name: http
+      protocol: TCP
   type: ClusterIP
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: kibana-ingress
-  namespace: monitoring
-  annotations:
-    kubernetes.io/ingress.class: "nginx"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-spec:
-  tls:
-    - hosts:
-        - kibana.quantumalpha.example.com
-      secretName: kibana-tls
-  rules:
-    - host: kibana.quantumalpha.example.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: kibana
-                port:
-                  number: 5601
