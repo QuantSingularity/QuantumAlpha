@@ -12,34 +12,131 @@ from typing import Any, Dict, List, Optional
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common import NotFoundError, ServiceError, ValidationError, setup_logger
-from common.models import Execution, Order
 
 logger = setup_logger("order_manager", logging.INFO)
+
+VALID_ORDER_TYPES = ["market", "limit", "stop", "stop_limit"]
+VALID_SIDES = ["buy", "sell"]
+VALID_TIME_IN_FORCE = ["day", "gtc", "ioc", "fok", "opg", "cls"]
+VALID_STATUSES = [
+    "new",
+    "open",
+    "pending",
+    "submitted",
+    "partially_filled",
+    "filled",
+    "canceled",
+    "cancelled",
+    "rejected",
+    "expired",
+    "error",
+]
 
 
 class OrderManager:
     """Order manager"""
 
-    def __init__(
-        self,
-        config_manager: Any,
-        db_manager: Any,
-        broker_integration: Any,
-        execution_strategy: Any,
-    ) -> None:
-        """Initialize order manager
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-            broker_integration: Broker integration
-            execution_strategy: Execution strategy
-        """
+    def __init__(self, config_manager: Any, db_manager: Any) -> None:
         self.config_manager = config_manager
         self.db_manager = db_manager
-        self.broker_integration = broker_integration
-        self.execution_strategy = execution_strategy
         logger.info("Order manager initialized")
+
+    def create_order(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            logger.info("Creating order")
+            for field in ["portfolio_id", "symbol", "order_type", "side", "quantity"]:
+                if field not in data:
+                    raise ValidationError(f"{field} is required")
+
+            if data["order_type"] not in VALID_ORDER_TYPES:
+                raise ValidationError(f"Invalid order type: {data['order_type']}")
+            if data["side"] not in VALID_SIDES:
+                raise ValidationError(f"Invalid side: {data['side']}")
+
+            tif = data.get("time_in_force", "day")
+            if tif not in VALID_TIME_IN_FORCE:
+                raise ValidationError(f"Invalid time_in_force: {tif}")
+
+            quantity = data["quantity"]
+            if not isinstance(quantity, (int, float)) or quantity <= 0:
+                raise ValidationError("Quantity must be a positive number")
+
+            if data["order_type"] in ["limit", "stop_limit"]:
+                if data.get("price") is None:
+                    raise ValidationError("Price is required for limit orders")
+
+            session = self.db_manager.get_postgres_session()
+            order_id = str(uuid.uuid4())
+            now = datetime.utcnow().isoformat()
+
+            from sqlalchemy import text
+
+            result = session.execute(
+                text(
+                    "INSERT INTO orders (id, portfolio_id, symbol, order_type, side, quantity,"
+                    " price, time_in_force, status, created_at, updated_at)"
+                    " VALUES (:id,:portfolio_id,:symbol,:order_type,:side,:quantity,"
+                    ":price,:tif,:status,:now,:now) RETURNING id"
+                ),
+                {
+                    "id": order_id,
+                    "portfolio_id": data["portfolio_id"],
+                    "symbol": data["symbol"],
+                    "order_type": data["order_type"],
+                    "side": data["side"],
+                    "quantity": quantity,
+                    "price": data.get("price"),
+                    "tif": tif,
+                    "status": data.get("status", "new"),
+                    "now": now,
+                },
+            )
+            returned = result.fetchone()
+            actual_id = returned[0] if returned else order_id
+            session.commit()
+
+            return {
+                "id": actual_id,
+                "portfolio_id": data["portfolio_id"],
+                "symbol": data["symbol"],
+                "order_type": data["order_type"],
+                "side": data["side"],
+                "quantity": quantity,
+                "price": data.get("price"),
+                "time_in_force": tif,
+                "status": data.get("status", "new"),
+                "created_at": now,
+                "updated_at": now,
+            }
+        except ValidationError:
+            raise
+        except Exception as e:
+            logger.error(f"Error creating order: {e}")
+            raise ServiceError(f"Error creating order: {str(e)}")
+
+    def get_order(self, order_id: str) -> Dict[str, Any]:
+        try:
+            logger.info(f"Getting order {order_id}")
+            session = self.db_manager.get_postgres_session()
+            from sqlalchemy import text
+
+            result = session.execute(
+                text("SELECT * FROM orders WHERE id = :id"), {"id": order_id}
+            )
+            row = result.fetchone()
+            if not row:
+                raise NotFoundError(f"Order not found: {order_id}")
+            order_dict = {}
+            for key, value in row.items():
+                if isinstance(value, datetime):
+                    value = value.isoformat()
+                order_dict[key] = value
+            return order_dict
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting order: {e}")
+            raise ServiceError(f"Error getting order: {str(e)}")
 
     def get_orders(
         self,
@@ -47,230 +144,36 @@ class OrderManager:
         status: Optional[str] = None,
         symbol: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Get orders
-
-        Args:
-            portfolio_id: Filter by portfolio ID
-            status: Filter by status
-            symbol: Filter by symbol
-
-        Returns:
-            List of orders
-        """
         try:
             logger.info("Getting orders")
             session = self.db_manager.get_postgres_session()
-            query = session.query(Order)
+            from sqlalchemy import text
+
+            query = "SELECT * FROM orders WHERE 1=1"
+            params: Dict[str, Any] = {}
             if portfolio_id:
-                query = query.filter(Order.portfolio_id == portfolio_id)
+                query += " AND portfolio_id = :portfolio_id"
+                params["portfolio_id"] = portfolio_id
             if status:
-                query = query.filter(Order.status == status)
+                query += " AND status = :status"
+                params["status"] = status
             if symbol:
-                query = query.filter(Order.symbol == symbol)
-            orders = query.all()
-            order_dicts = [order.to_dict() for order in orders]
-            return order_dicts
+                query += " AND symbol = :symbol"
+                params["symbol"] = symbol
+            result = session.execute(text(query), params)
+            rows = result.fetchall()
+            orders = []
+            for row in rows:
+                d = {}
+                for key, value in row.items():
+                    if isinstance(value, datetime):
+                        value = value.isoformat()
+                    d[key] = value
+                orders.append(d)
+            return orders
         except Exception as e:
             logger.error(f"Error getting orders: {e}")
             raise ServiceError(f"Error getting orders: {str(e)}")
-        finally:
-            session.close()
-
-    def get_order(self, order_id: str) -> Dict[str, Any]:
-        """Get a specific order
-
-        Args:
-            order_id: Order ID
-
-        Returns:
-            Order details
-
-        Raises:
-            NotFoundError: If order is not found
-        """
-        try:
-            logger.info(f"Getting order {order_id}")
-            session = self.db_manager.get_postgres_session()
-            order = session.query(Order).filter(Order.id == order_id).first()
-            if not order:
-                raise NotFoundError(f"Order not found: {order_id}")
-            order_dict = order.to_dict()
-            executions = (
-                session.query(Execution).filter(Execution.order_id == order_id).all()
-            )
-            execution_dicts = [execution.to_dict() for execution in executions]
-            order_dict["executions"] = execution_dicts
-            return order_dict
-        except NotFoundError:
-            raise
-        except Exception as e:
-            logger.error(f"Error getting order: {e}")
-            raise ServiceError(f"Error getting order: {str(e)}")
-        finally:
-            session.close()
-
-    def create_order(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new order
-
-        Args:
-            data: Order data
-
-        Returns:
-            Created order
-
-        Raises:
-            ValidationError: If data is invalid
-        """
-        try:
-            logger.info("Creating order")
-            if "portfolio_id" not in data:
-                raise ValidationError("Portfolio ID is required")
-            if "symbol" not in data:
-                raise ValidationError("Symbol is required")
-            if "side" not in data:
-                raise ValidationError("Side is required")
-            if "type" not in data:
-                raise ValidationError("Order type is required")
-            if "quantity" not in data:
-                raise ValidationError("Quantity is required")
-            if data["side"] not in ["buy", "sell"]:
-                raise ValidationError(f"Invalid side: {data['side']}")
-            if data["type"] not in ["market", "limit", "stop", "stop_limit"]:
-                raise ValidationError(f"Invalid order type: {data['type']}")
-            if data["type"] in ["limit", "stop_limit"] and "price" not in data:
-                raise ValidationError(
-                    "Price is required for limit and stop_limit orders"
-                )
-            if data["type"] in ["stop", "stop_limit"] and "stop_price" not in data:
-                raise ValidationError(
-                    "Stop price is required for stop and stop_limit orders"
-                )
-            session = self.db_manager.get_postgres_session()
-            order_id = f"order_{uuid.uuid4().hex}"
-            order = Order(
-                id=order_id,
-                portfolio_id=data["portfolio_id"],
-                strategy_id=data.get("strategy_id"),
-                symbol=data["symbol"],
-                side=data["side"],
-                type=data["type"],
-                quantity=data["quantity"],
-                price=data.get("price"),
-                stop_price=data.get("stop_price"),
-                time_in_force=data.get("time_in_force", "day"),
-                status="pending",
-                broker_id=data.get("broker_id"),
-                broker_account_id=data.get("broker_account_id"),
-                execution_strategy_id=data.get("execution_strategy_id"),
-                created_at=datetime.utcnow(),
-            )
-            session.add(order)
-            session.commit()
-            order_dict = order.to_dict()
-            if data.get("submit", True):
-                self._submit_order(order_dict)
-            return order_dict
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.error(f"Error creating order: {e}")
-            raise ServiceError(f"Error creating order: {str(e)}")
-        finally:
-            session.close()
-
-    def cancel_order(self, order_id: str) -> Dict[str, Any]:
-        """Cancel an order
-
-        Args:
-            order_id: Order ID
-
-        Returns:
-            Canceled order
-
-        Raises:
-            NotFoundError: If order is not found
-            ValidationError: If order cannot be canceled
-        """
-        try:
-            logger.info(f"Canceling order {order_id}")
-            session = self.db_manager.get_postgres_session()
-            order = session.query(Order).filter(Order.id == order_id).first()
-            if not order:
-                raise NotFoundError(f"Order not found: {order_id}")
-            if order.status not in ["pending", "open", "partially_filled"]:
-                raise ValidationError(f"Order cannot be canceled: {order.status}")
-            if order.broker_id and order.broker_order_id:
-                self.broker_integration.cancel_order(
-                    broker_id=order.broker_id, broker_order_id=order.broker_order_id
-                )
-            order.status = "canceled"
-            order.updated_at = datetime.utcnow()
-            session.commit()
-            order_dict = order.to_dict()
-            return order_dict
-        except (NotFoundError, ValidationError):
-            raise
-        except Exception as e:
-            logger.error(f"Error canceling order: {e}")
-            raise ServiceError(f"Error canceling order: {str(e)}")
-        finally:
-            session.close()
-
-    def _submit_order(self, order: Dict[str, Any]) -> Dict[str, Any]:
-        """Submit an order to a broker
-
-        Args:
-            order: Order data
-
-        Returns:
-            Updated order
-
-        Raises:
-            ValidationError: If order cannot be submitted
-        """
-        try:
-            logger.info(f"Submitting order {order['id']}")
-            session = self.db_manager.get_postgres_session()
-            db_order = session.query(Order).filter(Order.id == order["id"]).first()
-            if not db_order:
-                raise NotFoundError(f"Order not found: {order['id']}")
-            if db_order.status != "pending":
-                raise ValidationError(f"Order cannot be submitted: {db_order.status}")
-            broker_id = db_order.broker_id
-            if not broker_id:
-                broker_id = self.config_manager.get(
-                    "execution.default_broker_id", "alpaca"
-                )
-            execution_strategy_id = db_order.execution_strategy_id
-            if not execution_strategy_id:
-                execution_strategy_id = self.config_manager.get(
-                    "execution.default_strategy_id", "market"
-                )
-            self.execution_strategy.get_strategy(execution_strategy_id)
-            result = self.execution_strategy.execute_strategy(
-                strategy_id=execution_strategy_id, order=order, broker_id=broker_id
-            )
-            db_order.broker_id = broker_id
-            db_order.broker_order_id = result.get("broker_order_id")
-            db_order.status = result.get("status", "open")
-            db_order.updated_at = datetime.utcnow()
-            session.commit()
-            order_dict = db_order.to_dict()
-            return order_dict
-        except (NotFoundError, ValidationError):
-            raise
-        except Exception as e:
-            logger.error(f"Error submitting order: {e}")
-            try:
-                db_order.status = "error"
-                db_order.error_message = str(e)
-                db_order.updated_at = datetime.utcnow()
-                session.commit()
-            except Exception:
-                pass
-            raise ServiceError(f"Error submitting order: {str(e)}")
-        finally:
-            session.close()
 
     def update_order_status(
         self,
@@ -279,144 +182,171 @@ class OrderManager:
         broker_order_id: Optional[str] = None,
         error_message: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Update order status
-
-        Args:
-            order_id: Order ID
-            status: New status
-            broker_order_id: Broker order ID (optional)
-            error_message: Error message (optional)
-
-        Returns:
-            Updated order
-
-        Raises:
-            NotFoundError: If order is not found
-        """
         try:
             logger.info(f"Updating order status: {order_id} -> {status}")
+            if status not in VALID_STATUSES:
+                raise ValidationError(f"Invalid status: {status}")
             session = self.db_manager.get_postgres_session()
-            order = session.query(Order).filter(Order.id == order_id).first()
-            if not order:
+            from sqlalchemy import text
+
+            now = datetime.utcnow().isoformat()
+            result = session.execute(
+                text("UPDATE orders SET status=:status, updated_at=:now WHERE id=:id"),
+                {"id": order_id, "status": status, "now": now},
+            )
+            if result.rowcount == 0:
                 raise NotFoundError(f"Order not found: {order_id}")
-            order.status = status
-            order.updated_at = datetime.utcnow()
-            if broker_order_id:
-                order.broker_order_id = broker_order_id
-            if error_message:
-                order.error_message = error_message
             session.commit()
-            order_dict = order.to_dict()
-            return order_dict
-        except NotFoundError:
+            return {"id": order_id, "status": status, "updated_at": now}
+        except (NotFoundError, ValidationError):
             raise
         except Exception as e:
             logger.error(f"Error updating order status: {e}")
             raise ServiceError(f"Error updating order status: {str(e)}")
-        finally:
-            session.close()
 
-    def add_execution(
-        self,
-        order_id: str,
-        price: float,
-        quantity: float,
-        timestamp: datetime,
-        broker_execution_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Add an execution to an order
-
-        Args:
-            order_id: Order ID
-            price: Execution price
-            quantity: Execution quantity
-            timestamp: Execution timestamp
-            broker_execution_id: Broker execution ID (optional)
-
-        Returns:
-            Created execution
-
-        Raises:
-            NotFoundError: If order is not found
-        """
+    def cancel_order(self, order_id: str) -> Dict[str, Any]:
         try:
-            logger.info(f"Adding execution to order {order_id}")
+            logger.info(f"Canceling order {order_id}")
             session = self.db_manager.get_postgres_session()
-            order = session.query(Order).filter(Order.id == order_id).first()
-            if not order:
+            from sqlalchemy import text
+
+            now = datetime.utcnow().isoformat()
+            result = session.execute(
+                text(
+                    "UPDATE orders SET status='canceled', updated_at=:now WHERE id=:id"
+                ),
+                {"id": order_id, "now": now},
+            )
+            if result.rowcount == 0:
                 raise NotFoundError(f"Order not found: {order_id}")
-            execution_id = f"exec_{uuid.uuid4().hex}"
-            execution = Execution(
-                id=execution_id,
-                order_id=order_id,
-                price=price,
-                quantity=quantity,
-                timestamp=timestamp,
-                broker_execution_id=broker_execution_id,
-                created_at=datetime.utcnow(),
-            )
-            session.add(execution)
-            filled_quantity = (
-                sum(
-                    (
-                        e.quantity
-                        for e in session.query(Execution)
-                        .filter(Execution.order_id == order_id)
-                        .all()
-                    )
-                )
-                + quantity
-            )
-            if filled_quantity >= order.quantity:
-                order.status = "filled"
-            else:
-                order.status = "partially_filled"
-            order.filled_quantity = filled_quantity
-            order.updated_at = datetime.utcnow()
             session.commit()
-            execution_dict = execution.to_dict()
-            return execution_dict
+            return {"id": order_id, "status": "canceled", "updated_at": now}
         except NotFoundError:
             raise
         except Exception as e:
-            logger.error(f"Error adding execution: {e}")
-            raise ServiceError(f"Error adding execution: {str(e)}")
-        finally:
-            session.close()
+            logger.error(f"Error canceling order: {e}")
+            raise ServiceError(f"Error canceling order: {str(e)}")
 
-    def get_executions(
+    def create_trade(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            logger.info("Creating trade")
+            for field in ["order_id", "symbol", "side", "quantity", "price"]:
+                if field not in data:
+                    raise ValidationError(f"{field} is required")
+
+            session = self.db_manager.get_postgres_session()
+            trade_id = str(uuid.uuid4())
+            now = datetime.utcnow().isoformat()
+            from sqlalchemy import text
+
+            result = session.execute(
+                text(
+                    "INSERT INTO trades (id, order_id, symbol, side, quantity, price,"
+                    " commission, timestamp) VALUES (:id,:order_id,:symbol,:side,"
+                    ":quantity,:price,:commission,:now) RETURNING id"
+                ),
+                {
+                    "id": trade_id,
+                    "order_id": data["order_id"],
+                    "symbol": data["symbol"],
+                    "side": data["side"],
+                    "quantity": data["quantity"],
+                    "price": data["price"],
+                    "commission": data.get("commission", 0.0),
+                    "now": now,
+                },
+            )
+            returned = result.fetchone()
+            actual_id = returned[0] if returned else trade_id
+            session.commit()
+            return {
+                "id": actual_id,
+                "order_id": data["order_id"],
+                "symbol": data["symbol"],
+                "side": data["side"],
+                "quantity": data["quantity"],
+                "price": data["price"],
+                "commission": data.get("commission", 0.0),
+                "timestamp": now,
+            }
+        except ValidationError:
+            raise
+        except Exception as e:
+            logger.error(f"Error creating trade: {e}")
+            raise ServiceError(f"Error creating trade: {str(e)}")
+
+    def create_order_with_risk_check(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create an order after performing a risk check via Risk Service."""
+        import requests as _requests
+
+        host = self.config_manager.get("services.risk_service.host", "localhost")
+        port = self.config_manager.get("services.risk_service.port", "8083")
+        risk_service_url = f"http://{host}:{port}"
+
+        portfolio_id = data.get("portfolio_id")
+        symbol = data.get("symbol")
+        try:
+            resp = _requests.get(
+                f"{risk_service_url}/api/risk/position-size",
+                params={"portfolio_id": portfolio_id, "symbol": symbol},
+            )
+            if resp.status_code == 200:
+                risk_data = resp.json()
+                max_qty = risk_data.get("max_position_size")
+                if max_qty is not None and data.get("quantity", 0) > max_qty:
+                    raise ValidationError(
+                        f"Order quantity exceeds max position size: {max_qty}"
+                    )
+        except ValidationError:
+            raise
+        except Exception:
+            pass
+
+        host2 = self.config_manager.get("services.execution_service.host", "localhost")
+        port2 = self.config_manager.get("services.execution_service.port", "8084")
+        exec_url = f"http://{host2}:{port2}"
+        resp2 = _requests.post(f"{exec_url}/api/orders", json=data)
+        if resp2.status_code in (200, 201):
+            return resp2.json()
+        raise ServiceError(f"Error creating order: {resp2.text}")
+
+    def get_trades(
         self,
-        order_id: Optional[str] = None,
         portfolio_id: Optional[str] = None,
+        order_id: Optional[str] = None,
         symbol: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Get executions
-
-        Args:
-            order_id: Filter by order ID
-            portfolio_id: Filter by portfolio ID
-            symbol: Filter by symbol
-
-        Returns:
-            List of executions
-        """
         try:
-            logger.info("Getting executions")
+            logger.info("Getting trades")
             session = self.db_manager.get_postgres_session()
-            query = session.query(Execution)
-            if order_id:
-                query = query.filter(Execution.order_id == order_id)
-            if portfolio_id or symbol:
-                query = query.join(Order, Execution.order_id == Order.id)
-                if portfolio_id:
-                    query = query.filter(Order.portfolio_id == portfolio_id)
-                if symbol:
-                    query = query.filter(Order.symbol == symbol)
-            executions = query.all()
-            execution_dicts = [execution.to_dict() for execution in executions]
-            return execution_dicts
+            from sqlalchemy import text
+
+            if portfolio_id:
+                query = (
+                    "SELECT t.* FROM trades t JOIN orders o ON t.order_id=o.id"
+                    " WHERE o.portfolio_id=:portfolio_id"
+                )
+                params: Dict[str, Any] = {"portfolio_id": portfolio_id}
+            elif order_id:
+                query = "SELECT * FROM trades WHERE order_id=:order_id"
+                params = {"order_id": order_id}
+            elif symbol:
+                query = "SELECT * FROM trades WHERE symbol=:symbol"
+                params = {"symbol": symbol}
+            else:
+                query = "SELECT * FROM trades"
+                params = {}
+            result = session.execute(text(query), params)
+            rows = result.fetchall()
+            trades = []
+            for row in rows:
+                d = {}
+                for key, value in row.items():
+                    if isinstance(value, datetime):
+                        value = value.isoformat()
+                    d[key] = value
+                trades.append(d)
+            return trades
         except Exception as e:
-            logger.error(f"Error getting executions: {e}")
-            raise ServiceError(f"Error getting executions: {str(e)}")
-        finally:
-            session.close()
+            logger.error(f"Error getting trades: {e}")
+            raise ServiceError(f"Error getting trades: {str(e)}")

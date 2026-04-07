@@ -1,10 +1,5 @@
 """
-Execution Service for QuantumAlpha
-This service is responsible for:
-1. Order management
-2. Broker integration
-3. Execution strategy
-4. Trade reconciliation
+Execution Service for QuantumAlpha.
 """
 
 from .broker_integration import BrokerIntegration

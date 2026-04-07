@@ -24,8 +24,8 @@ from .logging_utils import (
 # Models
 from .models import Base
 
-# Utils (RateLimiter, SimpleCache, etc.)
-from .utils import RateLimiter, SimpleCache
+# Utils (RateLimiter, SimpleCache, parse_period, etc.)
+from .utils import RateLimiter, SimpleCache, parse_period
 
 # Validation
 from .validation import validate_schema
@@ -62,6 +62,7 @@ __all__ = [
     # Utils
     "RateLimiter",
     "SimpleCache",
+    "parse_period",
     # Validation
     "validate_schema",
 ]

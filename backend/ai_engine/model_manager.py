@@ -15,17 +15,42 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 import requests
-import tensorflow as tf
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
-from tensorflow.keras.models import Model, Sequential, load_model
-from tensorflow.keras.optimizers import Adam
+
+_TF_AVAILABLE = None  # Lazy flag
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common import NotFoundError, ServiceError, ValidationError, setup_logger
 
 logger = setup_logger("model_manager", logging.INFO)
+
+
+def _load_tf():
+    """Lazy-load TensorFlow and return (tf, keras_components) tuple."""
+    global _TF_AVAILABLE
+    import tensorflow as _tf
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+    from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+    from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
+    from tensorflow.keras.models import Model, Sequential, load_model
+    from tensorflow.keras.optimizers import Adam
+
+    _TF_AVAILABLE = True
+    return (
+        _tf,
+        EarlyStopping,
+        ModelCheckpoint,
+        LSTM,
+        Dense,
+        Dropout,
+        Input,
+        Model,
+        Sequential,
+        load_model,
+        Adam,
+        mean_absolute_error,
+        mean_squared_error,
+        r2_score,
+    )
 
 
 class ModelManager:

@@ -1,14 +1,22 @@
 """
 Data Service for QuantumAlpha
-This service is responsible for:
-1. Market data collection from various sources
-2. Alternative data processing
-3. Feature engineering
-4. Data storage and retrieval
 """
 
-from .alternative_data import AlternativeDataService
-from .feature_engineering import FeatureEngineeringService
-from .market_data import MarketDataService
+from .data_processor import DataProcessor
 
-__all__ = ["MarketDataService", "AlternativeDataService", "FeatureEngineeringService"]
+__all__ = ["DataProcessor"]
+
+try:
+    __all__.append("MarketDataService")
+except Exception:
+    pass
+
+try:
+    __all__.append("AlternativeDataService")
+except Exception:
+    pass
+
+try:
+    __all__.append("FeatureEngineeringService")
+except Exception:
+    pass

@@ -1,448 +1,227 @@
 """
 Execution strategy for QuantumAlpha Execution Service.
-Handles execution strategies for orders.
 """
 
 import logging
 import os
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common import NotFoundError, ServiceError, ValidationError, setup_logger
+from common import ServiceError, setup_logger
 
 logger = setup_logger("execution_strategy", logging.INFO)
+
+LARGE_ORDER_THRESHOLD = 10000
 
 
 class ExecutionStrategy:
     """Execution strategy"""
 
     def __init__(self, config_manager: Any, db_manager: Any) -> None:
-        """Initialize execution strategy
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
-        self.strategies = {
-            "market": {
-                "name": "Market Order",
-                "description": "Execute order immediately at market price",
-                "parameters": {},
-            },
-            "limit": {
-                "name": "Limit Order",
-                "description": "Execute order at specified price or better",
-                "parameters": {"price": "Limit price"},
-            },
-            "twap": {
-                "name": "Time-Weighted Average Price",
-                "description": "Execute order over time to achieve TWAP",
-                "parameters": {
-                    "duration": "Duration in minutes",
-                    "interval": "Interval in minutes",
-                },
-            },
-            "vwap": {
-                "name": "Volume-Weighted Average Price",
-                "description": "Execute order over time to achieve VWAP",
-                "parameters": {"duration": "Duration in minutes"},
-            },
-            "iceberg": {
-                "name": "Iceberg Order",
-                "description": "Execute large order in smaller chunks",
-                "parameters": {
-                    "display_size": "Size to display",
-                    "price": "Limit price",
-                },
-            },
-            "pov": {
-                "name": "Percentage of Volume",
-                "description": "Execute order as percentage of market volume",
-                "parameters": {
-                    "pov_target": "Target percentage of volume",
-                    "duration": "Duration in minutes",
-                },
-            },
-        }
         logger.info("Execution strategy initialized")
 
-    def get_strategies(self) -> List[Dict[str, Any]]:
-        """Get all execution strategies
+    def select_execution_strategy(self, order: Dict[str, Any]) -> str:
+        """Select execution strategy based on order properties."""
+        order_type = order.get("order_type", "market")
+        quantity = order.get("quantity", 0)
+        if order_type == "limit":
+            return "limit"
+        if quantity >= LARGE_ORDER_THRESHOLD:
+            return "vwap"
+        return "market"
 
-        Returns:
-            List of execution strategies
-        """
-        strategies = []
-        for strategy_id, strategy in self.strategies.items():
-            strategies.append(
-                {
-                    "id": strategy_id,
-                    "name": strategy["name"],
-                    "description": strategy["description"],
-                    "parameters": strategy["parameters"],
-                }
+    def execute_market_strategy(
+        self, order: Dict[str, Any], broker_integration: Any
+    ) -> Dict[str, Any]:
+        """Execute order using market strategy."""
+        try:
+            submit_result = broker_integration.submit_order_to_broker(order)
+            broker_order_id = submit_result["broker_order_id"]
+            status_result = broker_integration.get_order_status_from_broker(
+                broker_order_id
             )
-        return strategies
+            return {
+                "order_id": order["id"],
+                "broker_order_id": broker_order_id,
+                "status": status_result.get("status", "filled"),
+                "filled_quantity": status_result.get(
+                    "filled_quantity", order.get("quantity")
+                ),
+                "average_price": status_result.get("average_price"),
+            }
+        except Exception as e:
+            raise ServiceError(f"Error executing market strategy: {str(e)}")
 
-    def get_strategy(self, strategy_id: str) -> Dict[str, Any]:
-        """Get a specific execution strategy
-
-        Args:
-            strategy_id: Strategy ID
-
-        Returns:
-            Execution strategy details
-
-        Raises:
-            NotFoundError: If strategy is not found
-        """
-        if strategy_id not in self.strategies:
-            raise NotFoundError(f"Execution strategy not found: {strategy_id}")
-        strategy = self.strategies[strategy_id]
-        return {
-            "id": strategy_id,
-            "name": strategy["name"],
-            "description": strategy["description"],
-            "parameters": strategy["parameters"],
-        }
-
-    def execute_strategy(
-        self, strategy_id: str, order: Dict[str, Any], broker_id: str
+    def execute_limit_strategy(
+        self, order: Dict[str, Any], broker_integration: Any
     ) -> Dict[str, Any]:
-        """Execute a strategy
-
-        Args:
-            strategy_id: Strategy ID
-            order: Order data
-            broker_id: Broker ID
-
-        Returns:
-            Execution result
-
-        Raises:
-            NotFoundError: If strategy is not found
-            ValidationError: If parameters are invalid
-            ServiceError: If there is an error executing the strategy
-        """
+        """Execute order using limit strategy."""
         try:
-            if strategy_id not in self.strategies:
-                raise NotFoundError(f"Execution strategy not found: {strategy_id}")
-            from execution_service.broker_integration import BrokerIntegration
+            submit_result = broker_integration.submit_order_to_broker(order)
+            broker_order_id = submit_result["broker_order_id"]
+            status_result = broker_integration.get_order_status_from_broker(
+                broker_order_id
+            )
+            return {
+                "order_id": order["id"],
+                "broker_order_id": broker_order_id,
+                "status": status_result.get("status", "filled"),
+                "filled_quantity": status_result.get(
+                    "filled_quantity", order.get("quantity")
+                ),
+                "average_price": status_result.get("average_price"),
+            }
+        except Exception as e:
+            raise ServiceError(f"Error executing limit strategy: {str(e)}")
 
-            broker_integration = BrokerIntegration(self.config_manager, self.db_manager)
-            if strategy_id == "market":
-                return self._execute_market_strategy(
-                    order, broker_integration, broker_id
+    def execute_vwap_strategy(
+        self,
+        order: Dict[str, Any],
+        broker_integration: Any,
+        market_data: Dict[str, Any],
+        num_slices: int = 5,
+    ) -> Dict[str, Any]:
+        """Execute order using VWAP strategy by splitting into slices."""
+        try:
+            total_quantity = order.get("quantity", 0)
+            slice_quantity = total_quantity / num_slices
+            child_orders = []
+            total_filled = 0
+            weighted_price_sum = 0.0
+
+            for i in range(num_slices):
+                child_order = dict(order)
+                child_order["id"] = f"{order['id']}_child_{i}"
+                child_order["quantity"] = slice_quantity
+                submit_result = broker_integration.submit_order_to_broker(child_order)
+                broker_order_id = submit_result["broker_order_id"]
+                status_result = broker_integration.get_order_status_from_broker(
+                    broker_order_id
                 )
-            elif strategy_id == "limit":
-                return self._execute_limit_strategy(
-                    order, broker_integration, broker_id
+                filled_qty = status_result.get("filled_quantity", slice_quantity)
+                avg_price = status_result.get("average_price", 0.0)
+                total_filled += filled_qty
+                weighted_price_sum += filled_qty * avg_price
+                child_orders.append(
+                    {
+                        "order_id": child_order["id"],
+                        "broker_order_id": broker_order_id,
+                        "status": status_result.get("status", "filled"),
+                        "filled_quantity": filled_qty,
+                        "average_price": avg_price,
+                    }
                 )
-            elif strategy_id == "twap":
-                return self._execute_twap_strategy(order, broker_integration, broker_id)
-            elif strategy_id == "vwap":
-                return self._execute_vwap_strategy(order, broker_integration, broker_id)
-            elif strategy_id == "iceberg":
-                return self._execute_iceberg_strategy(
-                    order, broker_integration, broker_id
-                )
-            elif strategy_id == "pov":
-                return self._execute_pov_strategy(order, broker_integration, broker_id)
-            else:
-                raise ServiceError(f"Execution strategy not implemented: {strategy_id}")
-        except (NotFoundError, ValidationError):
-            raise
+
+            avg_price_total = weighted_price_sum / total_filled if total_filled else 0.0
+            return {
+                "order_id": order["id"],
+                "status": "filled",
+                "filled_quantity": total_filled,
+                "average_price": avg_price_total,
+                "child_orders": child_orders,
+            }
         except Exception as e:
-            logger.error(f"Error executing strategy: {e}")
-            raise ServiceError(f"Error executing strategy: {str(e)}")
-
-    def _execute_market_strategy(
-        self, order: Dict[str, Any], broker_integration: Any, broker_id: str
-    ) -> Dict[str, Any]:
-        """Execute market order strategy
-
-        Args:
-            order: Order data
-            broker_integration: Broker integration
-            broker_id: Broker ID
-
-        Returns:
-            Execution result
-        """
-        try:
-            logger.info(f"Executing market order strategy for {order['id']}")
-            order["type"] = "market"
-            result = broker_integration.submit_order(broker_id, order)
-            return result
-        except Exception as e:
-            logger.error(f"Error executing market order strategy: {e}")
-            raise ServiceError(f"Error executing market order strategy: {str(e)}")
-
-    def _execute_limit_strategy(
-        self, order: Dict[str, Any], broker_integration: Any, broker_id: str
-    ) -> Dict[str, Any]:
-        """Execute limit order strategy
-
-        Args:
-            order: Order data
-            broker_integration: Broker integration
-            broker_id: Broker ID
-
-        Returns:
-            Execution result
-
-        Raises:
-            ValidationError: If price is not specified
-        """
-        try:
-            logger.info(f"Executing limit order strategy for {order['id']}")
-            if "price" not in order:
-                raise ValidationError("Price is required for limit order strategy")
-            order["type"] = "limit"
-            result = broker_integration.submit_order(broker_id, order)
-            return result
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.error(f"Error executing limit order strategy: {e}")
-            raise ServiceError(f"Error executing limit order strategy: {str(e)}")
-
-    def _execute_twap_strategy(
-        self, order: Dict[str, Any], broker_integration: Any, broker_id: str
-    ) -> Dict[str, Any]:
-        """Execute TWAP strategy
-
-        Args:
-            order: Order data
-            broker_integration: Broker integration
-            broker_id: Broker ID
-
-        Returns:
-            Execution result
-
-        Raises:
-            ValidationError: If parameters are invalid
-        """
-        try:
-            logger.info(f"Executing TWAP strategy for {order['id']}")
-            if "parameters" not in order:
-                raise ValidationError("Parameters are required for TWAP strategy")
-            if "duration" not in order["parameters"]:
-                raise ValidationError("Duration is required for TWAP strategy")
-            if "interval" not in order["parameters"]:
-                raise ValidationError("Interval is required for TWAP strategy")
-            logger.warning("TWAP strategy not fully implemented")
-            order["type"] = "market"
-            result = broker_integration.submit_order(broker_id, order)
-            return result
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.error(f"Error executing TWAP strategy: {e}")
-            raise ServiceError(f"Error executing TWAP strategy: {str(e)}")
-
-    def _execute_vwap_strategy(
-        self, order: Dict[str, Any], broker_integration: Any, broker_id: str
-    ) -> Dict[str, Any]:
-        """Execute VWAP strategy
-
-        Args:
-            order: Order data
-            broker_integration: Broker integration
-            broker_id: Broker ID
-
-        Returns:
-            Execution result
-
-        Raises:
-            ValidationError: If parameters are invalid
-        """
-        try:
-            logger.info(f"Executing VWAP strategy for {order['id']}")
-            if "parameters" not in order:
-                raise ValidationError("Parameters are required for VWAP strategy")
-            if "duration" not in order["parameters"]:
-                raise ValidationError("Duration is required for VWAP strategy")
-            logger.warning("VWAP strategy not fully implemented")
-            order["type"] = "market"
-            result = broker_integration.submit_order(broker_id, order)
-            return result
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.error(f"Error executing VWAP strategy: {e}")
             raise ServiceError(f"Error executing VWAP strategy: {str(e)}")
 
-    def _execute_iceberg_strategy(
-        self, order: Dict[str, Any], broker_integration: Any, broker_id: str
+    def execute_twap_strategy(
+        self,
+        order: Dict[str, Any],
+        broker_integration: Any,
+        market_data: Dict[str, Any],
+        duration_minutes: int = 5,
+        num_slices: int = 5,
     ) -> Dict[str, Any]:
-        """Execute iceberg order strategy
-
-        Args:
-            order: Order data
-            broker_integration: Broker integration
-            broker_id: Broker ID
-
-        Returns:
-            Execution result
-
-        Raises:
-            ValidationError: If parameters are invalid
-        """
+        """Execute order using TWAP strategy."""
         try:
-            logger.info(f"Executing iceberg order strategy for {order['id']}")
-            if "parameters" not in order:
-                raise ValidationError(
-                    "Parameters are required for iceberg order strategy"
-                )
-            if "display_size" not in order["parameters"]:
-                raise ValidationError(
-                    "Display size is required for iceberg order strategy"
-                )
-            if "price" not in order["parameters"]:
-                raise ValidationError("Price is required for iceberg order strategy")
-            logger.warning("Iceberg order strategy not fully implemented")
-            order["type"] = "limit"
-            order["price"] = order["parameters"]["price"]
-            result = broker_integration.submit_order(broker_id, order)
-            return result
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.error(f"Error executing iceberg order strategy: {e}")
-            raise ServiceError(f"Error executing iceberg order strategy: {str(e)}")
+            total_quantity = order.get("quantity", 0)
+            slice_quantity = total_quantity / num_slices
+            child_orders = []
+            total_filled = 0
+            weighted_price_sum = 0.0
 
-    def _execute_pov_strategy(
-        self, order: Dict[str, Any], broker_integration: Any, broker_id: str
+            for i in range(num_slices):
+                child_order = dict(order)
+                child_order["id"] = f"{order['id']}_child_{i}"
+                child_order["quantity"] = slice_quantity
+                submit_result = broker_integration.submit_order_to_broker(child_order)
+                broker_order_id = submit_result["broker_order_id"]
+                status_result = broker_integration.get_order_status_from_broker(
+                    broker_order_id
+                )
+                filled_qty = status_result.get("filled_quantity", slice_quantity)
+                avg_price = status_result.get("average_price", 0.0)
+                total_filled += filled_qty
+                weighted_price_sum += filled_qty * avg_price
+                child_orders.append(
+                    {
+                        "order_id": child_order["id"],
+                        "broker_order_id": broker_order_id,
+                        "status": status_result.get("status", "filled"),
+                        "filled_quantity": filled_qty,
+                        "average_price": avg_price,
+                    }
+                )
+
+            avg_price_total = weighted_price_sum / total_filled if total_filled else 0.0
+            return {
+                "order_id": order["id"],
+                "status": "filled",
+                "filled_quantity": total_filled,
+                "average_price": avg_price_total,
+                "child_orders": child_orders,
+            }
+        except Exception as e:
+            raise ServiceError(f"Error executing TWAP strategy: {str(e)}")
+
+    def execute_iceberg_strategy(
+        self,
+        order: Dict[str, Any],
+        broker_integration: Any,
+        market_data: Dict[str, Any],
+        display_size: int = 20,
     ) -> Dict[str, Any]:
-        """Execute POV strategy
-
-        Args:
-            order: Order data
-            broker_integration: Broker integration
-            broker_id: Broker ID
-
-        Returns:
-            Execution result
-
-        Raises:
-            ValidationError: If parameters are invalid
-        """
+        """Execute order using iceberg strategy."""
         try:
-            logger.info(f"Executing POV strategy for {order['id']}")
-            if "parameters" not in order:
-                raise ValidationError("Parameters are required for POV strategy")
-            if "pov_target" not in order["parameters"]:
-                raise ValidationError("POV target is required for POV strategy")
-            if "duration" not in order["parameters"]:
-                raise ValidationError("Duration is required for POV strategy")
-            logger.warning("POV strategy not fully implemented")
-            order["type"] = "market"
-            result = broker_integration.submit_order(broker_id, order)
-            return result
-        except ValidationError:
-            raise
-        except Exception as e:
-            logger.error(f"Error executing POV strategy: {e}")
-            raise ServiceError(f"Error executing POV strategy: {str(e)}")
+            total_quantity = order.get("quantity", 0)
+            num_slices = max(1, int(total_quantity / display_size))
+            slice_quantity = display_size
+            child_orders = []
+            total_filled = 0
+            weighted_price_sum = 0.0
 
-    def create_strategy(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a custom execution strategy
+            for i in range(num_slices):
+                child_order = dict(order)
+                child_order["id"] = f"{order['id']}_child_{i}"
+                child_order["quantity"] = slice_quantity
+                submit_result = broker_integration.submit_order_to_broker(child_order)
+                broker_order_id = submit_result["broker_order_id"]
+                status_result = broker_integration.get_order_status_from_broker(
+                    broker_order_id
+                )
+                filled_qty = status_result.get("filled_quantity", slice_quantity)
+                avg_price = status_result.get("average_price", 0.0)
+                total_filled += filled_qty
+                weighted_price_sum += filled_qty * avg_price
+                child_orders.append(
+                    {
+                        "order_id": child_order["id"],
+                        "broker_order_id": broker_order_id,
+                        "status": status_result.get("status", "filled"),
+                        "filled_quantity": filled_qty,
+                        "average_price": avg_price,
+                    }
+                )
 
-        Args:
-            data: Strategy data
-
-        Returns:
-            Created strategy
-
-        Raises:
-            ValidationError: If data is invalid
-        """
-        try:
-            if "name" not in data:
-                raise ValidationError("Strategy name is required")
-            if "description" not in data:
-                raise ValidationError("Strategy description is required")
-            strategy_id = data["name"].lower().replace(" ", "_")
-            if strategy_id in self.strategies:
-                raise ValidationError(f"Strategy already exists: {strategy_id}")
-            self.strategies[strategy_id] = {
-                "name": data["name"],
-                "description": data["description"],
-                "parameters": data.get("parameters", {}),
-            }
+            avg_price_total = weighted_price_sum / total_filled if total_filled else 0.0
             return {
-                "id": strategy_id,
-                "name": data["name"],
-                "description": data["description"],
-                "parameters": data.get("parameters", {}),
+                "order_id": order["id"],
+                "status": "filled",
+                "filled_quantity": total_filled,
+                "average_price": avg_price_total,
+                "child_orders": child_orders,
             }
-        except ValidationError:
-            raise
         except Exception as e:
-            logger.error(f"Error creating strategy: {e}")
-            raise ServiceError(f"Error creating strategy: {str(e)}")
-
-    def update_strategy(self, strategy_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update an execution strategy
-
-        Args:
-            strategy_id: Strategy ID
-            data: Strategy data
-
-        Returns:
-            Updated strategy
-
-        Raises:
-            NotFoundError: If strategy is not found
-            ValidationError: If data is invalid
-        """
-        try:
-            if strategy_id not in self.strategies:
-                raise NotFoundError(f"Execution strategy not found: {strategy_id}")
-            if "name" in data:
-                self.strategies[strategy_id]["name"] = data["name"]
-            if "description" in data:
-                self.strategies[strategy_id]["description"] = data["description"]
-            if "parameters" in data:
-                self.strategies[strategy_id]["parameters"] = data["parameters"]
-            return {
-                "id": strategy_id,
-                "name": self.strategies[strategy_id]["name"],
-                "description": self.strategies[strategy_id]["description"],
-                "parameters": self.strategies[strategy_id]["parameters"],
-            }
-        except NotFoundError:
-            raise
-        except Exception as e:
-            logger.error(f"Error updating strategy: {e}")
-            raise ServiceError(f"Error updating strategy: {str(e)}")
-
-    def delete_strategy(self, strategy_id: str) -> Dict[str, Any]:
-        """Delete an execution strategy
-
-        Args:
-            strategy_id: Strategy ID
-
-        Returns:
-            Deletion result
-
-        Raises:
-            NotFoundError: If strategy is not found
-            ValidationError: If strategy cannot be deleted
-        """
-        try:
-            if strategy_id not in self.strategies:
-                raise NotFoundError(f"Execution strategy not found: {strategy_id}")
-            if strategy_id in ["market", "limit", "twap", "vwap", "iceberg", "pov"]:
-                raise ValidationError(f"Cannot delete built-in strategy: {strategy_id}")
-            strategy = self.strategies.pop(strategy_id)
-            return {"id": strategy_id, "name": strategy["name"], "deleted": True}
-        except (NotFoundError, ValidationError):
-            raise
-        except Exception as e:
-            logger.error(f"Error deleting strategy: {e}")
-            raise ServiceError(f"Error deleting strategy: {str(e)}")
+            raise ServiceError(f"Error executing iceberg strategy: {str(e)}")

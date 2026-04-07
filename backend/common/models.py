@@ -404,6 +404,29 @@ class OrderExecution(BaseModel):
     )
 
 
+class Execution(Base):
+    """Execution model for tracking order executions (simplified for execution service)"""
+
+    __tablename__ = "executions"
+    id = Column(String(255), primary_key=True)
+    order_id = Column(String(255), nullable=False, index=True)
+    price = Column(Float, nullable=False)
+    quantity = Column(Float, nullable=False)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
+    broker_execution_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=True)
+
+    def to_dict(self) -> dict:
+        """Convert model to dictionary"""
+        result = {}
+        for col in self.__table__.columns:
+            value = getattr(self, col.name)
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            result[col.name] = value
+        return result
+
+
 class Strategy(BaseModel):
     """Trading strategy configuration and tracking"""
 
