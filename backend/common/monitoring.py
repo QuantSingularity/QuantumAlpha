@@ -22,7 +22,7 @@ from prometheus_client import (
     generate_latest,
 )
 
-from backend.common.database import get_db_session
+from .database import get_db_session
 
 from .database import db_manager, get_redis_client
 from .models import Order, Portfolio, User
