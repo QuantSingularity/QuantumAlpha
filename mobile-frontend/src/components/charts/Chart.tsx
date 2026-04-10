@@ -11,19 +11,21 @@ import {
   LineChart,
   BarChart,
   PieChart,
-  AreaChart,
   ContributionGraph,
+  ProgressChart,
 } from "react-native-chart-kit";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useTheme } from "../../context/ThemeContext";
 
+interface ChartDataset {
+  data: number[];
+  color?: (opacity: number) => string;
+  strokeWidth?: number;
+}
+
 interface ChartData {
   labels: string[];
-  datasets: Array<{
-    data: number[];
-    color?: (opacity: number) => string;
-    strokeWidth?: number;
-  }>;
+  datasets: ChartDataset[];
 }
 
 interface PieChartData {
@@ -35,7 +37,7 @@ interface PieChartData {
 }
 
 interface ChartProps {
-  type: "line" | "bar" | "pie" | "area" | "contribution";
+  type: "line" | "bar" | "pie" | "area" | "contribution" | "progress";
   data: ChartData | PieChartData[] | any;
   title?: string;
   subtitle?: string;
@@ -72,10 +74,10 @@ const Chart: React.FC<ChartProps> = ({
     decimalPlaces: 2,
     color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
     labelColor: (opacity = 1) =>
-      `rgba(${isDarkMode ? "255, 255, 255" : "0, 0, 0"}, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
+      isDarkMode
+        ? `rgba(255, 255, 255, ${opacity})`
+        : `rgba(0, 0, 0, ${opacity})`,
+    style: { borderRadius: 16 },
     propsForDots: {
       r: "4",
       strokeWidth: "2",
@@ -109,22 +111,27 @@ const Chart: React.FC<ChartProps> = ({
             withInnerLines={true}
             withOuterLines={false}
             withDots={true}
-            withShadow={true}
+            withShadow={false}
           />
         );
 
+      // "area" is rendered as LineChart with shadow enabled —
+      // react-native-chart-kit has no dedicated AreaChart export
       case "area":
         return (
-          <AreaChart
+          <LineChart
             data={data as ChartData}
             width={chartWidth}
             height={height}
             chartConfig={chartConfig}
+            bezier
             style={styles.chart}
             withHorizontalLabels={true}
             withVerticalLabels={true}
             withInnerLines={true}
             withOuterLines={false}
+            withDots={false}
+            withShadow={true}
           />
         );
 
@@ -140,7 +147,9 @@ const Chart: React.FC<ChartProps> = ({
             withVerticalLabels={true}
             withInnerLines={true}
             showBarTops={false}
-            showValuesOnTopOfBars={true}
+            showValuesOnTopOfBars={false}
+            yAxisLabel=""
+            yAxisSuffix=""
           />
         );
 
@@ -156,6 +165,20 @@ const Chart: React.FC<ChartProps> = ({
             paddingLeft="15"
             style={styles.chart}
             absolute={false}
+          />
+        );
+
+      case "progress":
+        return (
+          <ProgressChart
+            data={data}
+            width={chartWidth}
+            height={height}
+            strokeWidth={16}
+            radius={32}
+            chartConfig={chartConfig}
+            style={styles.chart}
+            hideLegend={false}
           />
         );
 
@@ -241,7 +264,7 @@ const Chart: React.FC<ChartProps> = ({
             <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
           )}
           {subtitle && (
-            <Text style={[styles.subtitle, { color: theme.text }]}>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
               {subtitle}
             </Text>
           )}

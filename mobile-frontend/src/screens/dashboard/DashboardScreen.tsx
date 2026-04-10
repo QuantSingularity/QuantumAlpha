@@ -29,7 +29,6 @@ import {
   SkeletonLoader,
 } from "../../components/ui/LoadingSpinner";
 import Chart from "../../components/charts/Chart";
-import PerformanceCard from "../../components/dashboard/PerformanceCard";
 import StrategyCard from "../../components/dashboard/StrategyCard";
 import AlertItem from "../../components/alerts/AlertItem";
 import MarketOverview from "../../components/dashboard/MarketOverview";
@@ -39,19 +38,16 @@ import WatchlistWidget from "../../components/dashboard/WatchlistWidget";
 
 import { formatCurrency, formatPercentage } from "../../utils";
 import { COLORS, SPACING } from "../../constants";
-import { Portfolio, Strategy, Alert, NewsArticle } from "../../types";
+import { Strategy, Alert, NewsArticle } from "../../types";
 
 const DashboardScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const { addAlert } = useAlert();
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
 
-  const screenWidth = Dimensions.get("window").width;
-
-  // API Queries with React Query
   const {
     data: portfolioData,
     isLoading: portfolioLoading,
@@ -59,53 +55,50 @@ const DashboardScreen = () => {
   } = useApiQuery(
     ["portfolio", "summary"],
     () => portfolioService.getPortfolioSummary(),
-    {
-      refetchInterval: 30000, // Refetch every 30 seconds
-    },
+    { refetchInterval: 30000 },
   );
 
-  const { data: performanceData, isLoading: performanceLoading } = useApiQuery(
+  const {
+    data: performanceData,
+    isLoading: performanceLoading,
+    refetch: refetchPerformance,
+  } = useApiQuery(
     ["portfolio", "performance", selectedTimeframe],
     () => portfolioService.getPerformanceHistory(selectedTimeframe),
-    {
-      refetchInterval: 60000, // Refetch every minute
-    },
+    { refetchInterval: 60000 },
   );
 
-  const { data: strategies, isLoading: strategiesLoading } = useApiQuery(
+  const {
+    data: strategies,
+    isLoading: strategiesLoading,
+    refetch: refetchStrategies,
+  } = useApiQuery(
     ["strategies", "active"],
     () => strategyService.getActiveStrategies(),
-    {
-      refetchInterval: 300000, // Refetch every 5 minutes
-    },
+    { refetchInterval: 300000 },
   );
 
-  const { data: recentAlerts, isLoading: alertsLoading } = useApiQuery(
-    ["alerts", "recent"],
-    () => alertService.getRecentAlerts(5),
-    {
-      refetchInterval: 60000, // Refetch every minute
-    },
-  );
+  const {
+    data: recentAlerts,
+    isLoading: alertsLoading,
+    refetch: refetchAlerts,
+  } = useApiQuery(["alerts", "recent"], () => alertService.getRecentAlerts(5), {
+    refetchInterval: 60000,
+  });
 
   const { data: marketOverview, isLoading: marketLoading } = useApiQuery(
     ["market", "overview"],
     () => marketService.getMarketOverview(),
-    {
-      refetchInterval: 30000, // Refetch every 30 seconds
-    },
+    { refetchInterval: 30000 },
   );
 
   const { data: newsData, isLoading: newsLoading } = useApiQuery(
     ["news", "latest"],
     () => marketService.getLatestNews(5),
-    {
-      refetchInterval: 300000, // Refetch every 5 minutes
-    },
+    { refetchInterval: 300000 },
   );
 
   useEffect(() => {
-    // Set up real-time alert listener
     const alertListener = alertService.subscribeToAlerts((newAlert: Alert) => {
       addAlert(newAlert);
       HapticFeedback.trigger("notificationSuccess");
@@ -123,14 +116,16 @@ const DashboardScreen = () => {
     try {
       await Promise.all([
         refetchPortfolio(),
-        // Add other refetch calls here
+        refetchPerformance(),
+        refetchStrategies(),
+        refetchAlerts(),
       ]);
     } catch (error) {
       console.error("Error refreshing dashboard:", error);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchPortfolio]);
+  }, [refetchPortfolio, refetchPerformance, refetchStrategies, refetchAlerts]);
 
   const navigateToStrategy = useCallback(
     (strategy: Strategy) => {
@@ -170,7 +165,7 @@ const DashboardScreen = () => {
           <Text style={[styles.title, { color: theme.text }]}>
             QuantumAlpha
           </Text>
-          <Text style={[styles.subtitle, { color: theme.text }]}>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             Portfolio Dashboard
           </Text>
         </View>
@@ -206,7 +201,8 @@ const DashboardScreen = () => {
 
     if (!portfolioData) return null;
 
-    const isPositive = portfolioData.dailyChange >= 0;
+    // portfolioService returns percentChange (not dailyChangePercent)
+    const isPositive = (portfolioData.dailyChange ?? 0) >= 0;
 
     return (
       <Animatable.View animation="fadeInUp" delay={100}>
@@ -214,9 +210,9 @@ const DashboardScreen = () => {
           variant="elevated"
           padding="large"
           margin="medium"
-          style={[styles.portfolioSummary, { backgroundColor: theme.surface }]}
+          style={styles.portfolioSummary}
         >
-          <Text style={[styles.portfolioLabel, { color: theme.text }]}>
+          <Text style={[styles.portfolioLabel, { color: theme.textSecondary }]}>
             Total Portfolio Value
           </Text>
           <Text style={[styles.portfolioValue, { color: theme.text }]}>
@@ -239,11 +235,11 @@ const DashboardScreen = () => {
                 },
               ]}
             >
-              {formatCurrency(portfolioData.dailyChange)} (
-              {formatPercentage(portfolioData.dailyChangePercent)})
+              {formatCurrency(portfolioData.dailyChange ?? 0)} (
+              {formatPercentage(portfolioData.percentChange ?? 0)})
             </Text>
           </View>
-          <Text style={[styles.changeLabel, { color: theme.text + "80" }]}>
+          <Text style={[styles.changeLabel, { color: theme.textSecondary }]}>
             Today's Change
           </Text>
         </Card>
@@ -258,11 +254,16 @@ const DashboardScreen = () => {
 
     if (!performanceData) return null;
 
+    const chartData = {
+      labels: performanceData.labels,
+      datasets: [{ data: performanceData.values }],
+    };
+
     return (
       <Animatable.View animation="fadeInUp" delay={200}>
         <Chart
-          type="area"
-          data={performanceData}
+          type="line"
+          data={chartData}
           title="Portfolio Performance"
           height={220}
           timeframe={selectedTimeframe}
@@ -472,8 +473,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   subtitle: {
-    fontSize: 16,
-    marginTop: 4,
+    fontSize: 14,
+    marginTop: 2,
     opacity: 0.7,
   },
   headerIcons: {
@@ -507,11 +508,10 @@ const styles = StyleSheet.create({
   },
   portfolioLabel: {
     fontSize: 14,
-    opacity: 0.7,
     marginBottom: SPACING.XS,
   },
   portfolioValue: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: "bold",
     marginBottom: SPACING.SM,
   },

@@ -1,23 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import NetInfo from "@react-native-community/netinfo";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Custom hook for API calls with React Query
 export const useApiQuery = (
   key: string | string[],
   queryFn: () => Promise<any>,
   options?: any,
 ) => {
   return useQuery(key, queryFn, {
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
   });
 };
 
-// Custom hook for mutations
 export const useApiMutation = (
   mutationFn: (variables: any) => Promise<any>,
   options?: any,
@@ -26,14 +25,12 @@ export const useApiMutation = (
 
   return useMutation(mutationFn, {
     onSuccess: () => {
-      // Invalidate and refetch queries after successful mutation
       queryClient.invalidateQueries();
     },
     ...options,
   });
 };
 
-// Custom hook for network status
 export const useNetworkStatus = () => {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [connectionType, setConnectionType] = useState<string | null>(null);
@@ -50,7 +47,6 @@ export const useNetworkStatus = () => {
   return { isConnected, connectionType };
 };
 
-// Custom hook for debounced values
 export const useDebounce = <T>(value: T, delay: number): T => {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -67,7 +63,6 @@ export const useDebounce = <T>(value: T, delay: number): T => {
   return debouncedValue;
 };
 
-// Custom hook for local storage
 export const useAsyncStorage = (key: string, initialValue?: any) => {
   const [storedValue, setStoredValue] = useState(initialValue);
   const [loading, setLoading] = useState(true);
@@ -120,11 +115,10 @@ export const useAsyncStorage = (key: string, initialValue?: any) => {
   return { storedValue, setValue, removeValue, loading };
 };
 
-// Custom hook for form validation
 export const useFormValidation = (initialValues: any, validationRules: any) => {
   const [values, setValues] = useState(initialValues);
-  const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const validateField = useCallback(
     (name: string, value: any) => {
@@ -163,7 +157,7 @@ export const useFormValidation = (initialValues: any, validationRules: any) => {
   );
 
   const validateForm = useCallback(() => {
-    const newErrors: any = {};
+    const newErrors: Record<string, string> = {};
     let isValid = true;
 
     Object.keys(validationRules).forEach((field) => {
@@ -184,7 +178,7 @@ export const useFormValidation = (initialValues: any, validationRules: any) => {
 
       if (touched[name]) {
         const error = validateField(name, value);
-        setErrors((prev: any) => ({ ...prev, [name]: error }));
+        setErrors((prev) => ({ ...prev, [name]: error }));
       }
     },
     [touched, validateField],
@@ -192,9 +186,9 @@ export const useFormValidation = (initialValues: any, validationRules: any) => {
 
   const handleBlur = useCallback(
     (name: string) => {
-      setTouched((prev: any) => ({ ...prev, [name]: true }));
+      setTouched((prev) => ({ ...prev, [name]: true }));
       const error = validateField(name, values[name]);
-      setErrors((prev: any) => ({ ...prev, [name]: error }));
+      setErrors((prev) => ({ ...prev, [name]: error }));
     },
     [values, validateField],
   );
@@ -217,7 +211,6 @@ export const useFormValidation = (initialValues: any, validationRules: any) => {
   };
 };
 
-// Custom hook for pagination
 export const usePagination = (data: any[], itemsPerPage: number = 10) => {
   const [currentPage, setCurrentPage] = useState(1);
 

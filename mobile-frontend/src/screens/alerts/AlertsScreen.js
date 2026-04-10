@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Animated,
   TextInput,
-  Dimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -17,156 +16,24 @@ import { useTheme } from "../../context/ThemeContext";
 import { useAlert } from "../../context/AlertContext";
 import { alertService } from "../../services/alertService";
 
-const AlertsScreen = () => {
-  const navigation = useNavigation();
-  const { theme } = useTheme();
-  const { markAllAsRead } = useAlert();
+// Extracted to its own component so hooks are called at component level (not inside renderItem)
+const AlertListItem = React.memo(
+  ({ item, index, theme, onMarkAsRead, onDelete }) => {
+    const itemFadeAnim = useRef(new Animated.Value(0)).current;
+    const itemTranslateX = useRef(new Animated.Value(-50)).current;
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [alerts, setAlerts] = useState([]);
-  const [filteredAlerts, setFilteredAlerts] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
-
-  // Animation values
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const translateY = React.useRef(new Animated.Value(50)).current;
-
-  useEffect(() => {
-    loadAlerts();
-
-    // Start animations when component mounts
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Set up alert listener for real-time updates
-    const alertListener = alertService.subscribeToAlerts((newAlert) => {
-      setAlerts((prev) => [newAlert, ...prev]);
-    });
-
-    // Simulate receiving new alerts every 30 seconds (for demo purposes)
-    const interval = setInterval(() => {
-      const newAlert = alertService.simulateNewAlert();
-      setAlerts((prev) => [newAlert, ...prev]);
-    }, 30000);
-
-    return () => {
-      alertListener.unsubscribe();
-      clearInterval(interval);
-    };
-  }, []);
-
-  useEffect(() => {
-    filterAlerts();
-  }, [alerts, searchQuery, activeFilter]);
-
-  const loadAlerts = async () => {
-    try {
-      setLoading(true);
-      const response = await alertService.getAllAlerts();
-      setAlerts(response.alerts);
-    } catch (error) {
-      console.error("Error loading alerts:", error);
-      // In a real app, you would handle errors appropriately
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadAlerts();
-  };
-
-  const filterAlerts = () => {
-    let filtered = [...alerts];
-
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (alert) =>
-          alert.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          alert.message.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
-    }
-
-    // Apply type filter
-    if (activeFilter !== "all") {
-      filtered = filtered.filter((alert) => alert.type === activeFilter);
-    }
-
-    setFilteredAlerts(filtered);
-  };
-
-  const handleMarkAsRead = async (alertId) => {
-    try {
-      await alertService.markAsRead(alertId);
-
-      // Update local state
-      setAlerts((prev) =>
-        prev.map((alert) =>
-          alert.id === alertId ? { ...alert, read: true } : alert,
-        ),
-      );
-    } catch (error) {
-      console.error("Error marking alert as read:", error);
-    }
-  };
-
-  const handleMarkAllAsRead = async () => {
-    try {
-      await alertService.markAllAsRead();
-
-      // Update local state
-      setAlerts((prev) => prev.map((alert) => ({ ...alert, read: true })));
-
-      // Update context
-      markAllAsRead();
-    } catch (error) {
-      console.error("Error marking all alerts as read:", error);
-    }
-  };
-
-  const handleDeleteAlert = async (alertId) => {
-    try {
-      await alertService.deleteAlert(alertId);
-
-      // Update local state
-      setAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
-    } catch (error) {
-      console.error("Error deleting alert:", error);
-    }
-  };
-
-  const renderAlertItem = ({ item, index }) => {
-    const itemFadeAnim = React.useRef(new Animated.Value(0)).current;
-    const itemTranslateX = React.useRef(new Animated.Value(-50)).current;
-
-    React.useEffect(() => {
-      // Stagger the animations for each item
+    useEffect(() => {
       Animated.parallel([
         Animated.timing(itemFadeAnim, {
           toValue: 1,
           duration: 500,
-          delay: index * 50,
+          delay: Math.min(index * 50, 400),
           useNativeDriver: true,
         }),
         Animated.timing(itemTranslateX, {
           toValue: 0,
           duration: 500,
-          delay: index * 50,
+          delay: Math.min(index * 50, 400),
           useNativeDriver: true,
         }),
       ]).start();
@@ -175,6 +42,7 @@ const AlertsScreen = () => {
     const getPriorityColor = () => {
       switch (item.priority) {
         case "high":
+        case "critical":
           return theme.error;
         case "medium":
           return theme.warning;
@@ -203,6 +71,8 @@ const AlertsScreen = () => {
       }
     };
 
+    const priorityColor = getPriorityColor();
+
     return (
       <Animated.View
         style={[
@@ -218,19 +88,20 @@ const AlertsScreen = () => {
             styles.alertItem,
             {
               backgroundColor: theme.card,
-              opacity: item.read ? 0.7 : 1,
+              opacity: item.read ? 0.75 : 1,
             },
           ]}
           onPress={() => {
             if (!item.read) {
-              handleMarkAsRead(item.id);
+              onMarkAsRead(item.id);
             }
           }}
+          activeOpacity={0.8}
         >
           <View
             style={[
               styles.priorityIndicator,
-              { backgroundColor: getPriorityColor() },
+              { backgroundColor: priorityColor },
             ]}
           />
 
@@ -238,12 +109,10 @@ const AlertsScreen = () => {
             <View
               style={[
                 styles.alertIcon,
-                {
-                  backgroundColor: getPriorityColor() + "20",
-                },
+                { backgroundColor: priorityColor + "20" },
               ]}
             >
-              <Icon name={getTypeIcon()} size={20} color={getPriorityColor()} />
+              <Icon name={getTypeIcon()} size={20} color={priorityColor} />
             </View>
           </View>
 
@@ -257,6 +126,7 @@ const AlertsScreen = () => {
                     fontWeight: item.read ? "normal" : "bold",
                   },
                 ]}
+                numberOfLines={1}
               >
                 {item.title}
               </Text>
@@ -267,7 +137,10 @@ const AlertsScreen = () => {
               )}
             </View>
 
-            <Text style={[styles.alertMessage, { color: theme.text + "CC" }]}>
+            <Text
+              style={[styles.alertMessage, { color: theme.text + "CC" }]}
+              numberOfLines={2}
+            >
               {item.message}
             </Text>
 
@@ -283,7 +156,8 @@ const AlertsScreen = () => {
 
               <TouchableOpacity
                 style={styles.deleteButton}
-                onPress={() => handleDeleteAlert(item.id)}
+                onPress={() => onDelete(item.id)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Icon
                   name="delete-outline"
@@ -296,13 +170,144 @@ const AlertsScreen = () => {
         </TouchableOpacity>
       </Animated.View>
     );
+  },
+);
+
+const AlertsScreen = () => {
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const { markAllAsRead } = useAlert();
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [alerts, setAlerts] = useState([]);
+  const [filteredAlerts, setFilteredAlerts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    loadAlerts();
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Only subscribe to real-time alerts — do NOT also run a setInterval that
+    // calls simulateNewAlert(), because that already notifies subscribers,
+    // which would cause every alert to be added twice.
+    const alertListener = alertService.subscribeToAlerts((newAlert) => {
+      setAlerts((prev) => [newAlert, ...prev]);
+    });
+
+    return () => {
+      alertListener.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    filterAlerts();
+  }, [alerts, searchQuery, activeFilter]);
+
+  const loadAlerts = async () => {
+    try {
+      setLoading(true);
+      const response = await alertService.getAllAlerts();
+      setAlerts(response.alerts);
+    } catch (error) {
+      console.error("Error loading alerts:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadAlerts();
+  };
+
+  const filterAlerts = () => {
+    let filtered = [...alerts];
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (alert) =>
+          alert.title.toLowerCase().includes(q) ||
+          alert.message.toLowerCase().includes(q),
+      );
+    }
+
+    if (activeFilter !== "all") {
+      filtered = filtered.filter((alert) => alert.type === activeFilter);
+    }
+
+    setFilteredAlerts(filtered);
+  };
+
+  const handleMarkAsRead = useCallback(async (alertId) => {
+    try {
+      await alertService.markAsRead(alertId);
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === alertId ? { ...alert, read: true } : alert,
+        ),
+      );
+    } catch (error) {
+      console.error("Error marking alert as read:", error);
+    }
+  }, []);
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await alertService.markAllAsRead();
+      setAlerts((prev) => prev.map((alert) => ({ ...alert, read: true })));
+      markAllAsRead();
+    } catch (error) {
+      console.error("Error marking all alerts as read:", error);
+    }
+  };
+
+  const handleDeleteAlert = useCallback(async (alertId) => {
+    try {
+      await alertService.deleteAlert(alertId);
+      setAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
+    } catch (error) {
+      console.error("Error deleting alert:", error);
+    }
+  }, []);
+
+  const renderAlertItem = useCallback(
+    ({ item, index }) => (
+      <AlertListItem
+        item={item}
+        index={index}
+        theme={theme}
+        onMarkAsRead={handleMarkAsRead}
+        onDelete={handleDeleteAlert}
+      />
+    ),
+    [theme, handleMarkAsRead, handleDeleteAlert],
+  );
 
   const renderFilterButton = (filter, label, iconName) => {
     const isActive = activeFilter === filter;
 
     return (
       <TouchableOpacity
+        key={filter}
         style={[
           styles.filterButton,
           {
@@ -314,15 +319,13 @@ const AlertsScreen = () => {
       >
         <Icon
           name={iconName}
-          size={16}
+          size={14}
           color={isActive ? "#FFFFFF" : theme.text}
         />
         <Text
           style={[
             styles.filterButtonText,
-            {
-              color: isActive ? "#FFFFFF" : theme.text,
-            },
+            { color: isActive ? "#FFFFFF" : theme.text },
           ]}
         >
           {label}
@@ -356,7 +359,12 @@ const AlertsScreen = () => {
           },
         ]}
       >
-        <View style={styles.searchContainer}>
+        <View
+          style={[
+            styles.searchContainer,
+            { backgroundColor: theme.background },
+          ]}
+        >
           <Icon name="magnify" size={20} color={theme.text + "99"} />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
@@ -425,6 +433,10 @@ const AlertsScreen = () => {
               </Text>
             </View>
           }
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          initialNumToRender={8}
         />
       </View>
     </View>
@@ -432,18 +444,9 @@ const AlertsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 10, fontSize: 16 },
   header: {
     padding: 16,
     borderBottomWidth: 1,
@@ -452,39 +455,24 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.05)",
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    height: 40,
+    height: 42,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  filterContainer: {
-    flexDirection: "row",
-    marginTop: 12,
-    flexWrap: "wrap",
-  },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
+  filterContainer: { flexDirection: "row", marginTop: 12, flexWrap: "wrap" },
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
     marginRight: 8,
-    marginBottom: 8,
+    marginBottom: 6,
     borderWidth: 1,
   },
-  filterButtonText: {
-    fontSize: 12,
-    fontWeight: "500",
-    marginLeft: 4,
-  },
-  listContainer: {
-    flex: 1,
-  },
+  filterButtonText: { fontSize: 12, fontWeight: "500", marginLeft: 4 },
+  listContainer: { flex: 1 },
   listHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -492,25 +480,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  listTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  markAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  markAllText: {
-    fontSize: 14,
-    marginLeft: 4,
-  },
-  listContent: {
-    padding: 16,
-    paddingTop: 0,
-  },
-  alertItemContainer: {
-    marginBottom: 12,
-  },
+  listTitle: { fontSize: 16, fontWeight: "500" },
+  markAllButton: { flexDirection: "row", alignItems: "center" },
+  markAllText: { fontSize: 14, marginLeft: 4 },
+  listContent: { padding: 16, paddingTop: 0 },
+  alertItemContainer: { marginBottom: 12 },
   alertItem: {
     borderRadius: 12,
     overflow: "hidden",
@@ -518,13 +492,10 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 3,
     elevation: 2,
   },
-  priorityIndicator: {
-    width: 4,
-    height: "100%",
-  },
+  priorityIndicator: { width: 4, height: "100%" },
   alertIconContainer: {
     padding: 12,
     alignItems: "center",
@@ -537,57 +508,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  alertContent: {
-    flex: 1,
-    padding: 12,
-    paddingLeft: 8,
-  },
+  alertContent: { flex: 1, padding: 12, paddingLeft: 8 },
   alertHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  alertTitle: {
-    fontSize: 16,
-    flex: 1,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
-  alertMessage: {
-    fontSize: 14,
-    marginTop: 4,
-  },
+  alertTitle: { fontSize: 15, flex: 1 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 8 },
+  alertMessage: { fontSize: 13, marginTop: 4, lineHeight: 18 },
   alertFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 8,
   },
-  alertTime: {
-    fontSize: 12,
-  },
-  deleteButton: {
-    padding: 4,
-  },
+  alertTime: { fontSize: 11 },
+  deleteButton: { padding: 4 },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
     padding: 40,
   },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: "center",
-  },
+  emptyText: { fontSize: 18, fontWeight: "bold", marginTop: 16 },
+  emptySubtext: { fontSize: 14, marginTop: 8, textAlign: "center" },
 });
 
 export default AlertsScreen;
