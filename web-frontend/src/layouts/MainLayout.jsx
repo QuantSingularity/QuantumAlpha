@@ -1,37 +1,44 @@
 import {
-  AccountCircle as AccountCircleIcon,
   Assessment as AssessmentIcon,
+  Bookmark as BookmarkIcon,
   Dashboard as DashboardIcon,
   ExitToApp as ExitToAppIcon,
   Menu as MenuIcon,
-  Notifications as NotificationsIcon,
+  Newspaper as NewspaperIcon,
+  Person as PersonIcon,
   Settings as SettingsIcon,
   TrendingUp as TrendingUpIcon,
 } from "@mui/icons-material";
 import {
   AppBar,
+  Avatar,
   Box,
   Divider,
   Drawer,
   IconButton,
   List,
-  ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
+  Tooltip,
   Typography,
   useTheme,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import NotificationCenter from "../components/common/NotificationCenter";
 import NotificationPanel from "../components/common/NotificationPanel";
+import { logout } from "../store/slices/authSlice";
 import { toggleDrawer } from "../store/slices/uiSlice";
 
 const MainLayout = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { drawerOpen } = useSelector((state) => state.ui);
+  const { user } = useSelector((state) => state.auth);
 
   const handleDrawerToggle = () => {
     dispatch(toggleDrawer());
@@ -41,15 +48,30 @@ const MainLayout = () => {
     navigate(path);
   };
 
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate("/login");
+  };
+
   const drawerWidth = 240;
+
+  const navItems = [
+    { path: "/", label: "Dashboard", icon: DashboardIcon, exact: true },
+    { path: "/strategies", label: "Strategies", icon: TrendingUpIcon },
+    { path: "/analytics", label: "Analytics", icon: AssessmentIcon },
+    { path: "/watchlist", label: "Watchlist", icon: BookmarkIcon },
+    { path: "/news", label: "News Feed", icon: NewspaperIcon },
+  ];
+
+  const isActive = (path, exact) => {
+    if (exact) return location.pathname === path;
+    return location.pathname.startsWith(path);
+  };
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       {/* App Bar */}
-      <AppBar
-        position="fixed"
-        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
-      >
+      <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
         <Toolbar>
           <IconButton
             color="inherit"
@@ -63,12 +85,24 @@ const MainLayout = () => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             QuantumAlpha Trading Platform
           </Typography>
-          <IconButton color="inherit">
-            <NotificationsIcon />
-          </IconButton>
-          <IconButton color="inherit">
-            <AccountCircleIcon />
-          </IconButton>
+          <NotificationCenter />
+          <Tooltip title="Profile">
+            <IconButton
+              color="inherit"
+              onClick={() => handleNavigation("/profile")}
+            >
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: "primary.main",
+                  fontSize: "0.875rem",
+                }}
+              >
+                {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || "U"}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 
@@ -88,57 +122,91 @@ const MainLayout = () => {
         }}
       >
         <Toolbar />
-        <Box sx={{ overflow: "auto", mt: 2 }}>
+        <Box
+          sx={{
+            overflow: "auto",
+            mt: 2,
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+          }}
+        >
           <List>
-            <ListItem button onClick={() => handleNavigation("/")}>
-              <ListItemIcon>
-                <DashboardIcon
-                  color={location.pathname === "/" ? "primary" : "inherit"}
-                />
-              </ListItemIcon>
-              <ListItemText primary="Dashboard" />
-            </ListItem>
-            <ListItem button onClick={() => handleNavigation("/strategies")}>
-              <ListItemIcon>
-                <TrendingUpIcon
-                  color={
-                    location.pathname.includes("/strategies")
-                      ? "primary"
-                      : "inherit"
-                  }
-                />
-              </ListItemIcon>
-              <ListItemText primary="Strategies" />
-            </ListItem>
-            <ListItem button onClick={() => handleNavigation("/analytics")}>
-              <ListItemIcon>
-                <AssessmentIcon
-                  color={
-                    location.pathname === "/analytics" ? "primary" : "inherit"
-                  }
-                />
-              </ListItemIcon>
-              <ListItemText primary="Analytics" />
-            </ListItem>
+            {navItems.map(({ path, label, icon: Icon, exact }) => (
+              <ListItemButton
+                key={path}
+                onClick={() => handleNavigation(path)}
+                selected={isActive(path, exact)}
+                sx={{
+                  borderRadius: 2,
+                  mx: 1,
+                  mb: 0.5,
+                  "&.Mui-selected": {
+                    background:
+                      "linear-gradient(45deg, rgba(0,212,255,0.15), rgba(0,153,204,0.1))",
+                    borderLeft: "3px solid #00d4ff",
+                    "& .MuiListItemIcon-root": { color: "primary.main" },
+                  },
+                }}
+              >
+                <ListItemIcon>
+                  <Icon />
+                </ListItemIcon>
+                <ListItemText primary={label} />
+              </ListItemButton>
+            ))}
           </List>
-          <Divider />
+          <Divider sx={{ my: 1 }} />
           <List>
-            <ListItem button onClick={() => handleNavigation("/settings")}>
+            <ListItemButton
+              onClick={() => handleNavigation("/settings")}
+              selected={isActive("/settings", true)}
+              sx={{
+                borderRadius: 2,
+                mx: 1,
+                mb: 0.5,
+                "&.Mui-selected": {
+                  background:
+                    "linear-gradient(45deg, rgba(0,212,255,0.15), rgba(0,153,204,0.1))",
+                  borderLeft: "3px solid #00d4ff",
+                  "& .MuiListItemIcon-root": { color: "primary.main" },
+                },
+              }}
+            >
               <ListItemIcon>
-                <SettingsIcon
-                  color={
-                    location.pathname === "/settings" ? "primary" : "inherit"
-                  }
-                />
+                <SettingsIcon />
               </ListItemIcon>
               <ListItemText primary="Settings" />
-            </ListItem>
-            <ListItem button>
+            </ListItemButton>
+            <ListItemButton
+              onClick={() => handleNavigation("/profile")}
+              selected={isActive("/profile", true)}
+              sx={{
+                borderRadius: 2,
+                mx: 1,
+                mb: 0.5,
+                "&.Mui-selected": {
+                  background:
+                    "linear-gradient(45deg, rgba(0,212,255,0.15), rgba(0,153,204,0.1))",
+                  borderLeft: "3px solid #00d4ff",
+                  "& .MuiListItemIcon-root": { color: "primary.main" },
+                },
+              }}
+            >
               <ListItemIcon>
+                <PersonIcon />
+              </ListItemIcon>
+              <ListItemText primary="Profile" />
+            </ListItemButton>
+            <ListItemButton
+              onClick={handleLogout}
+              sx={{ borderRadius: 2, mx: 1, mb: 0.5, color: "error.main" }}
+            >
+              <ListItemIcon sx={{ color: "error.main" }}>
                 <ExitToAppIcon />
               </ListItemIcon>
               <ListItemText primary="Logout" />
-            </ListItem>
+            </ListItemButton>
           </List>
         </Box>
       </Drawer>
@@ -152,8 +220,12 @@ const MainLayout = () => {
           backgroundColor: "background.default",
           marginLeft: drawerOpen ? `${drawerWidth}px` : 0,
           transition: theme.transitions.create("margin", {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
+            easing: drawerOpen
+              ? theme.transitions.easing.easeOut
+              : theme.transitions.easing.sharp,
+            duration: drawerOpen
+              ? theme.transitions.duration.enteringScreen
+              : theme.transitions.duration.leavingScreen,
           }),
         }}
       >

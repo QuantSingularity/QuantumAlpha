@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 /**
  * Custom hook to persist state in localStorage
@@ -19,19 +19,30 @@ export const useLocalStorage = (key, initialValue) => {
   });
 
   // Update localStorage when value changes
-  const setValue = (value) => {
-    try {
-      // Allow value to be a function so we have same API as useState
-      const valueToStore =
-        value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
-    } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
-    }
-  };
+  const setValue = useCallback(
+    (value) => {
+      try {
+        const valueToStore =
+          value instanceof Function ? value(storedValue) : value;
+        setStoredValue(valueToStore);
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      } catch (error) {
+        console.error(`Error setting localStorage key "${key}":`, error);
+      }
+    },
+    [key, storedValue],
+  );
 
-  return [storedValue, setValue];
+  const removeValue = useCallback(() => {
+    try {
+      window.localStorage.removeItem(key);
+      setStoredValue(initialValue);
+    } catch (error) {
+      console.error(`Error removing localStorage key "${key}":`, error);
+    }
+  }, [key, initialValue]);
+
+  return [storedValue, setValue, removeValue];
 };
 
 export default useLocalStorage;

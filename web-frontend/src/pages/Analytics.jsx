@@ -43,6 +43,7 @@ import {
   ComposedChart,
   Legend,
   Line,
+  Pie,
   PieChart as RechartsPieChart,
   ResponsiveContainer,
   Scatter,

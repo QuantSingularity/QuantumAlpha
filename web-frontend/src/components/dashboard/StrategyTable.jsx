@@ -35,9 +35,9 @@ const StrategyTable = ({ strategies }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {strategies.map((strategy, index) => (
+            {strategies.map((strategy) => (
               <TableRow
-                key={index}
+                key={strategy.name}
                 sx={{
                   "&:hover": {
                     backgroundColor: "rgba(255, 255, 255, 0.05)",

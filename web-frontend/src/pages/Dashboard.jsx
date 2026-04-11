@@ -26,7 +26,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Area,
@@ -115,7 +115,7 @@ const Dashboard = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const _isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const [_animationDelay, setAnimationDelay] = useState(0);
+  const [_animationDelay] = useState(0);
 
   // Get data from Redux store and API
   const { portfolioValue, dailyChange, percentChange, historicalData } =
@@ -154,13 +154,6 @@ const Dashboard = () => {
   const handleOpenWithdrawModal = () => {
     dispatch(toggleModal({ modal: "withdraw", value: true }));
   };
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setAnimationDelay((prev) => prev + 200);
-    }, 200);
-    return () => clearInterval(timer);
-  }, []);
 
   const StatCard = ({ title, value, change, icon: Icon, color, delay = 0 }) => (
     <Fade in={true} timeout={800} style={{ transitionDelay: `${delay}ms` }}>
@@ -484,9 +477,9 @@ const Dashboard = () => {
                   <Box
                     sx={{ display: "flex", flexDirection: "column", gap: 2 }}
                   >
-                    {displayStrategies.map((strategy, _index) => (
+                    {displayStrategies.map((strategy) => (
                       <Card
-                        key={strategy.id}
+                        key={strategy.id || strategy.name}
                         sx={{
                           background: "rgba(255, 255, 255, 0.05)",
                           border: "1px solid rgba(255, 255, 255, 0.1)",

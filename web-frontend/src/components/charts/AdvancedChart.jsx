@@ -14,19 +14,19 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  Activity,
   BarChart3,
   Download,
   Eye,
   EyeOff,
   Maximize2,
+  Minimize2,
   MoreVertical,
   Settings,
   Target,
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -46,7 +46,7 @@ const AdvancedChart = ({
   symbol = "AAPL",
   title = "Advanced Trading Chart",
 }) => {
-  const [chartType, setChartType] = useState("candlestick");
+  const [chartType, setChartType] = useState("line");
   const [timeframe, setTimeframe] = useState("1D");
   const [indicators, setIndicators] = useState({
     sma: true,
@@ -58,6 +58,7 @@ const AdvancedChart = ({
   });
   const [anchorEl, setAnchorEl] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef(null);
 
   // Mock data for demonstration
   const [chartData, _setChartData] = useState([
@@ -219,9 +220,28 @@ const AdvancedChart = ({
   };
 
   const exportChart = () => {
-    // Mock export functionality
-    console.log("Exporting chart...");
+    const dataStr = JSON.stringify(chartData, null, 2);
+    const dataUri =
+      "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+    const link = document.createElement("a");
+    link.setAttribute("href", dataUri);
+    link.setAttribute("download", `${symbol}-chart-data.json`);
+    link.click();
     handleMenuClose();
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current
+        ?.requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => setIsFullscreen((v) => !v));
+    } else {
+      document
+        .exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch(() => setIsFullscreen((v) => !v));
+    }
   };
 
   const _CustomCandlestick = (props) => {
@@ -447,6 +467,7 @@ const AdvancedChart = ({
   return (
     <Fade in={true} timeout={1000}>
       <Paper
+        ref={containerRef}
         elevation={0}
         sx={{
           p: 3,
@@ -455,7 +476,7 @@ const AdvancedChart = ({
           backdropFilter: "blur(20px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-          height: isFullscreen ? "90vh" : "auto",
+          height: isFullscreen ? "100vh" : "auto",
         }}
       >
         {/* Header */}
@@ -508,11 +529,8 @@ const AdvancedChart = ({
                 </Button>
               ))}
             </ButtonGroup>
-            <IconButton
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              sx={{ color: "#00d4ff" }}
-            >
-              <Maximize2 size={20} />
+            <IconButton onClick={toggleFullscreen} sx={{ color: "#00d4ff" }}>
+              {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
             </IconButton>
             <IconButton onClick={handleMenuClick} sx={{ color: "#00d4ff" }}>
               <MoreVertical size={20} />

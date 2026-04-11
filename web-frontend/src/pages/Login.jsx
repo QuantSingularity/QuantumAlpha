@@ -1,13 +1,14 @@
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Container,
   Fade,
   IconButton,
   InputAdornment,
-  Link,
   Paper,
   TextField,
   Typography,
@@ -23,27 +24,69 @@ import {
   Zap,
 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { loginSuccess } from "../store/slices/authSlice";
+import { isValidEmail } from "../utils/validation";
 
 const Login = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [successMessage] = useState(location.state?.message || "");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+  const [errors, setErrors] = useState({});
 
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+    setErrors((prev) => ({ ...prev, [e.target.name]: "" }));
+    setApiError("");
   };
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!isValidEmail(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // For demo purposes, navigate directly to dashboard
-    navigate("/");
+    if (!validateForm()) return;
+
+    setLoading(true);
+    setApiError("");
+    try {
+      // Simulate API call — replace with real API mutation
+      await new Promise((res) => setTimeout(res, 800));
+      dispatch(
+        loginSuccess({
+          user: { email: formData.email, firstName: "User" },
+          token: "mock-token-" + Date.now(),
+        }),
+      );
+      navigate("/");
+    } catch {
+      setApiError("Invalid email or password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const FeatureCard = ({ icon: Icon, title, description, delay }) => (
@@ -206,7 +249,19 @@ const Login = () => {
                 </Typography>
               </Box>
 
-              <form onSubmit={handleSubmit}>
+              {successMessage && (
+                <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
+                  {successMessage}
+                </Alert>
+              )}
+
+              {apiError && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                  {apiError}
+                </Alert>
+              )}
+
+              <form onSubmit={handleSubmit} noValidate>
                 <Box sx={{ mb: 3 }}>
                   <TextField
                     fullWidth
@@ -215,6 +270,9 @@ const Login = () => {
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={handleInputChange}
+                    error={!!errors.email}
+                    helperText={errors.email}
+                    disabled={loading}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -227,14 +285,12 @@ const Login = () => {
                         background: "rgba(255, 255, 255, 0.05)",
                         borderRadius: 2,
                         "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
+                          borderColor: errors.email
+                            ? "#ef4444"
+                            : "rgba(255, 255, 255, 0.2)",
                         },
-                        "&:hover fieldset": {
-                          borderColor: "#00d4ff",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "#00d4ff",
-                        },
+                        "&:hover fieldset": { borderColor: "#00d4ff" },
+                        "&.Mui-focused fieldset": { borderColor: "#00d4ff" },
                       },
                       "& .MuiOutlinedInput-input": {
                         color: "white",
@@ -254,6 +310,9 @@ const Login = () => {
                     placeholder="Enter your password"
                     value={formData.password}
                     onChange={handleInputChange}
+                    error={!!errors.password}
+                    helperText={errors.password}
+                    disabled={loading}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -281,14 +340,12 @@ const Login = () => {
                         background: "rgba(255, 255, 255, 0.05)",
                         borderRadius: 2,
                         "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
+                          borderColor: errors.password
+                            ? "#ef4444"
+                            : "rgba(255, 255, 255, 0.2)",
                         },
-                        "&:hover fieldset": {
-                          borderColor: "#00d4ff",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "#00d4ff",
-                        },
+                        "&:hover fieldset": { borderColor: "#00d4ff" },
+                        "&.Mui-focused fieldset": { borderColor: "#00d4ff" },
                       },
                       "& .MuiOutlinedInput-input": {
                         color: "white",
@@ -304,7 +361,14 @@ const Login = () => {
                   type="submit"
                   fullWidth
                   size="large"
-                  endIcon={<ArrowRight size={20} />}
+                  disabled={loading}
+                  endIcon={
+                    loading ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      <ArrowRight size={20} />
+                    )
+                  }
                   sx={{
                     py: 1.5,
                     mb: 3,
@@ -313,32 +377,34 @@ const Login = () => {
                     background: "linear-gradient(45deg, #00d4ff, #0099cc)",
                     borderRadius: 2,
                     boxShadow: "0 4px 20px rgba(0, 212, 255, 0.3)",
+                    color: "white",
                     "&:hover": {
                       background: "linear-gradient(45deg, #0099cc, #0066aa)",
                       boxShadow: "0 6px 25px rgba(0, 212, 255, 0.4)",
-                      transform: "translateY(-2px)",
+                      transform: loading ? "none" : "translateY(-2px)",
+                    },
+                    "&.Mui-disabled": {
+                      opacity: 0.7,
+                      color: "white",
                     },
                   }}
                 >
-                  Sign In
+                  {loading ? "Signing In..." : "Sign In"}
                 </Button>
 
                 <Box sx={{ textAlign: "center" }}>
                   <Typography variant="body2" color="text.secondary">
-                    Don't have an account?{" "}
-                    <Link
-                      href="/register"
-                      sx={{
+                    Don&apos;t have an account?{" "}
+                    <RouterLink
+                      to="/register"
+                      style={{
                         color: "#00d4ff",
                         textDecoration: "none",
                         fontWeight: 600,
-                        "&:hover": {
-                          textDecoration: "underline",
-                        },
                       }}
                     >
                       Sign up here
-                    </Link>
+                    </RouterLink>
                   </Typography>
                 </Box>
               </form>

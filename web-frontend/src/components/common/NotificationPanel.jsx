@@ -12,7 +12,7 @@ const NotificationPanel = () => {
 
   return (
     <>
-      {notifications.map((notification) => (
+      {notifications.map((notification, index) => (
         <Snackbar
           key={notification.id}
           open={true}
@@ -20,7 +20,7 @@ const NotificationPanel = () => {
           TransitionComponent={Slide}
           autoHideDuration={notification.duration || 6000}
           onClose={() => handleClose(notification.id)}
-          sx={{ mb: notifications.indexOf(notification) * 8 }}
+          sx={{ bottom: { xs: 16 + index * 72, sm: 24 + index * 72 } }}
         >
           <Alert
             onClose={() => handleClose(notification.id)}

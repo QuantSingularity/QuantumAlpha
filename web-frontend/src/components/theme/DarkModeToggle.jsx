@@ -28,7 +28,7 @@ const DarkModeToggle = ({ size = 24, showTooltip = true }) => {
         },
       }}
     >
-      {darkMode ? <Moon size={size} /> : <Sun size={size} />}
+      {darkMode ? <Sun size={size} /> : <Moon size={size} />}
     </IconButton>
   );
 
