@@ -169,6 +169,8 @@ class DatabaseManager:
             logger.info("Redis connection established")
         except Exception as e:
             logger.error(f"Failed to setup Redis: {e}")
+            # Reset so get_redis_client() knows to fall back to fakeredis
+            self._redis_client = None
 
     def _setup_influxdb(self) -> None:
         """Setup InfluxDB connection for time-series data"""
@@ -312,7 +314,7 @@ class DatabaseManager:
         try:
             import fakeredis
 
-            self._redis_client = fakeredis.FakeRedis(decode_responses=True)
+            self._redis_client = fakeredis.FakeRedis(decode_responses=False)
         except ImportError:
             pass
         return self._redis_client
