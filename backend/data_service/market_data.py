@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Union
 
 import requests
@@ -92,17 +92,17 @@ class MarketDataService:
             raise ValidationError("Timeframe is required")
         if period and (not (start_date or end_date)):
             start_date = parse_period(period)
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
         elif start_date and (not end_date):
             if isinstance(start_date, str):
                 start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
         elif end_date and (not start_date):
             if isinstance(end_date, str):
                 end_date = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
             start_date = end_date - timedelta(days=30)
         elif not (start_date or end_date):
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
             start_date = end_date - timedelta(days=30)
         else:
             if isinstance(start_date, str):
@@ -490,7 +490,7 @@ class MarketDataService:
             "name": data["name"],
             "type": data["type"],
             "status": "active",
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
         self.data_sources[data["name"]] = {
             "api_key": data["config"].get("api_key"),

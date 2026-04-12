@@ -5,9 +5,8 @@ Position sizing for QuantumAlpha Risk Service.
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
-
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common import ServiceError, ValidationError, setup_logger
@@ -162,7 +161,7 @@ class PositionSizing:
             return {
                 "portfolio_value": portfolio_value,
                 "position_sizes": [],
-                "calculated_at": datetime.utcnow().isoformat(),
+                "calculated_at": datetime.now(timezone.utc).isoformat(),
             }
         except ValidationError:
             raise

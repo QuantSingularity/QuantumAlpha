@@ -9,7 +9,7 @@ import os
 import pickle
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 import numpy as np
@@ -169,8 +169,8 @@ class ModelManager:
                 "description": data.get("description", ""),
                 "type": data["type"],
                 "status": "created",
-                "created_at": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
                 "parameters": data.get("parameters", {}),
                 "features": data.get("features", []),
             }
@@ -243,7 +243,7 @@ class ModelManager:
             else:
                 raise ValidationError(f"Unsupported model type: {model_info['type']}")
             model_info["status"] = "trained"
-            model_info["updated_at"] = datetime.utcnow().isoformat()
+            model_info["updated_at"] = datetime.now(timezone.utc).isoformat()
             model_info["metrics"] = result["metrics"]
             model_info["training_data"] = {
                 "symbol": data["symbol"],
@@ -902,7 +902,7 @@ class ModelManager:
                 model_info["parameters"] = data["parameters"]
             if "features" in data:
                 model_info["features"] = data["features"]
-            model_info["updated_at"] = datetime.utcnow().isoformat()
+            model_info["updated_at"] = datetime.now(timezone.utc).isoformat()
             self._save_registry()
             return {
                 "id": model_id,

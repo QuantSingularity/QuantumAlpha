@@ -6,7 +6,7 @@ Handles predictions and signal generation.
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -104,7 +104,7 @@ class PredictionService:
                 "horizon": horizon,
                 "timeframe": timeframe,
                 "predictions": latest_predictions,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
             }
             return response
         except (NotFoundError, ValidationError):
@@ -213,7 +213,7 @@ class PredictionService:
                     "prediction": prediction["prediction"],
                     "model_id": model_id,
                     "strategy": "prediction",
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                 }
                 signals.append(signal)
             except Exception as e:
@@ -224,7 +224,7 @@ class PredictionService:
             "count": len(signals),
             "strategy": "prediction",
             "model_id": model_id,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
         return response
 
@@ -268,7 +268,7 @@ class PredictionService:
                     "strength": strength,
                     "price": market_data[-1]["close"],
                     "strategy": "technical",
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                 }
                 signals.append(signal)
             except Exception as e:
@@ -278,7 +278,7 @@ class PredictionService:
             "signals": signals,
             "count": len(signals),
             "strategy": "technical",
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
         return response
 
@@ -354,7 +354,7 @@ class PredictionService:
                         "prediction": prediction_signal.get("prediction"),
                         "model_id": model_id,
                         "strategy": "ensemble",
-                        "generated_at": datetime.utcnow().isoformat(),
+                        "generated_at": datetime.now(timezone.utc).isoformat(),
                     }
                     signals.append(signal)
             except Exception as e:
@@ -365,7 +365,7 @@ class PredictionService:
             "count": len(signals),
             "strategy": "ensemble",
             "model_id": model_id,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
         return response
 

@@ -6,7 +6,7 @@ Handles alternative data collection, processing, and retrieval.
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Union
 
 import requests
@@ -79,9 +79,9 @@ class AlternativeDataService:
         if end_date and isinstance(end_date, str):
             end_date = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
         if not start_date:
-            start_date = datetime.utcnow() - timedelta(days=7)
+            start_date = datetime.now(timezone.utc) - timedelta(days=7)
         if not end_date:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(timezone.utc)
         cache_key = f"alternative_data:{source}:{symbol or 'all'}:{start_date.isoformat()}:{end_date.isoformat()}"
         cached_data = self.cache.get(cache_key)
         if cached_data:
@@ -171,7 +171,7 @@ class AlternativeDataService:
             collection = db[collection_map[source]]
             for point in data["data"]:
                 if "created_at" not in point:
-                    point["created_at"] = datetime.utcnow()
+                    point["created_at"] = datetime.now(timezone.utc)
                 collection.update_one(
                     (
                         {"url": point.get("url")}
@@ -240,7 +240,7 @@ class AlternativeDataService:
                     "content": article["content"],
                     "symbols": symbols,
                     "published_at": published_at.isoformat(),
-                    "created_at": datetime.utcnow().isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                 }
                 data_point["sentiment"] = 0.0
                 data_points.append(data_point)

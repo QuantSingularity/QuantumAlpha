@@ -22,9 +22,7 @@ from prometheus_client import (
     generate_latest,
 )
 
-from .database import get_db_session
-
-from .database import db_manager, get_redis_client
+from .database import db_manager, get_db_session, get_redis_client
 from .models import Order, Portfolio, User
 
 logger = structlog.get_logger(__name__)

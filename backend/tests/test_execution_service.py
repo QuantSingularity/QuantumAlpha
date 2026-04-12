@@ -5,7 +5,7 @@ Unit tests for the Execution Service.
 import os
 import sys
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -47,8 +47,8 @@ class TestOrderManager(unittest.TestCase):
             "price": None,
             "time_in_force": "day",
             "status": "new",
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def test_create_order(self) -> Any:
@@ -130,8 +130,8 @@ class TestOrderManager(unittest.TestCase):
             ("price", None),
             ("time_in_force", "day"),
             ("status", "new"),
-            ("created_at", datetime.utcnow()),
-            ("updated_at", datetime.utcnow()),
+            ("created_at", datetime.now(timezone.utc)),
+            ("updated_at", datetime.now(timezone.utc)),
         ]
         self.session.execute.return_value.fetchone.return_value = mock_row
         result = self.order_manager.get_order("order1")
@@ -164,8 +164,8 @@ class TestOrderManager(unittest.TestCase):
             ("price", None),
             ("time_in_force", "day"),
             ("status", "new"),
-            ("created_at", datetime.utcnow()),
-            ("updated_at", datetime.utcnow()),
+            ("created_at", datetime.now(timezone.utc)),
+            ("updated_at", datetime.now(timezone.utc)),
         ]
         mock_row2 = MagicMock()
         mock_row2.items.return_value = [
@@ -178,8 +178,8 @@ class TestOrderManager(unittest.TestCase):
             ("price", 250.0),
             ("time_in_force", "day"),
             ("status", "new"),
-            ("created_at", datetime.utcnow()),
-            ("updated_at", datetime.utcnow()),
+            ("created_at", datetime.now(timezone.utc)),
+            ("updated_at", datetime.now(timezone.utc)),
         ]
         self.session.execute.return_value.fetchall.return_value = [mock_row1, mock_row2]
         result = self.order_manager.get_orders(portfolio_id="portfolio1")
@@ -310,7 +310,7 @@ class TestOrderManager(unittest.TestCase):
             ("quantity", 100),
             ("price", 160.0),
             ("commission", 1.0),
-            ("timestamp", datetime.utcnow()),
+            ("timestamp", datetime.now(timezone.utc)),
         ]
         mock_row2 = MagicMock()
         mock_row2.items.return_value = [
@@ -321,7 +321,7 @@ class TestOrderManager(unittest.TestCase):
             ("quantity", 50),
             ("price", 250.0),
             ("commission", 1.0),
-            ("timestamp", datetime.utcnow()),
+            ("timestamp", datetime.now(timezone.utc)),
         ]
         self.session.execute.return_value.fetchall.return_value = [mock_row1, mock_row2]
         result = self.order_manager.get_trades(portfolio_id="portfolio1")
@@ -355,8 +355,8 @@ class TestBrokerIntegration(unittest.TestCase):
             "price": None,
             "time_in_force": "day",
             "status": "new",
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     @patch("requests.post")
@@ -538,8 +538,8 @@ class TestExecutionStrategy(unittest.TestCase):
             "price": None,
             "time_in_force": "day",
             "status": "new",
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         self.market_data = {
             "symbol": "AAPL",

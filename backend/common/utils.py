@@ -8,7 +8,7 @@ import logging
 import os
 import secrets
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Tuple
 
 logging.basicConfig(
@@ -136,7 +136,7 @@ def parse_period(period: str) -> datetime:
     """
     if not period:
         raise ValueError("Period cannot be empty")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if period == "1d":
         return now - timedelta(days=1)
     elif period == "1wk":

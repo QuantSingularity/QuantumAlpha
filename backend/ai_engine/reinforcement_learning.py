@@ -8,7 +8,7 @@ import logging
 import os
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 try:
@@ -270,7 +270,7 @@ class ReinforcementLearningService:
                 f"Choose from: {sorted(_ALGORITHM_MAP)}"
             )
         model_id = f"rl_model_{uuid.uuid4().hex}"
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         info: Dict[str, Any] = {
             "name": data["name"],
             "description": data.get("description", ""),
@@ -290,7 +290,7 @@ class ReinforcementLearningService:
         for field in ("name", "description", "parameters", "features"):
             if field in data:
                 info[field] = data[field]
-        info["updated_at"] = datetime.utcnow().isoformat()
+        info["updated_at"] = datetime.now(timezone.utc).isoformat()
         self._save_registry()
         return self.get_model(model_id)
 
@@ -325,7 +325,7 @@ class ReinforcementLearningService:
             metrics = self._train_algorithm(model_id, info, processed_data, data)
 
             info["status"] = "trained"
-            info["updated_at"] = datetime.utcnow().isoformat()
+            info["updated_at"] = datetime.now(timezone.utc).isoformat()
             info["metrics"] = metrics
             info["training_data"] = {
                 k: data[k] for k in ("symbol", "timeframe", "period")

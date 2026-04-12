@@ -8,7 +8,7 @@ import logging
 import os
 import pickle
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -110,7 +110,7 @@ class OnlineLearningEngine:
                 "status": "success",
                 "models_updated": list(update_results.keys()),
                 "update_results": update_results,
-                "updated_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
             }
             return response
         except Exception as e:
@@ -155,7 +155,7 @@ class OnlineLearningEngine:
                     "recent_mse": float(recent_mse),
                     "last_updated": model_performance["last_updated"],
                 },
-                "predicted_at": datetime.utcnow().isoformat(),
+                "predicted_at": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
             logger.error(f"Error predicting volatility: {e}")
@@ -206,7 +206,7 @@ class OnlineLearningEngine:
                 "anomalous_symbols": anomalous_symbols,
                 "total_symbols_analyzed": len(symbols),
                 "detection_threshold": -0.1,
-                "detected_at": datetime.utcnow().isoformat(),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
             logger.error(f"Error detecting anomalies: {e}")
@@ -246,7 +246,7 @@ class OnlineLearningEngine:
                 }
         return {
             "model_performance": performance_summary,
-            "retrieved_at": datetime.utcnow().isoformat(),
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def _prepare_training_data(
@@ -373,9 +373,9 @@ class OnlineLearningEngine:
             mae = mean_absolute_error(targets, predictions)
             self.model_performance["volatility_predictor"]["mse"].append(mse)
             self.model_performance["volatility_predictor"]["mae"].append(mae)
-            self.model_performance["volatility_predictor"][
-                "last_updated"
-            ] = datetime.utcnow().isoformat()
+            self.model_performance["volatility_predictor"]["last_updated"] = (
+                datetime.now(timezone.utc).isoformat()
+            )
             return {
                 "status": "updated",
                 "samples_processed": len(features),
@@ -413,9 +413,9 @@ class OnlineLearningEngine:
             mae = mean_absolute_error(targets, predictions)
             self.model_performance["return_predictor"]["mse"].append(mse)
             self.model_performance["return_predictor"]["mae"].append(mae)
-            self.model_performance["return_predictor"][
-                "last_updated"
-            ] = datetime.utcnow().isoformat()
+            self.model_performance["return_predictor"]["last_updated"] = datetime.now(
+                timezone.utc
+            ).isoformat()
             return {
                 "status": "updated",
                 "samples_processed": len(features),
@@ -453,9 +453,9 @@ class OnlineLearningEngine:
             mae = mean_absolute_error(targets, predictions)
             self.model_performance["correlation_predictor"]["mse"].append(mse)
             self.model_performance["correlation_predictor"]["mae"].append(mae)
-            self.model_performance["correlation_predictor"][
-                "last_updated"
-            ] = datetime.utcnow().isoformat()
+            self.model_performance["correlation_predictor"]["last_updated"] = (
+                datetime.now(timezone.utc).isoformat()
+            )
             return {
                 "status": "updated",
                 "samples_processed": len(features),
@@ -489,9 +489,9 @@ class OnlineLearningEngine:
             self.model_performance["anomaly_detector"]["accuracy"].append(
                 1.0 - anomaly_rate
             )
-            self.model_performance["anomaly_detector"][
-                "last_updated"
-            ] = datetime.utcnow().isoformat()
+            self.model_performance["anomaly_detector"]["last_updated"] = datetime.now(
+                timezone.utc
+            ).isoformat()
             return {
                 "status": "updated",
                 "samples_processed": len(features),

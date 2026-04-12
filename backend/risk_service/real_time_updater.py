@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 from queue import Empty, Queue
 from typing import Any, Callable, Dict, List
 
@@ -143,7 +143,7 @@ class RealTimeUpdater:
                 "update_queue": self.update_queue.qsize(),
             },
             "running": self.running,
-            "retrieved_at": datetime.utcnow().isoformat(),
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def force_model_update(self) -> Dict[str, Any]:
@@ -166,7 +166,7 @@ class RealTimeUpdater:
             if market_data:
                 result = self.online_learning_engine.update_models(market_data)
                 self.metrics["model_updates"] += 1
-                self.metrics["last_update"] = datetime.utcnow().isoformat()
+                self.metrics["last_update"] = datetime.now(timezone.utc).isoformat()
                 self._trigger_callbacks("model_updated", result)
                 return result
             else:
@@ -221,7 +221,9 @@ class RealTimeUpdater:
                     if market_data:
                         result = self.online_learning_engine.update_models(market_data)
                         self.metrics["model_updates"] += 1
-                        self.metrics["last_update"] = datetime.utcnow().isoformat()
+                        self.metrics["last_update"] = datetime.now(
+                            timezone.utc
+                        ).isoformat()
                         self._trigger_callbacks("model_updated", result)
                         logger.info(
                             f"Models updated: {result.get('models_updated', [])}"
@@ -300,7 +302,7 @@ class RealTimeUpdater:
                                 data_point = {
                                     "symbol": symbol,
                                     "data": latest_data,
-                                    "timestamp": datetime.utcnow().isoformat(),
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
                                     "source": "polling",
                                 }
                                 if not self.data_queue.full():
@@ -407,7 +409,7 @@ class StreamingDataProcessor:
             self.trade_buffer[symbol].append(
                 {
                     "timestamp": trade_data.get(
-                        "timestamp", datetime.utcnow().isoformat()
+                        "timestamp", datetime.now(timezone.utc).isoformat()
                     ),
                     "price": trade_data.get("price"),
                     "size": trade_data.get("size"),
@@ -433,7 +435,9 @@ class StreamingDataProcessor:
             if not symbol:
                 return
             self.price_buffer[symbol] = {
-                "timestamp": quote_data.get("timestamp", datetime.utcnow().isoformat()),
+                "timestamp": quote_data.get(
+                    "timestamp", datetime.now(timezone.utc).isoformat()
+                ),
                 "bid": quote_data.get("bid"),
                 "ask": quote_data.get("ask"),
                 "bid_size": quote_data.get("bid_size"),
@@ -456,7 +460,7 @@ class StreamingDataProcessor:
                 trades = self.trade_buffer[symbol]
                 logger.debug(f"Flushing {len(trades)} trades for {symbol}")
                 self.trade_buffer[symbol] = []
-                self.stats["last_flush"] = datetime.utcnow().isoformat()
+                self.stats["last_flush"] = datetime.now(timezone.utc).isoformat()
         except Exception as e:
             logger.error(f"Error flushing trade buffer: {e}")
 
@@ -475,5 +479,5 @@ class StreamingDataProcessor:
                     (len(trades) for trades in self.trade_buffer.values())
                 ),
             },
-            "retrieved_at": datetime.utcnow().isoformat(),
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
         }

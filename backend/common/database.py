@@ -299,15 +299,22 @@ class DatabaseManager:
         if not self._redis_client:
             try:
                 self._setup_redis()
-                # Quick ping to confirm real Redis works
-                self._redis_client.ping()
             except Exception:
-                try:
-                    import fakeredis
+                pass
+        # Verify the client actually works; if not, fall back to fakeredis
+        if self._redis_client:
+            try:
+                self._redis_client.ping()
+                return self._redis_client
+            except Exception:
+                self._redis_client = None
+        # Real Redis unavailable – use fakeredis so tests can run without infra
+        try:
+            import fakeredis
 
-                    self._redis_client = fakeredis.FakeRedis()
-                except ImportError:
-                    pass
+            self._redis_client = fakeredis.FakeRedis(decode_responses=True)
+        except ImportError:
+            pass
         return self._redis_client
 
     def get_kafka_producer(self) -> Any:

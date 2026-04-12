@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -67,7 +67,7 @@ class OrderManager:
 
             session = self.db_manager.get_postgres_session()
             order_id = str(uuid.uuid4())
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             from sqlalchemy import text
 
@@ -189,7 +189,7 @@ class OrderManager:
             session = self.db_manager.get_postgres_session()
             from sqlalchemy import text
 
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             result = session.execute(
                 text("UPDATE orders SET status=:status, updated_at=:now WHERE id=:id"),
                 {"id": order_id, "status": status, "now": now},
@@ -210,7 +210,7 @@ class OrderManager:
             session = self.db_manager.get_postgres_session()
             from sqlalchemy import text
 
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             result = session.execute(
                 text(
                     "UPDATE orders SET status='canceled', updated_at=:now WHERE id=:id"
@@ -236,7 +236,7 @@ class OrderManager:
 
             session = self.db_manager.get_postgres_session()
             trade_id = str(uuid.uuid4())
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             from sqlalchemy import text
 
             result = session.execute(
