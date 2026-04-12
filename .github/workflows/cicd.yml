@@ -1,4 +1,4 @@
-name: CI Formatting Check
+name: CI
 
 on:
   push:
@@ -8,7 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  formatting_check:
+  code_quality:
+    name: Code Quality Checks
     runs-on: ubuntu-latest
 
     env:
@@ -18,50 +19,37 @@ jobs:
       INFRASTRUCTURE_DIR: infrastructure
 
     steps:
-      # -------------------------------
-      # Checkout repository
-      # -------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # -------------------------------
-      # Python Setup + Caching
-      # -------------------------------
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install Python formatters
-        run: pip install --upgrade pip && pip install autoflake black==25.11.0
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install autoflake black==25.11.0
 
-      # -------------------------------
-      # Run Python formatting checks (backend only)
-      # -------------------------------
-      - name: Run Python formatting checks (backend)
+      - name: Check backend Python formatting
         shell: bash
         run: |
           set -euo pipefail
-          if [ ! -d "${{ env.BACKEND_DIR }}" ]; then
-            echo "Backend directory '${{ env.BACKEND_DIR }}' not found — skipping Python formatting."
+          if [ ! -d "${BACKEND_DIR}" ]; then
+            echo "Backend directory '${BACKEND_DIR}' not found — skipping Python formatting."
             exit 0
           fi
 
           echo "=== Preparing temporary copy of backend for autoflake ==="
           TMP_COPY="$(mktemp -d)"
-          cp -a "${{ env.BACKEND_DIR }}/." "$TMP_COPY/"
+          cp -a "${BACKEND_DIR}/." "$TMP_COPY/"
 
-          echo "=== Running autoflake (will modify temp copy) ==="
+          echo "=== Running autoflake on temp copy ==="
           autoflake \
             --remove-all-unused-imports \
             --remove-unused-variables \
@@ -71,8 +59,8 @@ jobs:
             "$TMP_COPY"
 
           echo "=== Comparing backend with autoflake-modified copy ==="
-          if ! diff -r "${{ env.BACKEND_DIR }}" "$TMP_COPY" > /dev/null; then
-            echo "autoflake found formatting/unused-imports issues in backend."
+          if ! diff -r "${BACKEND_DIR}" "$TMP_COPY" > /dev/null; then
+            echo "autoflake found unused imports or variables in backend."
             echo "Run: autoflake --remove-all-unused-imports --remove-unused-variables --recursive --ignore-init-module-imports --in-place ${BACKEND_DIR}"
             rm -rf "$TMP_COPY"
             exit 1
@@ -80,16 +68,13 @@ jobs:
 
           rm -rf "$TMP_COPY"
 
-          echo "=== Running black (check mode) ==="
-          black "${{ env.BACKEND_DIR }}" --check
+          echo "=== Running black check ==="
+          black "${BACKEND_DIR}" --check
 
-      # -------------------------------
-      # Node + npm caching
-      # -------------------------------
-      - name: Set up Node.js
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
           cache: "npm"
           cache-dependency-path: tools/package-lock.json
 
@@ -97,58 +82,107 @@ jobs:
         working-directory: tools
         run: npm ci
 
-      # -------------------------------
-      # Prettier checks
-      # -------------------------------
-
-      # 1) Web frontend
-      - name: Run Prettier Checks (web-frontend)
-        if: ${{ env.WEB_FRONTEND_DIR != '' }}
-        working-directory: .
+      - name: Check web frontend formatting
+        shell: bash
         run: |
-          echo "=== Running Prettier (web-frontend) ==="
-          npx --prefix tools prettier --check "${{ env.WEB_FRONTEND_DIR }}/**/*.{js,jsx,ts,tsx,json,html,css,md}" --ignore-path tools/.prettierrc || {
-            echo "Prettier issues found in ${WEB_FRONTEND_DIR}."
-            exit 1
-          }
-
-      # 2) Mobile frontend
-      - name: Run Prettier Checks (mobile-frontend)
-        if: ${{ env.MOBILE_FRONTEND_DIR != '' }}
-        working-directory: .
-        run: |
-          echo "=== Running Prettier (mobile-frontend) ==="
-          npx --prefix tools prettier --check "${{ env.MOBILE_FRONTEND_DIR }}/**/*.{js,jsx,ts,tsx,json,html,css,md}" --ignore-path tools/.prettierrc || {
-            echo "Prettier issues found in ${MOBILE_FRONTEND_DIR}."
-            exit 1
-          }
-
-      # 3) Repository-wide Markdown check (ALL .md files)
-      - name: Run Prettier Checks (all .md files in repo)
-        working-directory: .
-        run: |
-          echo "=== Running Prettier (all .md files) ==="
-          npx --prefix tools prettier --check "**/*.md" --ignore-path tools/.prettierrc || {
-            echo "Prettier formatting issues detected in markdown files across the repo."
-            exit 1
-          }
-
-      # 4) Infrastructure YAML/YML files only
-      - name: Run Prettier Checks (infrastructure YAML)
-        working-directory: .
-        run: |
-          if [ -n "${{ env.INFRASTRUCTURE_DIR }}" ] && [ -d "${{ env.INFRASTRUCTURE_DIR }}" ]; then
-            echo "=== Running Prettier (infrastructure YAML/YML files) in ${INFRASTRUCTURE_DIR} ==="
-            npx --prefix tools prettier --check "${{ env.INFRASTRUCTURE_DIR }}/**/*.{yml,yaml}" --ignore-path tools/.prettierrc || {
-              echo "Prettier formatting issues detected in ${INFRASTRUCTURE_DIR} YAML/YML files."
-              exit 1
-            }
+          set -euo pipefail
+          if [ -d "${WEB_FRONTEND_DIR}" ]; then
+            echo "=== Running Prettier (web frontend) ==="
+            npx --prefix tools prettier --check "${WEB_FRONTEND_DIR}/**/*.{js,jsx,ts,tsx,json,html,css,md}" --ignore-path tools/.prettierrc
           else
-            echo "No infrastructure directory '${{ env.INFRASTRUCTURE_DIR }}' found or INFRASTRUCTURE_DIR unset — skipping infra YAML checks."
+            echo "Web frontend directory not found — skipping."
           fi
 
-      # -------------------------------
-      # Finalize
-      # -------------------------------
-      - name: Finalize Check
+      - name: Check mobile frontend formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "${MOBILE_FRONTEND_DIR}" ]; then
+            echo "=== Running Prettier (mobile frontend) ==="
+            npx --prefix tools prettier --check "${MOBILE_FRONTEND_DIR}/**/*.{js,jsx,ts,tsx,json,html,css,md}" --ignore-path tools/.prettierrc
+          else
+            echo "Mobile frontend directory not found — skipping."
+          fi
+
+      - name: Check markdown formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== Running Prettier (all markdown files) ==="
+          npx --prefix tools prettier --check "**/*.md" --ignore-path tools/.prettierrc
+
+      - name: Check infrastructure YAML formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "${INFRASTRUCTURE_DIR}" ]; then
+            echo "=== Running Prettier (infrastructure YAML/YML) ==="
+            npx --prefix tools prettier --check "${INFRASTRUCTURE_DIR}/**/*.{yml,yaml}" --ignore-path tools/.prettierrc
+          else
+            echo "Infrastructure directory not found — skipping."
+          fi
+
+      - name: Quality checks complete
         run: echo "All formatting checks completed successfully."
+
+  backend_tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: code_quality
+
+    env:
+      BACKEND_DIR: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          if [ -f "${BACKEND_DIR}/requirements.txt" ]; then
+            python -m pip install -r "${BACKEND_DIR}/requirements.txt"
+          fi
+          python -m pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run backend test suite
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: |
+          set -euo pipefail
+          echo "=== Running backend tests ==="
+          pytest tests/ \
+            --tb=short \
+            --strict-markers \
+            -v \
+            --cov=. \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --junitxml=test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/test-results.xml
+          retention-days: 30
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: backend/coverage.xml
+          retention-days: 30
+
+      - name: Backend tests complete
+        run: echo "All backend tests completed successfully."
