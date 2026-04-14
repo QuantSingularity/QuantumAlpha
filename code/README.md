@@ -1,4 +1,4 @@
-# QuantumAlpha — `code/` Directory
+# QuantumAlpha - `code/` Directory
 
 This is the restructured source tree for the QuantumAlpha platform.
 
@@ -99,29 +99,6 @@ code/
 ├── conftest.py                 # Root pytest config (adds code/ to sys.path)
 ├── pytest.ini                  # Test discovery settings
 └── README.md
-```
-
-## Import Conventions
-
-All imports use fully-qualified package paths from the `code/` root:
-
-```python
-# Common utilities
-from backend.common import ServiceError, ValidationError, setup_logger
-from backend.common.database import get_db_session
-from backend.common.models import Portfolio, Order
-
-# Business services
-from backend.portfolio_service.portfolio_service import portfolio_service
-from backend.trading_engine.trading_engine import trading_engine, OrderRequest
-
-# Domain services
-from backend.data_service.market_data import MarketDataService
-from backend.risk_service.risk_calculator import RiskCalculator
-
-# AI models
-from ai_models.engine.model_manager import ModelManager
-from ai_models.engine.prediction_service import PredictionService
 ```
 
 ## Running Tests
