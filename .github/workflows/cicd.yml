@@ -17,6 +17,7 @@ jobs:
       WEB_FRONTEND_DIR: web-frontend
       MOBILE_FRONTEND_DIR: mobile-frontend
       INFRASTRUCTURE_DIR: infrastructure
+      SHARED_DIR: code/shared
 
     steps:
       - name: Checkout repository
@@ -41,15 +42,14 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -d "${BACKEND_DIR}" ]; then
-            echo "Backend directory '${BACKEND_DIR}' not found — skipping Python formatting."
+            echo "Backend directory '${BACKEND_DIR}' not found — skipping."
             exit 0
           fi
 
-          echo "=== Preparing temporary copy of backend for autoflake ==="
+          echo "=== Running autoflake check ==="
           TMP_COPY="$(mktemp -d)"
           cp -a "${BACKEND_DIR}/." "$TMP_COPY/"
 
-          echo "=== Running autoflake on temp copy ==="
           autoflake \
             --remove-all-unused-imports \
             --remove-unused-variables \
@@ -58,14 +58,11 @@ jobs:
             --in-place \
             "$TMP_COPY"
 
-          echo "=== Comparing backend with autoflake-modified copy ==="
           if ! diff -r "${BACKEND_DIR}" "$TMP_COPY" > /dev/null; then
-            echo "autoflake found unused imports or variables in backend."
-            echo "Run: autoflake --remove-all-unused-imports --remove-unused-variables --recursive --ignore-init-module-imports --in-place ${BACKEND_DIR}"
+            echo "Error: autoflake found unused imports or variables in backend."
             rm -rf "$TMP_COPY"
             exit 1
           fi
-
           rm -rf "$TMP_COPY"
 
           echo "=== Running black check ==="
@@ -82,48 +79,23 @@ jobs:
         working-directory: tools
         run: npm ci
 
-      - name: Check web frontend formatting
+      - name: Check Web/Mobile/Infra formatting
         shell: bash
         run: |
           set -euo pipefail
-          if [ -d "${WEB_FRONTEND_DIR}" ]; then
-            echo "=== Running Prettier (web frontend) ==="
-            npx --prefix tools prettier --check "${WEB_FRONTEND_DIR}/**/*.{js,jsx,ts,tsx,json,html,css,md}" --ignore-path tools/.prettierrc
-          else
-            echo "Web frontend directory not found — skipping."
-          fi
-
-      - name: Check mobile frontend formatting
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -d "${MOBILE_FRONTEND_DIR}" ]; then
-            echo "=== Running Prettier (mobile frontend) ==="
-            npx --prefix tools prettier --check "${MOBILE_FRONTEND_DIR}/**/*.{js,jsx,ts,tsx,json,html,css,md}" --ignore-path tools/.prettierrc
-          else
-            echo "Mobile frontend directory not found — skipping."
-          fi
-
-      - name: Check markdown formatting
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "=== Running Prettier (all markdown files) ==="
+          echo "=== Running Prettier checks ==="
+          # Check Markdown
           npx --prefix tools prettier --check "**/*.md" --ignore-path tools/.prettierrc
 
-      - name: Check infrastructure YAML formatting
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -d "${INFRASTRUCTURE_DIR}" ]; then
-            echo "=== Running Prettier (infrastructure YAML/YML) ==="
-            npx --prefix tools prettier --check "${INFRASTRUCTURE_DIR}/**/*.{yml,yaml}" --ignore-path tools/.prettierrc
-          else
-            echo "Infrastructure directory not found — skipping."
+          # Check Web Frontend if exists
+          if [ -d "${WEB_FRONTEND_DIR}" ]; then
+            npx --prefix tools prettier --check "${WEB_FRONTEND_DIR}/**/*.{js,jsx,ts,tsx,json,html,css,md}" --ignore-path tools/.prettierrc
           fi
 
-      - name: Quality checks complete
-        run: echo "All formatting checks completed successfully."
+          # Check Infrastructure if exists
+          if [ -d "${INFRASTRUCTURE_DIR}" ]; then
+            npx --prefix tools prettier --check "${INFRASTRUCTURE_DIR}/**/*.{yml,yaml}" --ignore-path tools/.prettierrc
+          fi
 
   backend_tests:
     name: Backend Tests
@@ -132,12 +104,12 @@ jobs:
 
     env:
       BACKEND_DIR: code/backend
+      SHARED_DIR: code/shared
+      PYTHONPATH: ${{ github.workspace }}/code
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -149,9 +121,14 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          if [ -f "${BACKEND_DIR}/requirements.txt" ]; then
-            python -m pip install -r "${BACKEND_DIR}/requirements.txt"
+          if [ -f "${{ env.SHARED_DIR }}/requirements.txt" ]; then
+            echo "Installing dependencies from ${{ env.SHARED_DIR }}/requirements.txt"
+            python -m pip install -r "${{ env.SHARED_DIR }}/requirements.txt"
+          else
+            echo "ERROR: requirements.txt NOT found at ${{ env.SHARED_DIR }}/requirements.txt"
+            exit 1
           fi
+          # Ensure test tools are present
           python -m pip install pytest pytest-cov pytest-asyncio
 
       - name: Run backend test suite
@@ -173,7 +150,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
-          path: backend/test-results.xml
+          path: ${{ env.BACKEND_DIR }}/test-results.xml
           retention-days: 30
 
       - name: Upload coverage report
@@ -181,8 +158,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage-report
-          path: backend/coverage.xml
+          path: ${{ env.BACKEND_DIR }}/coverage.xml
           retention-days: 30
-
-      - name: Backend tests complete
-        run: echo "All backend tests completed successfully."
