@@ -6,10 +6,16 @@ import {
   CardContent,
   Chip,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Fade,
   Grid,
   IconButton,
+  InputAdornment,
   Paper,
+  TextField,
   Typography,
   useMediaQuery,
   useTheme,
@@ -21,6 +27,7 @@ import {
   BarChart3,
   DollarSign,
   Eye,
+  Minus,
   Plus,
   Settings,
   TrendingUp,
@@ -43,7 +50,6 @@ import {
   useGetStrategiesQuery,
   useGetTradesQuery,
 } from "../services/api";
-import { toggleModal } from "../store/slices/uiSlice";
 
 // Mock data for demonstration
 const mockPortfolioData = {
@@ -88,7 +94,7 @@ const mockTrades = [
   {
     id: 1,
     symbol: "AAPL",
-    type: "buy",
+    type: "BUY",
     amount: 1500,
     price: 175.23,
     time: "2 hours ago",
@@ -96,7 +102,7 @@ const mockTrades = [
   {
     id: 2,
     symbol: "TSLA",
-    type: "sell",
+    type: "SELL",
     amount: 2300,
     price: 245.67,
     time: "4 hours ago",
@@ -104,7 +110,7 @@ const mockTrades = [
   {
     id: 3,
     symbol: "NVDA",
-    type: "buy",
+    type: "BUY",
     amount: 1800,
     price: 892.45,
     time: "6 hours ago",
@@ -113,9 +119,14 @@ const mockTrades = [
 
 const Dashboard = () => {
   const theme = useTheme();
-  const dispatch = useDispatch();
+  const _dispatch = useDispatch();
   const _isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [_animationDelay] = useState(0);
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [transactionMsg, setTransactionMsg] = useState("");
 
   // Get data from Redux store and API
   const { portfolioValue, dailyChange, percentChange, historicalData } =
@@ -147,13 +158,8 @@ const Dashboard = () => {
   const displayTrades = tradesData || mockTrades;
 
   // Handle deposit/withdraw modals
-  const handleOpenDepositModal = () => {
-    dispatch(toggleModal({ modal: "deposit", value: true }));
-  };
-
-  const handleOpenWithdrawModal = () => {
-    dispatch(toggleModal({ modal: "withdraw", value: true }));
-  };
+  const handleOpenDepositModal = () => setDepositOpen(true);
+  const handleOpenWithdrawModal = () => setWithdrawOpen(true);
 
   const StatCard = ({ title, value, change, icon: Icon, color, delay = 0 }) => (
     <Fade in={true} timeout={800} style={{ transitionDelay: `${delay}ms` }}>
@@ -632,7 +638,7 @@ const Dashboard = () => {
                               size="small"
                               sx={{
                                 background:
-                                  trade.type === "buy" ? "#10b981" : "#ef4444",
+                                  trade.type === "BUY" ? "#10b981" : "#ef4444",
                                 color: "white",
                                 fontWeight: 500,
                                 fontSize: "0.75rem",
@@ -655,6 +661,241 @@ const Dashboard = () => {
           </Grid>
         </Container>
       </Box>
+
+      {/* ── Deposit Modal ─────────────────────────────────────────── */}
+      <Dialog
+        open={depositOpen}
+        onClose={() => {
+          setDepositOpen(false);
+          setTransactionMsg("");
+          setDepositAmount("");
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+            border: "1px solid rgba(0,212,255,0.25)",
+            minWidth: 360,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            color: "white",
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+          }}
+        >
+          <Plus size={22} color="#10b981" />
+          Add Funds
+        </DialogTitle>
+        <DialogContent>
+          {transactionMsg ? (
+            <Box sx={{ textAlign: "center", py: 2 }}>
+              <Typography variant="h6" color="#10b981" fontWeight={700}>
+                {transactionMsg}
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Enter the amount you wish to deposit into your trading account.
+              </Typography>
+              <TextField
+                fullWidth
+                label="Amount (USD)"
+                type="number"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                inputProps={{ min: 1 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DollarSign size={16} color="#00d4ff" />
+                    </InputAdornment>
+                  ),
+                }}
+                InputLabelProps={{ sx: { color: "rgba(255,255,255,0.5)" } }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    color: "white",
+                    "& fieldset": { borderColor: "rgba(255,255,255,0.2)" },
+                    "&:hover fieldset": { borderColor: "#00d4ff" },
+                    "&.Mui-focused fieldset": { borderColor: "#00d4ff" },
+                  },
+                }}
+              />
+              {[100, 500, 1000, 5000].map((amt) => (
+                <Button
+                  key={amt}
+                  size="small"
+                  onClick={() => setDepositAmount(String(amt))}
+                  sx={{
+                    mt: 1,
+                    mr: 1,
+                    borderColor: "rgba(255,255,255,0.2)",
+                    color: "rgba(255,255,255,0.7)",
+                  }}
+                  variant="outlined"
+                >
+                  ${amt.toLocaleString()}
+                </Button>
+              ))}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            onClick={() => {
+              setDepositOpen(false);
+              setTransactionMsg("");
+              setDepositAmount("");
+            }}
+            sx={{ color: "rgba(255,255,255,0.6)" }}
+          >
+            {transactionMsg ? "Close" : "Cancel"}
+          </Button>
+          {!transactionMsg && (
+            <Button
+              variant="contained"
+              onClick={() => {
+                if (!depositAmount || parseFloat(depositAmount) <= 0) return;
+                setTransactionMsg(
+                  `✓ $${parseFloat(depositAmount).toLocaleString()} successfully deposited!`,
+                );
+                setTimeout(() => {
+                  setDepositOpen(false);
+                  setTransactionMsg("");
+                  setDepositAmount("");
+                }, 2000);
+              }}
+              sx={{
+                background: "linear-gradient(45deg, #10b981, #059669)",
+                fontWeight: 600,
+                borderRadius: 2,
+              }}
+            >
+              Deposit Funds
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Withdraw Modal ────────────────────────────────────────── */}
+      <Dialog
+        open={withdrawOpen}
+        onClose={() => {
+          setWithdrawOpen(false);
+          setTransactionMsg("");
+          setWithdrawAmount("");
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+            border: "1px solid rgba(239,68,68,0.25)",
+            minWidth: 360,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            color: "white",
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+          }}
+        >
+          <Minus size={22} color="#ef4444" />
+          Withdraw Funds
+        </DialogTitle>
+        <DialogContent>
+          {transactionMsg ? (
+            <Box sx={{ textAlign: "center", py: 2 }}>
+              <Typography variant="h6" color="#10b981" fontWeight={700}>
+                {transactionMsg}
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Available balance:{" "}
+                <strong style={{ color: "#10b981" }}>$48,235.00</strong>
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Withdrawals typically arrive within 1–3 business days.
+              </Typography>
+              <TextField
+                fullWidth
+                label="Amount (USD)"
+                type="number"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                inputProps={{ min: 1, max: 48235 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DollarSign size={16} color="#ef4444" />
+                    </InputAdornment>
+                  ),
+                }}
+                InputLabelProps={{ sx: { color: "rgba(255,255,255,0.5)" } }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    color: "white",
+                    "& fieldset": { borderColor: "rgba(255,255,255,0.2)" },
+                    "&:hover fieldset": { borderColor: "#ef4444" },
+                    "&.Mui-focused fieldset": { borderColor: "#ef4444" },
+                  },
+                }}
+              />
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            onClick={() => {
+              setWithdrawOpen(false);
+              setTransactionMsg("");
+              setWithdrawAmount("");
+            }}
+            sx={{ color: "rgba(255,255,255,0.6)" }}
+          >
+            {transactionMsg ? "Close" : "Cancel"}
+          </Button>
+          {!transactionMsg && (
+            <Button
+              variant="contained"
+              onClick={() => {
+                const amt = parseFloat(withdrawAmount);
+                if (!withdrawAmount || amt <= 0) return;
+                if (amt > 48235) {
+                  setTransactionMsg("Insufficient funds.");
+                  return;
+                }
+                setTransactionMsg(
+                  `✓ $${amt.toLocaleString()} withdrawal initiated!`,
+                );
+                setTimeout(() => {
+                  setWithdrawOpen(false);
+                  setTransactionMsg("");
+                  setWithdrawAmount("");
+                }, 2000);
+              }}
+              sx={{
+                background: "linear-gradient(45deg, #ef4444, #dc2626)",
+                fontWeight: 600,
+                borderRadius: 2,
+              }}
+            >
+              Withdraw Funds
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </ErrorBoundary>
   );
 };

@@ -7,6 +7,7 @@ import {
   Newspaper as NewspaperIcon,
   Person as PersonIcon,
   Settings as SettingsIcon,
+  ShowChart as ShowChartIcon,
   TrendingUp as TrendingUpIcon,
 } from "@mui/icons-material";
 import {
@@ -56,8 +57,14 @@ const MainLayout = () => {
   const drawerWidth = 240;
 
   const navItems = [
-    { path: "/", label: "Dashboard", icon: DashboardIcon, exact: true },
+    {
+      path: "/dashboard",
+      label: "Dashboard",
+      icon: DashboardIcon,
+      exact: true,
+    },
     { path: "/strategies", label: "Strategies", icon: TrendingUpIcon },
+    { path: "/trading", label: "Trading", icon: ShowChartIcon },
     { path: "/analytics", label: "Analytics", icon: AssessmentIcon },
     { path: "/watchlist", label: "Watchlist", icon: BookmarkIcon },
     { path: "/news", label: "News Feed", icon: NewspaperIcon },

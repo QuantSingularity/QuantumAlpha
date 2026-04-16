@@ -257,3 +257,39 @@ const theme = createTheme({
 });
 
 export default theme;
+
+/**
+ * Factory that creates a MUI theme driven by Redux themeSlice state.
+ * @param {boolean} darkMode  - true → dark palette, false → light palette
+ * @param {string}  primaryColor - hex colour for palette.primary.main
+ */
+export const createAppTheme = (darkMode = true, primaryColor = "#00d4ff") => {
+  const isDark = darkMode !== false;
+  return createTheme({
+    palette: {
+      mode: isDark ? "dark" : "light",
+      primary: {
+        main: primaryColor || "#00d4ff",
+        light: primaryColor ? primaryColor + "cc" : "#33dcff",
+        dark: primaryColor ? primaryColor + "99" : "#0099cc",
+        contrastText: "#ffffff",
+      },
+      secondary: { main: "#7986cb", contrastText: "#ffffff" },
+      error: { main: "#ff4d4d" },
+      warning: { main: "#ffb74d" },
+      info: { main: "#29b6f6" },
+      success: { main: "#66bb6a" },
+      background: isDark
+        ? { default: "#121212", paper: "#1e1e1e" }
+        : { default: "#f5f5f5", paper: "#ffffff" },
+      text: isDark
+        ? { primary: "#ffffff", secondary: "rgba(255,255,255,0.7)" }
+        : { primary: "#121212", secondary: "rgba(0,0,0,0.6)" },
+      divider: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)",
+    },
+    typography: theme.typography,
+    shape: theme.shape,
+    shadows: theme.shadows,
+    components: theme.components,
+  });
+};

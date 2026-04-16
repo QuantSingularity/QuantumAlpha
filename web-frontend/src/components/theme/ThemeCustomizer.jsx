@@ -37,7 +37,7 @@ import {
   toggleCompactMode,
   toggleDarkMode,
   toggleHighContrast,
-} from "../store/slices/themeSlice";
+} from "../../store/slices/themeSlice";
 
 const ThemeCustomizer = () => {
   const dispatch = useDispatch();

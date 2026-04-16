@@ -3,11 +3,11 @@
 
 import { configureStore } from "@reduxjs/toolkit";
 import { api } from "../services/api";
-import authReducer from "../store/slices/authSlice";
-import portfolioReducer from "../store/slices/portfolioSlice";
-import strategyReducer from "../store/slices/strategySlice";
-import themeReducer from "../store/slices/themeSlice";
-import uiReducer from "../store/slices/uiSlice";
+import authReducer from "./slices/authSlice";
+import portfolioReducer from "./slices/portfolioSlice";
+import strategyReducer from "./slices/strategySlice";
+import themeReducer from "./slices/themeSlice";
+import uiReducer from "./slices/uiSlice";
 
 const store = configureStore({
   reducer: {
