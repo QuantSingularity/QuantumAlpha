@@ -6,8 +6,6 @@
 
 ![QuantumAlpha Dashboard](docs/images/dashboard.bmp)
 
-> **Note**: This project is under active development. Features and functionalities are continuously being enhanced to improve trading performance, risk management, and user experience.
-
 ---
 
 ## Table of Contents
