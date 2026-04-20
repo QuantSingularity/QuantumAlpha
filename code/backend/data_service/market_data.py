@@ -24,7 +24,7 @@ logger = setup_logger("market_data_service", logging.INFO)
 
 
 class MarketDataService:
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.data_sources = {

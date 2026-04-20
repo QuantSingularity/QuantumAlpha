@@ -10,7 +10,6 @@ This service is responsible for:
 import logging
 import os
 import traceback
-from typing import Any
 
 from backend.common import (
     ServiceError,
@@ -44,7 +43,7 @@ order_manager = OrderManager(
 
 
 @app.errorhandler(Exception)
-def handle_error(error: Any) -> Any:
+def handle_error(error: Exception) -> None:
     """Handle errors"""
     if isinstance(error, ServiceError):
         return (jsonify(error.to_dict()), error.status_code)
@@ -63,13 +62,13 @@ def handle_error(error: Any) -> Any:
 
 
 @app.route("/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify({"status": "ok", "service": "execution_service"})
 
 
 @app.route("/api/orders", methods=["GET"])
-def get_orders() -> Any:
+def get_orders() -> None:
     """Get all orders"""
     try:
         portfolio_id = request.args.get("portfolio_id")
@@ -88,7 +87,7 @@ def get_orders() -> Any:
 
 
 @app.route("/api/orders/<order_id>", methods=["GET"])
-def get_order(order_id: Any) -> Any:
+def get_order(order_id: object) -> None:
     """Get a specific order"""
     try:
         order = order_manager.get_order(order_id)
@@ -102,7 +101,7 @@ def get_order(order_id: Any) -> Any:
 
 
 @app.route("/api/orders", methods=["POST"])
-def create_order() -> Any:
+def create_order() -> None:
     """Create a new order"""
     try:
         data = request.json
@@ -118,7 +117,7 @@ def create_order() -> Any:
 
 
 @app.route("/api/orders/<order_id>/cancel", methods=["POST"])
-def cancel_order(order_id: Any) -> Any:
+def cancel_order(order_id: object) -> object:
     """Cancel an order"""
     try:
         data = request.json or {}
@@ -135,7 +134,7 @@ def cancel_order(order_id: Any) -> Any:
 
 
 @app.route("/api/execution-strategies", methods=["GET"])
-def get_execution_strategies() -> Any:
+def get_execution_strategies() -> None:
     """Get all execution strategies"""
     try:
         strategies = execution_strategy.get_strategies()
@@ -149,7 +148,7 @@ def get_execution_strategies() -> Any:
 
 
 @app.route("/api/execution-strategies/<strategy_id>", methods=["GET"])
-def get_execution_strategy(strategy_id: Any) -> Any:
+def get_execution_strategy(strategy_id: object) -> None:
     """Get a specific execution strategy"""
     try:
         strategy = execution_strategy.get_strategy(strategy_id)
@@ -163,7 +162,7 @@ def get_execution_strategy(strategy_id: Any) -> Any:
 
 
 @app.route("/api/brokers", methods=["GET"])
-def get_brokers() -> Any:
+def get_brokers() -> None:
     """Get all brokers"""
     try:
         brokers = broker_integration.get_brokers()
@@ -177,7 +176,7 @@ def get_brokers() -> Any:
 
 
 @app.route("/api/brokers/<broker_id>", methods=["GET"])
-def get_broker(broker_id: Any) -> Any:
+def get_broker(broker_id: object) -> None:
     """Get a specific broker"""
     try:
         broker = broker_integration.get_broker(broker_id)
@@ -191,7 +190,7 @@ def get_broker(broker_id: Any) -> Any:
 
 
 @app.route("/api/brokers/<broker_id>/accounts", methods=["GET"])
-def get_broker_accounts(broker_id: Any) -> Any:
+def get_broker_accounts(broker_id: object) -> None:
     """Get accounts for a broker"""
     try:
         accounts = broker_integration.get_accounts(broker_id)
@@ -205,7 +204,7 @@ def get_broker_accounts(broker_id: Any) -> Any:
 
 
 @app.route("/api/brokers/<broker_id>/positions", methods=["GET"])
-def get_broker_positions(broker_id: Any) -> Any:
+def get_broker_positions(broker_id: object) -> None:
     """Get positions for a broker"""
     try:
         account_id = request.args.get("account_id")

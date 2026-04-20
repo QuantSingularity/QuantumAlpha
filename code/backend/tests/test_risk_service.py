@@ -3,7 +3,6 @@ Unit tests for the Risk Service.
 """
 
 import unittest
-from typing import Any
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -17,7 +16,7 @@ from backend.risk_service.stress_testing import StressTesting
 class TestRiskCalculator(unittest.TestCase):
     """Test cases for RiskCalculator"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
@@ -72,7 +71,7 @@ class TestRiskCalculator(unittest.TestCase):
             ),
         }
 
-    def test_calculate_portfolio_value(self) -> Any:
+    def test_calculate_portfolio_value(self) -> None:
         """Test portfolio value calculation"""
         result = self.risk_calculator.calculate_portfolio_value(self.portfolio)
         self.assertIsInstance(result, dict)
@@ -86,7 +85,7 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertEqual(result["cash"], 10000.0)
         self.assertEqual(result["total_value"], expected_total_value)
 
-    def test_calculate_portfolio_returns(self) -> Any:
+    def test_calculate_portfolio_returns(self) -> None:
         """Test portfolio returns calculation"""
         result = self.risk_calculator.calculate_portfolio_returns(self.portfolio)
         self.assertIsInstance(result, dict)
@@ -107,7 +106,7 @@ class TestRiskCalculator(unittest.TestCase):
             result["total_return_percent"], expected_total_return_percent
         )
 
-    def test_calculate_var(self) -> Any:
+    def test_calculate_var(self) -> None:
         """Test Value at Risk calculation"""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         result = self.risk_calculator.calculate_var(
@@ -124,7 +123,7 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertEqual(result["confidence_level"], 0.95)
         self.assertEqual(result["time_horizon"], 1)
 
-    def test_calculate_var_invalid_confidence(self) -> Any:
+    def test_calculate_var_invalid_confidence(self) -> None:
         """Test VaR calculation with invalid confidence level"""
         with self.assertRaises(ValidationError):
             self.risk_calculator.calculate_var(
@@ -135,7 +134,7 @@ class TestRiskCalculator(unittest.TestCase):
                 portfolio=self.portfolio, confidence_level=-0.1, time_horizon=1
             )
 
-    def test_calculate_var_invalid_horizon(self) -> Any:
+    def test_calculate_var_invalid_horizon(self) -> None:
         """Test VaR calculation with invalid time horizon"""
         with self.assertRaises(ValidationError):
             self.risk_calculator.calculate_var(
@@ -146,7 +145,7 @@ class TestRiskCalculator(unittest.TestCase):
                 portfolio=self.portfolio, confidence_level=0.95, time_horizon=-1
             )
 
-    def test_calculate_expected_shortfall(self) -> Any:
+    def test_calculate_expected_shortfall(self) -> None:
         """Test Expected Shortfall calculation"""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         result = self.risk_calculator.calculate_expected_shortfall(
@@ -163,7 +162,7 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertEqual(result["confidence_level"], 0.95)
         self.assertEqual(result["time_horizon"], 1)
 
-    def test_calculate_sharpe_ratio(self) -> Any:
+    def test_calculate_sharpe_ratio(self) -> None:
         """Test Sharpe Ratio calculation"""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         result = self.risk_calculator.calculate_sharpe_ratio(
@@ -180,7 +179,7 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertTrue(isinstance(result["annualized_volatility"], float))
         self.assertEqual(result["risk_free_rate"], 0.02)
 
-    def test_calculate_beta(self) -> Any:
+    def test_calculate_beta(self) -> None:
         """Test Beta calculation"""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         benchmark_data = pd.DataFrame(
@@ -206,7 +205,7 @@ class TestRiskCalculator(unittest.TestCase):
 class TestPositionSizing(unittest.TestCase):
     """Test cases for PositionSizing"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
@@ -232,7 +231,7 @@ class TestPositionSizing(unittest.TestCase):
             "cash": 10000.0,
         }
 
-    def test_calculate_position_size_fixed(self) -> Any:
+    def test_calculate_position_size_fixed(self) -> None:
         """Test fixed position size calculation"""
         result = self.position_sizing.calculate_position_size(
             portfolio=self.portfolio,
@@ -252,7 +251,7 @@ class TestPositionSizing(unittest.TestCase):
         self.assertAlmostEqual(result["quantity"], expected_quantity)
         self.assertAlmostEqual(result["value"], expected_value)
 
-    def test_calculate_position_size_percent(self) -> Any:
+    def test_calculate_position_size_percent(self) -> None:
         """Test percentage position size calculation"""
         result = self.position_sizing.calculate_position_size(
             portfolio=self.portfolio,
@@ -273,7 +272,7 @@ class TestPositionSizing(unittest.TestCase):
         self.assertAlmostEqual(result["quantity"], expected_quantity)
         self.assertAlmostEqual(result["value"], expected_value)
 
-    def test_calculate_position_size_risk(self) -> Any:
+    def test_calculate_position_size_risk(self) -> None:
         """Test risk-based position size calculation"""
         result = self.position_sizing.calculate_position_size(
             portfolio=self.portfolio,
@@ -298,7 +297,7 @@ class TestPositionSizing(unittest.TestCase):
         self.assertAlmostEqual(result["value"], expected_value)
         self.assertEqual(result["stop_loss"], stop_loss)
 
-    def test_calculate_position_size_kelly(self) -> Any:
+    def test_calculate_position_size_kelly(self) -> None:
         """Test Kelly Criterion position size calculation"""
         result = self.position_sizing.calculate_position_size(
             portfolio=self.portfolio,
@@ -322,7 +321,7 @@ class TestPositionSizing(unittest.TestCase):
         self.assertAlmostEqual(result["value"], expected_value)
         self.assertEqual(result["kelly_percent"], kelly_percent)
 
-    def test_calculate_position_size_invalid_method(self) -> Any:
+    def test_calculate_position_size_invalid_method(self) -> None:
         """Test position size calculation with invalid method"""
         with self.assertRaises(ValidationError):
             self.position_sizing.calculate_position_size(
@@ -333,7 +332,7 @@ class TestPositionSizing(unittest.TestCase):
                 params={},
             )
 
-    def test_calculate_position_size_missing_params(self) -> Any:
+    def test_calculate_position_size_missing_params(self) -> None:
         """Test position size calculation with missing parameters"""
         with self.assertRaises(ValidationError):
             self.position_sizing.calculate_position_size(
@@ -368,7 +367,7 @@ class TestPositionSizing(unittest.TestCase):
                 params={"win_rate": 0.6},
             )
 
-    def test_calculate_position_size_invalid_params(self) -> Any:
+    def test_calculate_position_size_invalid_params(self) -> None:
         """Test position size calculation with invalid parameters"""
         with self.assertRaises(ValidationError):
             self.position_sizing.calculate_position_size(
@@ -399,7 +398,7 @@ class TestPositionSizing(unittest.TestCase):
 class TestStressTesting(unittest.TestCase):
     """Test cases for StressTesting"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
@@ -431,7 +430,7 @@ class TestStressTesting(unittest.TestCase):
             "cash": 10000.0,
         }
 
-    def test_run_historical_scenario(self) -> Any:
+    def test_run_historical_scenario(self) -> None:
         """Test historical scenario stress test"""
         historical_data = {
             "AAPL": pd.DataFrame(
@@ -479,7 +478,7 @@ class TestStressTesting(unittest.TestCase):
         self.assertEqual(result["change"], change)
         self.assertEqual(result["change_percent"], change_percent)
 
-    def test_run_monte_carlo_simulation(self) -> Any:
+    def test_run_monte_carlo_simulation(self) -> None:
         """Test Monte Carlo simulation stress test"""
         result = self.stress_testing.run_monte_carlo_simulation(
             portfolio=self.portfolio,
@@ -503,7 +502,7 @@ class TestStressTesting(unittest.TestCase):
         self.assertEqual(result["initial_value"], initial_value)
         self.assertTrue(len(result["simulations"]) == 100)
 
-    def test_run_sensitivity_analysis(self) -> Any:
+    def test_run_sensitivity_analysis(self) -> None:
         """Test sensitivity analysis stress test"""
         result = self.stress_testing.run_sensitivity_analysis(
             portfolio=self.portfolio,
@@ -520,7 +519,7 @@ class TestStressTesting(unittest.TestCase):
         self.assertEqual(result["initial_value"], initial_value)
         self.assertEqual(len(result["scenarios"]), 9)
 
-    def test_run_custom_scenario(self) -> Any:
+    def test_run_custom_scenario(self) -> None:
         """Test custom scenario stress test"""
         result = self.stress_testing.run_custom_scenario(
             portfolio=self.portfolio,

@@ -100,7 +100,7 @@ class TradingEnvironment(gym.Env):
         *,
         seed: Optional[int] = None,
         options: Optional[Dict[str, Any]] = None,
-    ) -> Any:
+    ) -> object:
         """Reset the environment to the initial state.
 
         Returns gymnasium-style (obs, info) tuple when gymnasium is
@@ -113,7 +113,7 @@ class TradingEnvironment(gym.Env):
             return obs, {}
         return obs
 
-    def step(self, action: int) -> Any:
+    def step(self, action: int) -> object:
         """Execute one trading step.
 
         Returns a 5-tuple (obs, reward, terminated, truncated, info) under
@@ -188,7 +188,7 @@ class ReinforcementLearningService:
     An alias is kept for any code that still uses the old name.
     """
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.data_service_url = (

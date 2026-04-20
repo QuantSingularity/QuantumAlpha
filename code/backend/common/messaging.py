@@ -59,7 +59,7 @@ class KafkaProducer:
             logger.error(f"Error publishing message to topic {topic}: {e}")
             raise
 
-    def _delivery_callback(self, err: Any, msg: Any) -> Any:
+    def _delivery_callback(self, err: object, msg: object) -> object:
         """Callback for message delivery
 
         Args:

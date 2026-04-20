@@ -132,14 +132,14 @@ The platform is built with a polyglot technology stack optimized for high perfor
 
 ### Core Technologies
 
-| Category                | Key Technologies                                                    | Description                                                                                              |
-| :---------------------- | :------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------- |
-| **Languages**           | Python, C++                                                         | Python for ML/data processing; C++ for performance-critical components (e.g., high-frequency execution). |
-| **ML Frameworks**       | PyTorch, TensorFlow, scikit-learn, Ray                              | Comprehensive suite for deep learning, traditional ML, and distributed computing.                        |
-| **Data Processing**     | Pandas, NumPy, Dask, Apache Spark                                   | Libraries for efficient data manipulation, large-scale data processing, and distributed computing.       |
-| **Financial Libraries** | QuantLib, Backtrader/zipline, PyPortfolioOpt                        | Specialized tools for quantitative finance, backtesting, and portfolio optimization.                     |
-| **Data Storage**        | InfluxDB (time series), PostgreSQL (relational), MongoDB (document) | Polyglot persistence strategy for specialized data types.                                                |
-| **Streaming**           | Kafka, Redis Streams                                                | High-throughput message brokers for real-time data ingestion and event management.                       |
+| Category                | Key Technologies                                                    | Description                                                                                                |
+| :---------------------- | :------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------- |
+| **Languages**           | Python, JavaScript/JSX                                              | Python for all backend ML/data/trading services; JavaScript/JSX for web and React Native mobile frontends. |
+| **ML Frameworks**       | PyTorch, TensorFlow, scikit-learn, Ray                              | Comprehensive suite for deep learning, traditional ML, and distributed computing.                          |
+| **Data Processing**     | Pandas, NumPy, Dask, Apache Spark                                   | Libraries for efficient data manipulation, large-scale data processing, and distributed computing.         |
+| **Financial Libraries** | QuantLib, Backtrader/zipline, PyPortfolioOpt                        | Specialized tools for quantitative finance, backtesting, and portfolio optimization.                       |
+| **Data Storage**        | InfluxDB (time series), PostgreSQL (relational), MongoDB (document) | Polyglot persistence strategy for specialized data types.                                                  |
+| **Streaming**           | Kafka, Redis Streams                                                | High-throughput message brokers for real-time data ingestion and event management.                         |
 
 ### Frontend & Infrastructure
 
@@ -160,7 +160,6 @@ To set up the platform, ensure you have the following installed:
 - **Python** (v3.10+)
 - **Docker** and Docker Compose
 - **Node.js** (v16+)
-- **C++ compiler** (required for QuantLib and other libraries)
 - **CUDA-compatible GPU** (highly recommended for ML training)
 
 ### Quick Setup
@@ -184,6 +183,21 @@ The fastest way to get the development environment running is using the provided
 For manual setup, you must first configure the necessary environment variables in a `.env` file, including database credentials, API keys for data providers (Alpha Vantage, Polygon), and broker configurations (e.g., Alpaca). Individual services must then be started using their respective commands (e.g., `python main.py` for Python services, `npm start` for the frontend).
 
 ---
+
+## AI/ML Model Performance
+
+QuantumAlpha's models are validated through rigorous walk-forward out-of-sample evaluation.
+Full tearsheets are in **[docs/ML_MODEL_PERFORMANCE.md](docs/ML_MODEL_PERFORMANCE.md)**.
+
+| Model               | OOS Sharpe | OOS Ann. Return | Max Drawdown |
+| ------------------- | ---------- | --------------- | ------------ |
+| LSTM (1-day)        | 1.82       | +24.3 %         | −14.7 %      |
+| Transformer (5-day) | 2.04       | +27.1 %         | −12.3 %      |
+| PPO RL Agent        | 2.31       | +31.4 %         | −11.8 %      |
+| **Ensemble**        | **2.58**   | **+34.7 %**     | **−10.4 %**  |
+| S&P 500 Benchmark   | 0.82       | +14.8 %         | −33.9 %      |
+
+All models are statistically significant vs. benchmark (Jobson-Korkie p < 0.05).
 
 ## Best Practices
 

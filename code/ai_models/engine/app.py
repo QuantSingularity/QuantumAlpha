@@ -10,7 +10,6 @@ This service is responsible for:
 import logging
 import os
 import traceback
-from typing import Any
 
 from ai_models.engine.model_manager import ModelManager
 from ai_models.engine.prediction_service import PredictionService
@@ -40,7 +39,7 @@ rl_service = ReinforcementLearningService(config_manager, db_manager)
 
 
 @app.errorhandler(Exception)
-def handle_error(error: Any) -> Any:
+def handle_error(error: Exception) -> None:
     """Handle errors"""
     if isinstance(error, ServiceError):
         return (jsonify(error.to_dict()), error.status_code)
@@ -59,13 +58,13 @@ def handle_error(error: Any) -> Any:
 
 
 @app.route("/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify({"status": "ok", "service": "ai_engine"})
 
 
 @app.route("/api/models", methods=["GET"])
-def get_models() -> Any:
+def get_models() -> None:
     """Get all models"""
     try:
         models = model_manager.get_models()
@@ -79,7 +78,7 @@ def get_models() -> Any:
 
 
 @app.route("/api/models/<model_id>", methods=["GET"])
-def get_model(model_id: Any) -> Any:
+def get_model(model_id: str) -> None:
     """Get a specific model"""
     try:
         model = model_manager.get_model(model_id)
@@ -93,7 +92,7 @@ def get_model(model_id: Any) -> Any:
 
 
 @app.route("/api/train-model", methods=["POST"])
-def train_model() -> Any:
+def train_model() -> object:
     """Train a new model or retrain an existing one"""
     try:
         data = request.json
@@ -108,7 +107,7 @@ def train_model() -> Any:
 
 
 @app.route("/api/generate-signals", methods=["POST"])
-def generate_signals() -> Any:
+def generate_signals() -> None:
     """Generate trading signals using a model"""
     try:
         data = request.json
@@ -130,7 +129,7 @@ def generate_signals() -> Any:
 
 
 @app.route("/api/predict", methods=["POST"])
-def predict() -> Any:
+def predict() -> object:
     """Generate predictions using a model"""
     try:
         data = request.json
@@ -151,7 +150,7 @@ def predict() -> Any:
 
 
 @app.route("/api/rl/train", methods=["POST"])
-def train_rl_agent() -> Any:
+def train_rl_agent() -> object:
     """Train a reinforcement learning agent"""
     try:
         data = request.json
@@ -166,7 +165,7 @@ def train_rl_agent() -> Any:
 
 
 @app.route("/api/rl/act", methods=["POST"])
-def get_rl_action() -> Any:
+def get_rl_action() -> None:
     """Get action from a reinforcement learning agent"""
     try:
         data = request.json

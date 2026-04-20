@@ -312,7 +312,7 @@ def generate_historical_data(symbol: str, days: int = 30) -> List[Dict[str, Any]
     return data
 
 
-def _ok(data: Any, status: int = 200) -> Tuple[Any, int]:
+def _ok(data: object, status: int = 200) -> Tuple[object, int]:
     """Wrap a successful payload in the standard envelope."""
     return (
         jsonify(
@@ -358,7 +358,7 @@ def attach_request_id() -> None:
 
 
 @app.after_request
-def set_request_id_header(response: Any) -> Any:
+def set_request_id_header(response: object) -> None:
     """Echo the request ID back in the response headers."""
     response.headers["X-Request-ID"] = getattr(g, "request_id", "")
     return response
@@ -370,17 +370,17 @@ def set_request_id_header(response: Any) -> Any:
 
 
 @app.errorhandler(404)
-def not_found(_error: Any) -> Tuple[Any, int]:
+def not_found(_error: Exception) -> Tuple[object, int]:
     return _err("Endpoint not found", 404)
 
 
 @app.errorhandler(405)
-def method_not_allowed(_error: Any) -> Tuple[Any, int]:
+def method_not_allowed(_error: Exception) -> Tuple[object, int]:
     return _err("Method not allowed", 405)
 
 
 @app.errorhandler(Exception)
-def handle_error(error: Any) -> Tuple[Any, int]:
+def handle_error(error: Exception) -> Tuple[Any, int]:
     """Catch-all for unhandled exceptions — never leak tracebacks to clients."""
     logger.error(
         "Unhandled error | request_id=%s | %s",

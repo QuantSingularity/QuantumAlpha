@@ -159,7 +159,7 @@ class HealthChecker:
         self.last_check_time = {}
         self.check_interval = 30
 
-    def register_check(self, name: str, check_func: Callable[[], HealthCheck]) -> Any:
+    def register_check(self, name: str, check_func: Callable[[], HealthCheck]) -> None:
         """Register a health check function"""
         self.checks[name] = check_func
         self.last_check_time[name] = None
@@ -222,7 +222,7 @@ class SystemMonitor:
         self.monitoring_active = False
         self.monitor_thread = None
 
-    def start_monitoring(self) -> Any:
+    def start_monitoring(self) -> None:
         """Start system monitoring"""
         if not self.monitoring_active:
             self.monitoring_active = True
@@ -232,14 +232,14 @@ class SystemMonitor:
             self.monitor_thread.start()
             logger.info("System monitoring started")
 
-    def stop_monitoring(self) -> Any:
+    def stop_monitoring(self) -> None:
         """Stop system monitoring"""
         self.monitoring_active = False
         if self.monitor_thread:
             self.monitor_thread.join(timeout=5)
         logger.info("System monitoring stopped")
 
-    def _monitor_loop(self) -> Any:
+    def _monitor_loop(self) -> object:
         """Main monitoring loop"""
         while self.monitoring_active:
             try:
@@ -291,7 +291,7 @@ class SystemMonitor:
                 response_time_avg=0.0,
             )
 
-    def _check_system_alerts(self, metrics: SystemMetrics) -> Any:
+    def _check_system_alerts(self, metrics: SystemMetrics) -> object:
         """Check for system alert conditions"""
         alerts = []
         if metrics.cpu_usage > 90:
@@ -341,7 +341,7 @@ class SystemMonitor:
         for alert in alerts:
             self._send_alert(alert)
 
-    def _send_alert(self, alert: Alert) -> Any:
+    def _send_alert(self, alert: Alert) -> object:
         """Send system alert"""
         try:
             logger.warning(
@@ -471,12 +471,12 @@ class MonitoringService:
             "application", HealthCheckRegistry.application_check
         )
 
-    def start(self) -> Any:
+    def start(self) -> None:
         """Start monitoring services"""
         self.system_monitor.start_monitoring()
         logger.info("Monitoring service started")
 
-    def stop(self) -> Any:
+    def stop(self) -> None:
         """Stop monitoring services"""
         self.system_monitor.stop_monitoring()
         logger.info("Monitoring service stopped")
@@ -525,7 +525,7 @@ def get_monitoring_service():
 monitoring_service = None
 
 
-def create_monitoring_blueprint() -> Any:
+def create_monitoring_blueprint() -> None:
     """Create Flask blueprint for monitoring endpoints"""
     from flask import Blueprint
 
@@ -590,7 +590,7 @@ def create_monitoring_blueprint() -> Any:
     return monitoring_bp
 
 
-def create_request_monitoring_middleware() -> Any:
+def create_request_monitoring_middleware() -> None:
     """Create middleware for request monitoring"""
 
     def before_request():

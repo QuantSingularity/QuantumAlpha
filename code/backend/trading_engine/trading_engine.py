@@ -268,7 +268,7 @@ class OrderManager:
             logger.error(f"Error submitting order: {e}")
             raise
 
-    def _validate_order_request(self, order_request: OrderRequest) -> Any:
+    def _validate_order_request(self, order_request: OrderRequest) -> object:
         """Validate order request parameters"""
         order_request.symbol = FinancialValidator.validate_symbol(order_request.symbol)
         order_request.quantity = FinancialValidator.validate_quantity(

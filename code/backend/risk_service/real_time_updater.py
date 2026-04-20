@@ -21,7 +21,7 @@ logger = setup_logger("real_time_updater", logging.INFO)
 class RealTimeUpdater:
     """Real-time data updater and model adapter"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         """Initialize real-time updater
 
         Args:
@@ -348,7 +348,7 @@ class RealTimeUpdater:
         except Exception as e:
             logger.error(f"Error closing feeds: {e}")
 
-    def _trigger_callbacks(self, event_type: str, data: Any) -> None:
+    def _trigger_callbacks(self, event_type: str, data: object) -> None:
         """Trigger callbacks for an event type
 
         Args:
@@ -368,7 +368,7 @@ class RealTimeUpdater:
 class StreamingDataProcessor:
     """Handles streaming data processing for high-frequency updates"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         """Initialize streaming data processor
 
         Args:

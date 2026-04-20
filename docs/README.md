@@ -105,3 +105,7 @@ Throughout this documentation:
 ---
 
 **Next Steps**: Start with the [Installation Guide](./INSTALLATION.md) to set up your development environment.
+
+## Model Performance
+
+See [ML_MODEL_PERFORMANCE.md](ML_MODEL_PERFORMANCE.md) for full model evaluation results.

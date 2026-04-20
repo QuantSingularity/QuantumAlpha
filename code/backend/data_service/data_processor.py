@@ -17,7 +17,7 @@ logger = setup_logger("data_processor", logging.INFO)
 class DataProcessor:
     """Data processor"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
         self.db_manager = db_manager
         logger.info("Data processor initialized")

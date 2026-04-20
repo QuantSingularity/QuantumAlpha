@@ -65,7 +65,7 @@ class ReportingRequirement:
 class RegulatoryReportingEngine:
     """Comprehensive regulatory reporting engine"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         """Initialize regulatory reporting engine
 
         Args:
@@ -1136,7 +1136,7 @@ class RegulatoryReportingEngine:
         except Exception:
             return False
 
-    def _get_field_value(self, report: Dict[str, Any], field_path: str) -> Any:
+    def _get_field_value(self, report: Dict[str, Any], field_path: str) -> object:
         """Get field value from report"""
         try:
             keys = field_path.split(".")

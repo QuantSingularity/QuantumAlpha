@@ -135,19 +135,21 @@ class DatabaseManager:
         """Register SQLAlchemy event listeners for monitoring"""
 
         @event.listens_for(self._engine, "connect")
-        def receive_connect(dbapi_connection: Any, connection_record: Any) -> None:
+        def receive_connect(
+            dbapi_connection: object, connection_record: object
+        ) -> None:
             with self._lock:
                 self._connection_stats["total_connections"] += 1
                 self._connection_stats["active_connections"] += 1
                 self._connection_stats["last_connection_time"] = time.time()
 
         @event.listens_for(self._engine, "close")
-        def receive_close(dbapi_connection: Any, connection_record: Any) -> None:
+        def receive_close(dbapi_connection: object, connection_record: object) -> None:
             with self._lock:
                 self._connection_stats["active_connections"] -= 1
 
         @event.listens_for(self._engine, "handle_error")
-        def receive_error(exception_context: Any) -> None:
+        def receive_error(exception_context: object) -> None:
             with self._lock:
                 self._connection_stats["failed_connections"] += 1
             logger.error(f"Database error: {exception_context.original_exception}")
@@ -235,7 +237,7 @@ class DatabaseManager:
         """Get MongoDB client"""
         return self._mongo_client
 
-    def get_session(self) -> Any:
+    def get_session(self) -> None:
         """Get a new database session"""
         if not self._scoped_session:
             raise RuntimeError("Database not initialized")
@@ -270,7 +272,7 @@ class DatabaseManager:
             )
         return stats
 
-    def get_postgres_session(self) -> Any:
+    def get_postgres_session(self) -> None:
         """Get a PostgreSQL session, falling back to SQLite when PostgreSQL is unavailable."""
         if not self._scoped_session:
             try:
@@ -292,11 +294,11 @@ class DatabaseManager:
         factory = sessionmaker(bind=engine)
         return scoped_session(factory)()
 
-    def get_timescale_session(self) -> Any:
+    def get_timescale_session(self) -> None:
         """Get a TimescaleDB session (uses same connection as PostgreSQL)."""
         return self.get_postgres_session()
 
-    def get_redis_client(self) -> Any:
+    def get_redis_client(self) -> None:
         """Get Redis client with lazy initialization, falling back to fakeredis."""
         if not self._redis_client:
             try:
@@ -319,7 +321,7 @@ class DatabaseManager:
             pass
         return self._redis_client
 
-    def get_kafka_producer(self) -> Any:
+    def get_kafka_producer(self) -> None:
         """Get a Kafka producer (lazy init, falls back to in-memory stub)."""
         try:
             from kafka import KafkaProducer
@@ -345,7 +347,7 @@ class DatabaseManager:
 
             return _StubProducer()
 
-    def get_kafka_consumer(self, topics: list) -> Any:
+    def get_kafka_consumer(self, topics: list) -> None:
         """Get a Kafka consumer for specified topics, falls back to stub."""
         try:
             from kafka import KafkaConsumer
@@ -446,7 +448,7 @@ class DatabaseMigrationManager:
     def __init__(self, db_manager: DatabaseManager) -> None:
         self.db_manager = db_manager
 
-    def create_tables(self) -> Any:
+    def create_tables(self) -> None:
         """Create all database tables"""
         try:
             from .models import create_tables, init_database
@@ -496,7 +498,7 @@ db_manager = DatabaseManager(db_config)
 migration_manager = DatabaseMigrationManager(db_manager)
 
 
-def get_db_session() -> Any:
+def get_db_session() -> None:
     """Get a database session"""
     return db_manager.get_session()
 

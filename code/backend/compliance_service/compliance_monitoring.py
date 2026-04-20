@@ -92,7 +92,7 @@ class ComplianceViolation:
 class ComplianceMonitor:
     """Real-time compliance monitoring system"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         """Initialize compliance monitor
 
         Args:

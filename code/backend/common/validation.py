@@ -253,7 +253,7 @@ class BaseSchema(Schema):
     """Base schema with common validation"""
 
     @pre_load
-    def strip_strings(self, data: Any, **kwargs) -> None:
+    def strip_strings(self, data: object, **kwargs) -> None:
         """Strip whitespace from string fields"""
         if isinstance(data, dict):
             for key, value in data.items():
@@ -262,7 +262,7 @@ class BaseSchema(Schema):
         return data
 
     @validates_schema
-    def validate_security(self, data: Any, **kwargs) -> None:
+    def validate_security(self, data: object, **kwargs) -> None:
         """Validate data for security threats"""
         for field, value in data.items():
             if isinstance(value, str):
@@ -281,19 +281,19 @@ class UserRegistrationSchema(BaseSchema):
     terms_accepted = fields.Bool(required=True)
 
     @validates("email")
-    def validate_email_security(self, value: Any) -> None:
+    def validate_email_security(self, value: object) -> None:
         return UserValidator.validate_email(value)
 
     @validates("password")
-    def validate_password_strength(self, value: Any) -> None:
+    def validate_password_strength(self, value: object) -> None:
         return UserValidator.validate_password(value)
 
     @validates("name")
-    def validate_name_format(self, value: Any) -> None:
+    def validate_name_format(self, value: object) -> None:
         return UserValidator.validate_name(value)
 
     @validates("terms_accepted")
-    def validate_terms(self, value: Any) -> None:
+    def validate_terms(self, value: object) -> None:
         if not value:
             raise MarshmallowValidationError("Terms and conditions must be accepted")
 
@@ -307,7 +307,7 @@ class UserLoginSchema(BaseSchema):
     remember_me = fields.Bool(required=False, load_default=False)
 
     @validates("email")
-    def validate_email_format(self, value: Any) -> None:
+    def validate_email_format(self, value: object) -> None:
         return UserValidator.validate_email(value)
 
 
@@ -330,25 +330,25 @@ class OrderSchema(BaseSchema):
     )
 
     @validates("symbol")
-    def validate_symbol_format(self, value: Any) -> None:
+    def validate_symbol_format(self, value: object) -> None:
         return FinancialValidator.validate_symbol(value)
 
     @validates("quantity")
-    def validate_quantity_value(self, value: Any) -> None:
+    def validate_quantity_value(self, value: object) -> None:
         return FinancialValidator.validate_quantity(value)
 
     @validates("price")
-    def validate_price_value(self, value: Any) -> None:
+    def validate_price_value(self, value: object) -> None:
         if value is not None:
             return FinancialValidator.validate_price(value)
 
     @validates("stop_price")
-    def validate_stop_price_value(self, value: Any) -> None:
+    def validate_stop_price_value(self, value: object) -> None:
         if value is not None:
             return FinancialValidator.validate_price(value)
 
     @validates_schema
-    def validate_order_logic(self, data: Any, **kwargs) -> None:
+    def validate_order_logic(self, data: object, **kwargs) -> None:
         """Validate order business logic"""
         order_type = data.get("order_type")
         price = data.get("price")
@@ -377,16 +377,16 @@ class PortfolioSchema(BaseSchema):
     max_leverage = fields.Decimal(required=False, places=2, allow_none=True)
 
     @validates("name")
-    def validate_name_security(self, value: Any) -> None:
+    def validate_name_security(self, value: object) -> None:
         return SecurityValidator.validate_safe_string(value, "name")
 
     @validates("description")
-    def validate_description_security(self, value: Any) -> None:
+    def validate_description_security(self, value: object) -> None:
         if value:
             return SecurityValidator.validate_safe_string(value, "description")
 
     @validates("initial_cash")
-    def validate_initial_cash_value(self, value: Any) -> None:
+    def validate_initial_cash_value(self, value: object) -> None:
         if value <= 0:
             raise MarshmallowValidationError("Initial cash must be positive")
         if value > 1000000000:
@@ -461,7 +461,7 @@ def validate_schema(
         raise err
 
 
-def _flatten_marshmallow_errors(errors: Any, prefix: str = "") -> str:
+def _flatten_marshmallow_errors(errors: object, prefix: str = "") -> str:
     """
     Recursively flatten Marshmallow's nested error dict/list into a
     comma-separated string suitable for log messages and API error responses.
@@ -569,7 +569,7 @@ def validate_query_params(**param_validators) -> None:
 class RateLimitValidator:
     """Rate limiting for API endpoints"""
 
-    def __init__(self, redis_client: Any) -> None:
+    def __init__(self, redis_client: object) -> None:
         self.redis = redis_client
 
     def check_rate_limit(self, key: str, limit: int, window: int) -> bool:
@@ -663,11 +663,11 @@ class MarketDataRequest(BaseSchema):
     )
 
     @validates("symbol")
-    def validate_symbol_field(self, value: Any) -> None:
+    def validate_symbol_field(self, value: object) -> None:
         return FinancialValidator.validate_symbol(value)
 
     @validates_schema
-    def validate_date_range(self, data: Any, **kwargs) -> None:
+    def validate_date_range(self, data: object, **kwargs) -> None:
         start = data.get("start_date")
         end = data.get("end_date")
         if start and end and end <= start:
@@ -706,25 +706,25 @@ class OrderRequest(BaseSchema):
     broker_account_id = fields.Str(required=False, allow_none=True, load_default=None)
 
     @validates("symbol")
-    def validate_symbol_field(self, value: Any) -> None:
+    def validate_symbol_field(self, value: object) -> None:
         return FinancialValidator.validate_symbol(value)
 
     @validates("quantity")
-    def validate_quantity_field(self, value: Any) -> None:
+    def validate_quantity_field(self, value: object) -> None:
         return FinancialValidator.validate_quantity(value)
 
     @validates("price")
-    def validate_price_field(self, value: Any) -> None:
+    def validate_price_field(self, value: object) -> None:
         if value is not None:
             return FinancialValidator.validate_price(value)
 
     @validates("stop_price")
-    def validate_stop_price_field(self, value: Any) -> None:
+    def validate_stop_price_field(self, value: object) -> None:
         if value is not None:
             return FinancialValidator.validate_price(value)
 
     @validates_schema
-    def validate_order_fields(self, data: Any, **kwargs) -> None:
+    def validate_order_fields(self, data: object, **kwargs) -> None:
         order_type = data.get("order_type")
         price = data.get("price")
         stop_price = data.get("stop_price")
@@ -759,7 +759,7 @@ class CancelOrderRequest(BaseSchema):
     )
 
     @validates("order_id")
-    def validate_order_id_safety(self, value: Any) -> None:
+    def validate_order_id_safety(self, value: object) -> None:
         return SecurityValidator.validate_safe_string(value, "order_id")
 
 
@@ -813,19 +813,19 @@ class PositionSizeRequest(BaseSchema):
     )
 
     @validates("symbol")
-    def validate_symbol_field(self, value: Any) -> None:
+    def validate_symbol_field(self, value: object) -> None:
         return FinancialValidator.validate_symbol(value)
 
     @validates("entry_price")
-    def validate_entry_price(self, value: Any) -> None:
+    def validate_entry_price(self, value: object) -> None:
         return FinancialValidator.validate_price(value)
 
     @validates("stop_price")
-    def validate_stop_price(self, value: Any) -> None:
+    def validate_stop_price(self, value: object) -> None:
         return FinancialValidator.validate_price(value)
 
     @validates_schema
-    def validate_risk_input(self, data: Any, **kwargs) -> None:
+    def validate_risk_input(self, data: object, **kwargs) -> None:
         if data.get("risk_amount") is None and data.get("risk_percent") is None:
             raise MarshmallowValidationError(
                 {"risk_amount": "One of risk_amount or risk_percent is required"}
@@ -885,11 +885,11 @@ class StressTestRequest(BaseSchema):
     )
 
     @validates("scenario_name")
-    def validate_scenario_safety(self, value: Any) -> None:
+    def validate_scenario_safety(self, value: object) -> None:
         return SecurityValidator.validate_safe_string(value, "scenario_name")
 
     @validates_schema
-    def validate_custom_scenario(self, data: Any, **kwargs) -> None:
+    def validate_custom_scenario(self, data: object, **kwargs) -> None:
         if data.get("scenario_name") == "custom" and not data.get("shocks"):
             raise MarshmallowValidationError(
                 {"shocks": "shocks dict is required for custom scenarios"}

@@ -3,7 +3,6 @@ Integration tests for QuantumAlpha backend services.
 """
 
 import unittest
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -16,7 +15,7 @@ class TestServiceIntegration(unittest.TestCase):
     """Integration tests for service communication"""
 
     @classmethod
-    def setUpClass(cls: Any) -> Any:
+    def setUpClass(cls: object) -> None:
         """Set up test environment"""
         cls.config_manager = ConfigManager()
         cls.db_manager = DatabaseManager(cls.config_manager)
@@ -26,7 +25,7 @@ class TestServiceIntegration(unittest.TestCase):
         cls.execution_service_url = f"http://{cls.config_manager.get('services.execution_service.host')}:{cls.config_manager.get('services.execution_service.port')}"
 
     @patch("requests.get")
-    def test_data_service_to_ai_engine(self, mock_get: Any) -> Any:
+    def test_data_service_to_ai_engine(self, mock_get: "MagicMock") -> None:
         """Test data flow from Data Service to AI Engine"""
         market_data_response = {
             "symbol": "AAPL",
@@ -81,7 +80,7 @@ class TestServiceIntegration(unittest.TestCase):
         self.assertTrue(args[0].startswith(self.data_service_url))
 
     @patch("requests.get")
-    def test_ai_engine_to_risk_service(self, mock_get: Any) -> Any:
+    def test_ai_engine_to_risk_service(self, mock_get: "MagicMock") -> None:
         """Test data flow from AI Engine to Risk Service"""
         prediction_response = {
             "symbol": "AAPL",
@@ -104,7 +103,7 @@ class TestServiceIntegration(unittest.TestCase):
         mock_response.status_code = 200
         mock_response.json.return_value = prediction_response
         mock_get.return_value = mock_response
-        from risk_service.risk_calculator import RiskCalculator
+        from backend.risk_service.risk_calculator import RiskCalculator
 
         risk_calculator = RiskCalculator(self.config_manager, self.db_manager)
         portfolio = {
@@ -140,8 +139,8 @@ class TestServiceIntegration(unittest.TestCase):
     @patch("requests.get")
     @patch("requests.post")
     def test_risk_service_to_execution_service(
-        self, mock_post: Any, mock_get: Any
-    ) -> Any:
+        self, mock_post: object, mock_get: object
+    ) -> object:
         """Test data flow from Risk Service to Execution Service"""
         risk_assessment_response = {
             "portfolio_id": "portfolio1",
@@ -169,7 +168,7 @@ class TestServiceIntegration(unittest.TestCase):
         mock_post_response.status_code = 201
         mock_post_response.json.return_value = order_response
         mock_post.return_value = mock_post_response
-        from execution_service.order_manager import OrderManager
+        from backend.execution_service.order_manager import OrderManager
 
         order_manager = OrderManager(self.config_manager, self.db_manager)
         order_data = {
@@ -193,7 +192,7 @@ class TestServiceIntegration(unittest.TestCase):
         self.assertTrue(args[0].startswith(self.risk_service_url))
 
     @patch("requests.get")
-    def test_execution_service_to_data_service(self, mock_get: Any) -> Any:
+    def test_execution_service_to_data_service(self, mock_get: "MagicMock") -> None:
         """Test data flow from Execution Service to Data Service"""
         market_data_response = {
             "symbol": "AAPL",
@@ -206,7 +205,7 @@ class TestServiceIntegration(unittest.TestCase):
         mock_response.status_code = 200
         mock_response.json.return_value = market_data_response
         mock_get.return_value = mock_response
-        from execution_service.broker_integration import BrokerIntegration
+        from backend.execution_service.broker_integration import BrokerIntegration
 
         broker_integration = BrokerIntegration(self.config_manager, self.db_manager)
         result = broker_integration.get_market_data("AAPL")
@@ -220,7 +219,7 @@ class TestServiceIntegration(unittest.TestCase):
         self.assertTrue(args[0].startswith(self.data_service_url))
 
     @patch("requests.post")
-    def test_end_to_end_trading_flow(self, mock_post: Any) -> Any:
+    def test_end_to_end_trading_flow(self, mock_post: "MagicMock") -> None:
         """Test end-to-end trading flow"""
 
         def mock_service_response(*args, **kwargs):
@@ -277,7 +276,7 @@ class TestServiceIntegration(unittest.TestCase):
                 return MagicMock(status_code=404)
 
         mock_post.side_effect = mock_service_response
-        from execution_service.trading_service import TradingService
+        from backend.execution_service.trading_service import TradingService
 
         trading_service = TradingService(self.config_manager, self.db_manager)
         signal = {
@@ -299,12 +298,12 @@ class TestDatabaseIntegration(unittest.TestCase):
     """Integration tests for database operations"""
 
     @classmethod
-    def setUpClass(cls: Any) -> Any:
+    def setUpClass(cls: object) -> None:
         """Set up test environment"""
         cls.config_manager = ConfigManager()
         cls.db_manager = DatabaseManager(cls.config_manager)
 
-    def test_postgres_connection(self) -> Any:
+    def test_postgres_connection(self) -> None:
         """Test PostgreSQL connection"""
         session = self.db_manager.get_postgres_session()
         self.assertIsNotNone(session)
@@ -313,7 +312,7 @@ class TestDatabaseIntegration(unittest.TestCase):
         self.assertEqual(row[0], 1)
         session.close()
 
-    def test_timescale_connection(self) -> Any:
+    def test_timescale_connection(self) -> None:
         """Test TimescaleDB connection"""
         session = self.db_manager.get_timescale_session()
         self.assertIsNotNone(session)
@@ -322,7 +321,7 @@ class TestDatabaseIntegration(unittest.TestCase):
         self.assertEqual(row[0], 1)
         session.close()
 
-    def test_redis_connection(self) -> Any:
+    def test_redis_connection(self) -> None:
         """Test Redis connection"""
         redis_client = self.db_manager.get_redis_client()
         self.assertIsNotNone(redis_client)
@@ -331,7 +330,7 @@ class TestDatabaseIntegration(unittest.TestCase):
         self.assertEqual(value.decode("utf-8"), "test_value")
         redis_client.delete("test_key")
 
-    def test_kafka_connection(self) -> Any:
+    def test_kafka_connection(self) -> None:
         """Test Kafka connection"""
         producer = self.db_manager.get_kafka_producer()
         self.assertIsNotNone(producer)
@@ -343,7 +342,7 @@ class TestAPIEndpoints(unittest.TestCase):
     """Integration tests for API endpoints"""
 
     @classmethod
-    def setUpClass(cls: Any) -> Any:
+    def setUpClass(cls: object) -> None:
         """Set up test environment"""
         cls.config_manager = ConfigManager()
         cls.data_service_url = f"http://{cls.config_manager.get('services.data_service.host')}:{cls.config_manager.get('services.data_service.port')}"
@@ -352,7 +351,7 @@ class TestAPIEndpoints(unittest.TestCase):
         cls.execution_service_url = f"http://{cls.config_manager.get('services.execution_service.host')}:{cls.config_manager.get('services.execution_service.port')}"
 
     @patch("requests.get")
-    def test_data_service_market_data_endpoint(self, mock_get: Any) -> Any:
+    def test_data_service_market_data_endpoint(self, mock_get: "MagicMock") -> None:
         """Test Data Service market data endpoint"""
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -381,7 +380,7 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertTrue(len(data["data"]) > 0)
 
     @patch("requests.post")
-    def test_ai_engine_predict_endpoint(self, mock_post: Any) -> Any:
+    def test_ai_engine_predict_endpoint(self, mock_post: "MagicMock") -> None:
         """Test AI Engine predict endpoint"""
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -402,7 +401,7 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(data["prediction"]["direction"], "bullish")
 
     @patch("requests.get")
-    def test_risk_service_portfolio_risk_endpoint(self, mock_get: Any) -> Any:
+    def test_risk_service_portfolio_risk_endpoint(self, mock_get: "MagicMock") -> None:
         """Test Risk Service portfolio risk endpoint"""
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -423,7 +422,7 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertTrue("sharpe_ratio" in data)
 
     @patch("requests.post")
-    def test_execution_service_orders_endpoint(self, mock_post: Any) -> Any:
+    def test_execution_service_orders_endpoint(self, mock_post: "MagicMock") -> None:
         """Test Execution Service orders endpoint"""
         mock_response = MagicMock()
         mock_response.status_code = 201

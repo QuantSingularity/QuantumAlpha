@@ -3,7 +3,6 @@ Unit tests for the AI Engine.
 """
 
 import unittest
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 from ai_models.engine.model_manager import ModelManager
@@ -14,7 +13,7 @@ from backend.common import NotFoundError, ValidationError
 class TestModelManager(unittest.TestCase):
     """Test cases for ModelManager"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "/tmp/test_models"
@@ -25,7 +24,7 @@ class TestModelManager(unittest.TestCase):
         self.model_manager.model_registry = {"models": {}}
         self.model_manager._save_registry = MagicMock()
 
-    def test_create_model(self) -> Any:
+    def test_create_model(self) -> None:
         """Test model creation"""
         model_data = {
             "name": "Test Model",
@@ -49,19 +48,19 @@ class TestModelManager(unittest.TestCase):
             self.model_manager.model_registry["models"][model_id]["name"], "Test Model"
         )
 
-    def test_create_model_missing_name(self) -> Any:
+    def test_create_model_missing_name(self) -> None:
         """Test model creation with missing name"""
         model_data = {"type": "lstm"}
         with self.assertRaises(ValidationError):
             self.model_manager.create_model(model_data)
 
-    def test_create_model_missing_type(self) -> Any:
+    def test_create_model_missing_type(self) -> None:
         """Test model creation with missing type"""
         model_data = {"name": "Test Model"}
         with self.assertRaises(ValidationError):
             self.model_manager.create_model(model_data)
 
-    def test_get_models(self) -> Any:
+    def test_get_models(self) -> None:
         """Test getting all models"""
         self.model_manager.model_registry["models"] = {
             "model1": {
@@ -91,7 +90,7 @@ class TestModelManager(unittest.TestCase):
         self.assertEqual(models[1]["name"], "Model 2")
         self.assertEqual(models[1]["metrics"], {"accuracy": 0.9})
 
-    def test_get_model(self) -> Any:
+    def test_get_model(self) -> None:
         """Test getting a specific model"""
         self.model_manager.model_registry["models"] = {
             "model1": {
@@ -115,12 +114,12 @@ class TestModelManager(unittest.TestCase):
         self.assertEqual(model["parameters"], {"param1": "value1"})
         self.assertEqual(model["features"], ["feature1"])
 
-    def test_get_model_not_found(self) -> Any:
+    def test_get_model_not_found(self) -> None:
         """Test getting a non-existent model"""
         with self.assertRaises(NotFoundError):
             self.model_manager.get_model("non_existent_model")
 
-    def test_update_model(self) -> Any:
+    def test_update_model(self) -> None:
         """Test updating a model"""
         self.model_manager.model_registry["models"] = {
             "model1": {
@@ -158,13 +157,13 @@ class TestModelManager(unittest.TestCase):
             "Updated description",
         )
 
-    def test_update_model_not_found(self) -> Any:
+    def test_update_model_not_found(self) -> None:
         """Test updating a non-existent model"""
         update_data = {"name": "Updated Model"}
         with self.assertRaises(NotFoundError):
             self.model_manager.update_model("non_existent_model", update_data)
 
-    def test_delete_model(self) -> Any:
+    def test_delete_model(self) -> None:
         """Test deleting a model"""
         self.model_manager.model_registry["models"] = {
             "model1": {
@@ -185,7 +184,7 @@ class TestModelManager(unittest.TestCase):
         self.assertTrue(result["deleted"])
         self.assertFalse("model1" in self.model_manager.model_registry["models"])
 
-    def test_delete_model_not_found(self) -> Any:
+    def test_delete_model_not_found(self) -> None:
         """Test deleting a non-existent model"""
         with self.assertRaises(NotFoundError):
             self.model_manager.delete_model("non_existent_model")
@@ -194,7 +193,7 @@ class TestModelManager(unittest.TestCase):
 class TestPredictionService(unittest.TestCase):
     """Test cases for PredictionService"""
 
-    def setUp(self) -> Any:
+    def setUp(self) -> None:
         """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "http://localhost:8080"
@@ -247,7 +246,7 @@ class TestPredictionService(unittest.TestCase):
         ]
 
     @patch("requests.get")
-    def test_generate_prediction(self, mock_get: Any) -> Any:
+    def test_generate_prediction(self, mock_get: "MagicMock") -> None:
         """Test prediction generation"""
         self.model_manager.predict.return_value = {
             "symbol": "AAPL",
@@ -280,14 +279,14 @@ class TestPredictionService(unittest.TestCase):
         self.assertTrue("direction" in result["prediction"])
         self.assertEqual(len(result["predictions"]), 5)
 
-    def test_generate_prediction_missing_model_id(self) -> Any:
+    def test_generate_prediction_missing_model_id(self) -> None:
         """Test prediction generation with missing model ID"""
         with self.assertRaises(ValidationError):
             self.prediction_service.generate_prediction(
                 model_id="", symbol="AAPL", timeframe="1d", period="1mo", horizon=5
             )
 
-    def test_generate_prediction_missing_symbol(self) -> Any:
+    def test_generate_prediction_missing_symbol(self) -> None:
         """Test prediction generation with missing symbol"""
         with self.assertRaises(ValidationError):
             self.prediction_service.generate_prediction(
@@ -295,7 +294,7 @@ class TestPredictionService(unittest.TestCase):
             )
 
     @patch("requests.get")
-    def test_generate_signals(self, mock_get: Any) -> Any:
+    def test_generate_signals(self, mock_get: "MagicMock") -> None:
         """Test signal generation"""
         self.model_manager.predict.return_value = {
             "symbol": "AAPL",
@@ -334,7 +333,7 @@ class TestPredictionService(unittest.TestCase):
         self.assertTrue("price" in signals[0])
         self.assertTrue("prediction" in signals[0])
 
-    def test_generate_signals_missing_symbols(self) -> Any:
+    def test_generate_signals_missing_symbols(self) -> None:
         """Test signal generation with missing symbols"""
         with self.assertRaises(ValidationError):
             self.prediction_service.generate_signals(
@@ -345,7 +344,7 @@ class TestPredictionService(unittest.TestCase):
                 strategy="prediction",
             )
 
-    def test_generate_signals_missing_model_id(self) -> Any:
+    def test_generate_signals_missing_model_id(self) -> None:
         """Test signal generation with missing model ID"""
         with self.assertRaises(ValidationError):
             self.prediction_service.generate_signals(
@@ -356,7 +355,7 @@ class TestPredictionService(unittest.TestCase):
                 strategy="prediction",
             )
 
-    def test_generate_signals_invalid_strategy(self) -> Any:
+    def test_generate_signals_invalid_strategy(self) -> None:
         """Test signal generation with invalid strategy"""
         with self.assertRaises(ValidationError):
             self.prediction_service.generate_signals(

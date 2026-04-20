@@ -65,7 +65,7 @@ class AuthManager:
         if app:
             self.init_app(app)
 
-    def init_app(self, app: Any) -> None:
+    def init_app(self, app: "Flask") -> None:
         """Initialize authentication with Flask app"""
         self.app = app
         self.jwt.init_app(app)
@@ -113,7 +113,9 @@ class AuthManager:
         salt = bcrypt.gensalt(rounds=12)
         return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
-    def create_access_token(self, identity: Any, roles: Any = None) -> str:
+    def create_access_token(
+        self, identity: str, roles: Optional[List[str]] = None
+    ) -> str:
         """Create a JWT access token for the given identity"""
         additional_claims: Dict[str, Any] = {}
         if roles is not None:
@@ -328,7 +330,7 @@ def require_auth(f: Callable[..., Any]) -> Callable[..., Any]:
 
     @wraps(f)
     @jwt_required()
-    def decorated_function(*args: Any, **kwargs: Any) -> Any:
+    def decorated_function(*args: object, **kwargs: object) -> object:
         return f(*args, **kwargs)
 
     return decorated_function
@@ -343,7 +345,7 @@ def require_role(
 
         @wraps(f)
         @jwt_required()
-        def decorated_function(*args: Any, **kwargs: Any) -> Any:
+        def decorated_function(*args: object, **kwargs: object) -> object:
             claims = get_jwt()
             user_role = claims.get("role")
             if user_role != required_role:
@@ -372,7 +374,7 @@ def require_permission(
 
         @wraps(f)
         @jwt_required()
-        def decorated_function(*args: Any, **kwargs: Any) -> Any:
+        def decorated_function(*args: object, **kwargs: object) -> object:
             claims = get_jwt()
             user_permissions = claims.get("permissions", [])
             if permission not in user_permissions:
@@ -397,7 +399,7 @@ def require_mfa(f: Callable[..., Any]) -> Callable[..., Any]:
 
     @wraps(f)
     @jwt_required()
-    def decorated_function(*args: Any, **kwargs: Any) -> Any:
+    def decorated_function(*args: object, **kwargs: object) -> object:
         claims = get_jwt()
         mfa_verified = claims.get("mfa_verified", False)
         if not mfa_verified:

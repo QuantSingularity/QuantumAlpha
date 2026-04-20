@@ -10,7 +10,6 @@ This service is responsible for:
 import logging
 import os
 import traceback
-from typing import Any
 
 from backend.common import (
     ServiceError,
@@ -41,7 +40,7 @@ feature_engineering_service = FeatureEngineeringService(config_manager, db_manag
 
 
 @app.errorhandler(Exception)
-def handle_error(error: Any) -> Any:
+def handle_error(error: Exception) -> None:
     """Handle errors"""
     if isinstance(error, ServiceError):
         return (jsonify(error.to_dict()), error.status_code)
@@ -60,13 +59,13 @@ def handle_error(error: Any) -> Any:
 
 
 @app.route("/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify({"status": "ok", "service": "data_service"})
 
 
 @app.route("/api/market-data/<symbol>", methods=["GET"])
-def get_market_data(symbol: Any) -> Any:
+def get_market_data(symbol: object) -> None:
     """Get market data for a symbol"""
     try:
         params = {
@@ -94,7 +93,7 @@ def get_market_data(symbol: Any) -> Any:
 
 
 @app.route("/api/alternative-data/<source>", methods=["GET"])
-def get_alternative_data(source: Any) -> Any:
+def get_alternative_data(source: object) -> None:
     """Get alternative data from a source"""
     try:
         symbol = request.args.get("symbol")
@@ -113,7 +112,7 @@ def get_alternative_data(source: Any) -> Any:
 
 
 @app.route("/api/features/<symbol>", methods=["GET"])
-def get_features(symbol: Any) -> Any:
+def get_features(symbol: object) -> None:
     """Get engineered features for a symbol"""
     try:
         timeframe = request.args.get("timeframe", "1d")
@@ -135,7 +134,7 @@ def get_features(symbol: Any) -> Any:
 
 
 @app.route("/api/data-sources", methods=["GET"])
-def get_data_sources() -> Any:
+def get_data_sources() -> None:
     """Get all data sources"""
     try:
         data_sources = market_data_service.get_data_sources()
@@ -149,7 +148,7 @@ def get_data_sources() -> Any:
 
 
 @app.route("/api/data-sources", methods=["POST"])
-def create_data_source() -> Any:
+def create_data_source() -> None:
     """Create a new data source"""
     try:
         data = request.json

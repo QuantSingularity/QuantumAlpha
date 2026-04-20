@@ -15,7 +15,7 @@ logger = setup_logger("risk_calculator", logging.INFO)
 class RiskCalculator:
     """Risk calculator"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
         self.db_manager = db_manager
         logger.info("Risk calculator initialized")

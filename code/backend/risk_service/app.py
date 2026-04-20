@@ -10,7 +10,6 @@ This service is responsible for:
 import logging
 import os
 import traceback
-from typing import Any
 
 from backend.common import (
     ServiceError,
@@ -46,7 +45,7 @@ position_sizing = PositionSizing(config_manager, db_manager)
 
 
 @app.errorhandler(Exception)
-def handle_error(error: Any) -> Any:
+def handle_error(error: Exception) -> None:
     """Handle errors"""
     if isinstance(error, ServiceError):
         return (jsonify(error.to_dict()), error.status_code)
@@ -65,13 +64,13 @@ def handle_error(error: Any) -> Any:
 
 
 @app.route("/health", methods=["GET"])
-def health_check() -> Any:
+def health_check() -> object:
     """Health check endpoint"""
     return jsonify({"status": "ok", "service": "risk_service"})
 
 
 @app.route("/api/risk-metrics", methods=["POST"])
-def calculate_risk_metrics() -> Any:
+def calculate_risk_metrics() -> None:
     """Calculate risk metrics for a portfolio"""
     try:
         data = request.json
@@ -92,7 +91,7 @@ def calculate_risk_metrics() -> Any:
 
 
 @app.route("/api/stress-test", methods=["POST"])
-def run_stress_test() -> Any:
+def run_stress_test() -> None:
     """Run stress tests on a portfolio"""
     try:
         data = request.json
@@ -110,7 +109,7 @@ def run_stress_test() -> Any:
 
 
 @app.route("/api/calculate-position", methods=["POST"])
-def calculate_position_size() -> Any:
+def calculate_position_size() -> None:
     """Calculate optimal position size"""
     try:
         data = request.json
@@ -132,7 +131,7 @@ def calculate_position_size() -> Any:
 
 
 @app.route("/api/portfolio-risk", methods=["GET"])
-def get_portfolio_risk() -> Any:
+def get_portfolio_risk() -> None:
     """Get risk metrics for a portfolio"""
     try:
         portfolio_id = request.args.get("portfolio_id")
@@ -149,7 +148,7 @@ def get_portfolio_risk() -> Any:
 
 
 @app.route("/api/risk-alerts", methods=["GET"])
-def get_risk_alerts() -> Any:
+def get_risk_alerts() -> None:
     """Get risk alerts"""
     try:
         portfolio_id = request.args.get("portfolio_id")

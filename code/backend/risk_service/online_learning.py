@@ -24,7 +24,7 @@ logger = setup_logger("online_learning", logging.INFO)
 class OnlineLearningEngine:
     """Online learning engine for adaptive risk modeling"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         """Initialize online learning engine
 
         Args:

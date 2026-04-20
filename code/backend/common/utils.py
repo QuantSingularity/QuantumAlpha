@@ -157,7 +157,7 @@ def parse_period(period: str) -> datetime:
         raise ValueError(f"Invalid period: {period}")
 
 
-def to_json_serializable(obj: Any) -> Any:
+def to_json_serializable(obj: object) -> object:
     """Convert an object to a JSON serializable format
 
     Args:
@@ -255,7 +255,7 @@ class SimpleCache:
             return None
         return self.cache[key]
 
-    def set(self, key: str, value: Any) -> None:
+    def set(self, key: str, value: object) -> None:
         """Set a value in cache
 
         Args:

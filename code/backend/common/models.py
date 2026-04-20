@@ -2,7 +2,7 @@ import enum
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, List
+from typing import List
 
 import structlog
 from cryptography.fernet import Fernet
@@ -91,7 +91,7 @@ class BaseModel(Base):
     is_deleted = Column(Boolean, default=False, nullable=False)
     version = Column(Integer, default=1, nullable=False)
 
-    def to_dict(self, include_sensitive: Any = False) -> Any:
+    def to_dict(self, include_sensitive: bool = False) -> dict:
         """Convert model to dictionary"""
         result = {}
         for column in self.__table__.columns:
@@ -143,7 +143,7 @@ class User(BaseModel):
     )
 
     @validates("email")
-    def validate_email(self, key: Any, email: Any) -> str:
+    def validate_email(self, key: str, email: str) -> str:
         """Validate email format"""
         import re
 
@@ -515,13 +515,13 @@ class MarketData(BaseModel):
     )
 
 
-def create_tables(engine: Any) -> Any:
+def create_tables(engine: "Engine") -> None:
     """Create all database tables"""
     Base.metadata.create_all(engine)
     logger.info("Database tables created successfully")
 
 
-def init_database(engine: Any) -> Any:
+def init_database(engine: "Engine") -> None:
     """Initialize database with default data"""
     from sqlalchemy.orm import sessionmaker
 

@@ -2,7 +2,7 @@
 Analytics service for QuantumAlpha.
 """
 
-from .factor_analysis import FactorAnalysis
-from .performance_attribution import PerformanceAttribution
+from .factor_analysis import FactorAnalysisEngine
+from .performance_attribution import PerformanceAttributionEngine
 
-__all__ = ["FactorAnalysis", "PerformanceAttribution"]
+__all__ = ["FactorAnalysisEngine", "PerformanceAttributionEngine"]

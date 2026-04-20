@@ -314,7 +314,7 @@ class RiskCalculator:
         return 1.0
 
 
-def audit_action(action: AuditAction, resource_type: str) -> Any:
+def audit_action(action: AuditAction, resource_type: str) -> object:
     """Decorator to automatically audit function calls"""
 
     def decorator(func):
@@ -355,7 +355,7 @@ def _get_resource_values(resource_type: str, resource_id: str) -> Optional[Dict]
     return None
 
 
-def _extract_values_from_result(result: Any) -> Optional[Dict]:
+def _extract_values_from_result(result: object) -> Optional[Dict]:
     """Extract values from function result"""
     if hasattr(result, "to_dict"):
         return result.to_dict()
@@ -364,7 +364,7 @@ def _extract_values_from_result(result: Any) -> Optional[Dict]:
     return None
 
 
-def _extract_resource_id(result: Any, kwargs: Any) -> Optional[str]:
+def _extract_resource_id(result: object, kwargs: object) -> Optional[str]:
     """Extract resource ID from result or kwargs"""
     if hasattr(result, "id"):
         return str(result.id)

@@ -134,7 +134,7 @@ class ConfigManager:
             },
         }
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: object = None) -> None:
         """Get a configuration value
 
         Args:

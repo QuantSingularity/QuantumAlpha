@@ -15,7 +15,7 @@ LARGE_ORDER_THRESHOLD = 10000
 class ExecutionStrategy:
     """Execution strategy"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
         self.db_manager = db_manager
         logger.info("Execution strategy initialized")
@@ -31,7 +31,7 @@ class ExecutionStrategy:
         return "market"
 
     def execute_market_strategy(
-        self, order: Dict[str, Any], broker_integration: Any
+        self, order: Dict[str, Any], broker_integration: object
     ) -> Dict[str, Any]:
         """Execute order using market strategy."""
         try:
@@ -53,7 +53,7 @@ class ExecutionStrategy:
             raise ServiceError(f"Error executing market strategy: {str(e)}")
 
     def execute_limit_strategy(
-        self, order: Dict[str, Any], broker_integration: Any
+        self, order: Dict[str, Any], broker_integration: object
     ) -> Dict[str, Any]:
         """Execute order using limit strategy."""
         try:
@@ -77,7 +77,7 @@ class ExecutionStrategy:
     def execute_vwap_strategy(
         self,
         order: Dict[str, Any],
-        broker_integration: Any,
+        broker_integration: object,
         market_data: Dict[str, Any],
         num_slices: int = 5,
     ) -> Dict[str, Any]:
@@ -126,7 +126,7 @@ class ExecutionStrategy:
     def execute_twap_strategy(
         self,
         order: Dict[str, Any],
-        broker_integration: Any,
+        broker_integration: object,
         market_data: Dict[str, Any],
         duration_minutes: int = 5,
         num_slices: int = 5,
@@ -176,7 +176,7 @@ class ExecutionStrategy:
     def execute_iceberg_strategy(
         self,
         order: Dict[str, Any],
-        broker_integration: Any,
+        broker_integration: object,
         market_data: Dict[str, Any],
         display_size: int = 20,
     ) -> Dict[str, Any]:

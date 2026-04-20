@@ -15,7 +15,7 @@ logger = setup_logger("broker_integration", logging.INFO)
 class BrokerIntegration:
     """Broker integration"""
 
-    def __init__(self, config_manager: Any, db_manager: Any) -> None:
+    def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.broker_url = config_manager.get("broker.url", "http://localhost:9000")
