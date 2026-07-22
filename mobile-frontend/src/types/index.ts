@@ -150,18 +150,9 @@ export type OrderType = "market" | "limit" | "stop" | "stop_limit";
 export type OrderSide = "buy" | "sell";
 export type TimeInForce = "GTC" | "IOC" | "FOK" | "DAY";
 export type OrderStatus =
-  | "pending"
-  | "filled"
-  | "partially_filled"
-  | "cancelled"
-  | "rejected";
+  "pending" | "filled" | "partially_filled" | "cancelled" | "rejected";
 export type AssetType =
-  | "stock"
-  | "crypto"
-  | "forex"
-  | "commodity"
-  | "index"
-  | "etf";
+  "stock" | "crypto" | "forex" | "commodity" | "index" | "etf";
 
 export interface Order {
   id: string;
@@ -443,13 +434,7 @@ export interface FormField {
   name: string;
   label: string;
   type:
-    | "text"
-    | "email"
-    | "password"
-    | "number"
-    | "select"
-    | "checkbox"
-    | "radio";
+    "text" | "email" | "password" | "number" | "select" | "checkbox" | "radio";
   placeholder?: string;
   required?: boolean;
   validation?: ValidationRule[];

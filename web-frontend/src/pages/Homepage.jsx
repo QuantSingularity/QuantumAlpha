@@ -18,8 +18,14 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { QuantumField, Wordmark } from "../components/common/Brand";
+import { Wordmark } from "../components/common/Brand";
 import { gradients, palette } from "../theme/tokens";
+
+// A calmer, higher-contrast backdrop for the homepage - a single soft glow
+// instead of the animated node/graph lattice, so headline and body text stay
+// easy to read at a glance.
+const heroBackground = `radial-gradient(1100px 560px at 50% -12%, ${palette.cyan}14, transparent 62%), radial-gradient(900px 480px at 100% 0%, ${palette.violet}10, transparent 60%), linear-gradient(180deg, ${palette.abyss} 0%, ${palette.void} 100%)`;
+const ctaBackground = `linear-gradient(135deg, ${palette.surfaceRaised} 0%, ${palette.surface} 100%)`;
 
 const ticker = [
   { s: "AAPL", p: "175.50", c: "+1.33%", up: true },
@@ -90,7 +96,7 @@ const Homepage = () => {
     navigate(isAuthenticated ? "/dashboard" : "/register");
 
   return (
-    <Box sx={{ minHeight: "100vh", background: gradients.app }}>
+    <Box sx={{ minHeight: "100vh", background: heroBackground }}>
       {/* ── Top nav ─────────────────────────────────────────────── */}
       <Box
         sx={{
@@ -144,7 +150,6 @@ const Homepage = () => {
 
       {/* ── Hero ────────────────────────────────────────────────── */}
       <Box sx={{ position: "relative", overflow: "hidden" }}>
-        <QuantumField opacity={0.55} />
         <Container
           maxWidth="lg"
           sx={{
@@ -433,10 +438,9 @@ const Homepage = () => {
             p: { xs: 4, md: 8 },
             textAlign: "center",
             border: `1px solid ${palette.border}`,
-            background: gradients.brandSoft,
+            background: ctaBackground,
           }}
         >
-          <QuantumField opacity={0.25} />
           <Box sx={{ position: "relative" }}>
             <Typography variant="h3" sx={{ mb: 1.5 }}>
               Ready to find your alpha?

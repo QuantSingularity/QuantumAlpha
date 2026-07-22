@@ -60,12 +60,12 @@ const HomeScreen = () => {
         {/* Hero */}
         <LinearGradient
           colors={[
-            "rgba(34,211,238,0.16)",
-            "rgba(139,92,246,0.10)",
+            "rgba(34,211,238,0.14)",
+            "rgba(10,16,32,0.4)",
             "transparent",
           ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
           style={styles.hero}
         >
           <SafeAreaView edges={["top"]}>
@@ -182,7 +182,7 @@ const HomeScreen = () => {
         {/* CTA */}
         <View style={styles.section}>
           <LinearGradient
-            colors={["rgba(34,211,238,0.14)", "rgba(139,92,246,0.14)"]}
+            colors={[theme.surface, theme.card]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.cta}
