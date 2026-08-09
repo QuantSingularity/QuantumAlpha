@@ -4,7 +4,7 @@
 [![Test Coverage](https://img.shields.io/badge/coverage-78%25-yellow)](https://github.com/quantsingularity/QuantumAlpha/tests)
 [![License](https://img.shields.io/badge/License-MIT-blue)](https://github.com/quantsingularity/QuantumAlpha/LICENSE)
 
-![QuantumAlpha Dashboard](docs/images/dashboard.bmp)
+![QuantumAlpha HomePage](docs/images/homepage.bmp)
 
 ---
 
