@@ -1,281 +1,243 @@
-# QuantumAlpha - Advanced AI Hedge Fund Platform
+# QuantumAlpha
 
-![CI/CD Pipeline](https://github.com/quantsingularity/quantumalpha/actions/workflows/cicd.yml/badge.svg)
-[![Test Coverage](https://img.shields.io/badge/coverage-78%25-yellow)](https://github.com/quantsingularity/QuantumAlpha/tests)
-[![License](https://img.shields.io/badge/License-MIT-blue)](https://github.com/quantsingularity/QuantumAlpha/LICENSE)
+![CI/CD Status](https://img.shields.io/github/actions/workflow/status/quantsingularity/QuantumAlpha/cicd.yml?branch=main&label=CI%2FCD&logo=github)
 
-![QuantumAlpha HomePage](docs/images/homepage.bmp)
+## AI-Driven Quantitative Trading Platform
 
----
+QuantumAlpha is a quantitative trading platform built as a set of Flask services: an API gateway, a data service, an AI engine, a risk service, and an execution service, each independently deployable behind a shared Docker image. It's paired with a React web dashboard and a React Native mobile app. The AI engine trains and serves LSTM, CNN, Transformer-style, and reinforcement-learning models directly through its own API, rather than sitting as a disconnected library.
+
+<div align="center">
+  <img src="docs/images/homepage.bmp" alt="QuantumAlpha HomePage" width="100%">
+</div>
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Project Structure](#project-structure)
-- [Key Features](#key-features)
-- [Architecture](#architecture)
+- [Feature Status](#feature-status)
 - [Technology Stack](#technology-stack)
+- [Architecture](#architecture)
 - [Installation and Setup](#installation-and-setup)
-- [Best Practices](#best-practices)
+- [Running the Stack](#running-the-stack)
+- [API Surface](#api-surface)
 - [Testing](#testing)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
----
-
 ## Overview
 
-QuantumAlpha is a high-performance, AI-driven quantitative trading platform that ingests market and alternative data, trains advanced ML models, and executes strategies with low-latency execution. Built on microservices and an event-driven architecture, it provides model lifecycle management, robust risk controls, smart order routing, and real-time monitoring to generate and protect alpha.
-
----
+QuantumAlpha demonstrates a quantitative trading workflow across a real, runnable set of services. The data, AI engine, risk, and execution services are each standalone Flask apps that can run as separate containers, while portfolio management and the trading engine run in-process inside the API gateway rather than as their own services. The AI engine's model lifecycle (create, train, predict, evaluate) is genuinely implemented for LSTM, CNN, and Transformer-style networks (TensorFlow/Keras) and for reinforcement-learning agents (PPO, DQN, A2C, SAC via Stable-Baselines3).
 
 ## Project Structure
 
-The project is organized into several main components:
-
 ```
 QuantumAlpha/
-├── code/                   # Core backend logic, services, and shared utilities
-├── docs/                   # Project documentation
-├── infrastructure/         # DevOps, deployment, and infra-related code
-├── mobile-frontend/        # Mobile application
-├── web-frontend/           # Web dashboard
-├── scripts/                # Automation, setup, and utility scripts
-├── LICENSE                 # License information
-└── README.md               # Project overview and instructions
+├── code/
+│   ├── backend/
+│   │   ├── api/                  # API gateway (Flask): auth, portfolio, trading,
+│   │   │                         # admin, system endpoints
+│   │   ├── data_service/         # Standalone service: market and alternative data
+│   │   ├── execution_service/    # Standalone service: orders, broker adapter
+│   │   ├── risk_service/         # Standalone service: VaR, stress testing, position sizing
+│   │   ├── portfolio_service/    # In-process module (imported by the API gateway)
+│   │   ├── trading_engine/       # In-process module (imported by the API gateway)
+│   │   ├── analytics_service/    # Performance attribution, factor analysis
+│   │   ├── compliance_service/   # Compliance monitoring, regulatory reporting
+│   │   ├── common/               # Shared auth, database, messaging, monitoring
+│   │   └── tests/                # Backend test suite (pytest)
+│   ├── ai_models/
+│   │   ├── engine/               # Standalone service: model_manager, prediction_service,
+│   │   │                         # reinforcement_learning
+│   │   └── tests/                # AI engine test suite (pytest)
+│   └── Dockerfile.service        # Shared image; APP_MODULE build arg selects the service
+├── web-frontend/                 # React (Vite) dashboard
+├── mobile-frontend/              # React Native app
+├── infrastructure/               # Docker, Kubernetes, Terraform, monitoring
+├── scripts/                      # Setup, run, test, and deploy scripts
+├── docs/                         # Documentation (this directory)
+└── README.md
 ```
 
-## Key Features
+## Feature Status
 
-QuantumAlpha's functionality is structured around five core pillars of a modern quantitative trading system.
+### Application tier (wired and tested)
 
-### AI-Driven Trading Strategies
-
-The platform's alpha generation relies on sophisticated AI models:
-
-- **Machine Learning (ML) and Deep Learning Models**: Predict market movements using time-series models such as **LSTM/GRU networks** and **Transformer architectures**.
-- **Reinforcement Learning (RL)**: Trains agents (e.g., Deep Q-Networks, PPO, or Actor-Critic methods) to make trade and portfolio decisions via simulated reward maximization.
-- **Model Robustness**: Employs ensemble and meta-learning techniques, alongside online learning, to enhance model stability.
-- **Explainable AI (XAI)**: Provides model interpretability through SHAP plots and feature importance bars per trade.
-
-### Alternative Data Processing
-
-Leveraging non-traditional data sources for an edge:
-
-- **Sentiment Analysis**: Processes news and social media sentiment using NLP transformers.
-- **Geospatial Data**: Utilizes satellite imagery analysis for insights into commodity markets.
-- **Supply Chain Indicators**: Automated feature extraction from web-scraped data using techniques like PCA or autoencoders.
-- **Data Fusion**: Combines structured market data (prices, volumes) with unstructured alternative data for comprehensive signal generation.
-
-### Risk Management System
-
-A robust framework for capital preservation and risk control:
-
-- **Risk Assessment**: Uses **Bayesian Value at Risk (VaR)** for probabilistic risk assessment.
-- **Stress Testing**: Implements a scenario-based framework for evaluating risk under extreme market conditions.
-- **Position Sizing**: Optimizes capital allocation using the **Kelly criterion** and risk parity approaches.
-- **Continuous Monitoring**: Provides real-time risk metrics and alerts to ensure compliance with risk limits.
-
-### Execution Engine
-
-Optimizing trade execution for minimal market impact:
-
-- **Smart Order Routing (SOR)**: Ensures optimal execution across multiple trading venues.
-- **Adaptive Algorithms**: Features TWAP, VWAP, and ML-enhanced variants of execution algorithms.
-- **Market Impact Modeling**: Includes Transaction Cost Analysis (TCA) to minimize trading costs.
-- **High-Frequency Capabilities**: Designed for sub-millisecond order management.
-
-### Data Pipeline & Monitoring
-
-Managing the flow and visibility of critical information:
-
-- **Data Ingestion**: Collects market data, fundamentals, and alternative sources via real-time and batch pipelines, often utilizing **Apache Kafka** or cloud pub/sub platforms.
-- **Historical Data**: Efficient storage and retrieval of time-series data for backtesting and training.
-- **Feature Engineering**: Automated feature extraction and selection for model inputs.
-- **Real-time Dashboard**: Provides comprehensive monitoring of P&L charts, risk metrics, strategy controls, and audit logs.
-
----
-
-## Architecture
-
-QuantumAlpha follows a microservices architecture, with components logically grouped into layers for clear separation of concerns, scalability, and resilience.
-
-### Architectural Components
-
-The system is divided into five primary layers:
-
-| Layer                     | Key Components                                                                                                  | Function                                                                                                                           |
-| :------------------------ | :-------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
-| **Data Layer**            | Market Data Collectors, Alternative Data Processors, Feature Engineering Pipeline, Data Storage                 | Ingests, processes, and stores all market and alternative data for the platform.                                                   |
-| **AI Engine**             | Model Training Service, Prediction Service, Reinforcement Learning Environment, Model Registry                  | Manages the entire ML lifecycle, from distributed training and hyperparameter tuning to real-time inference and signal generation. |
-| **Risk Management**       | Portfolio Construction, Risk Calculation Service (VaR, stress testing), Position Sizing, Risk Monitoring        | Calculates, monitors, and manages portfolio risk and optimal capital allocation.                                                   |
-| **Execution Layer**       | Order Management System (OMS), Execution Algorithms (SOR, TWAP, VWAP), Broker Connectivity, Post-Trade Analysis | Manages the lifecycle of trade orders, from signal generation to final execution and cost analysis.                                |
-| **Frontend Applications** | Admin Dashboard, Analytics Interface, Configuration Portal, Documentation Hub                                   | Provides user interfaces for strategy monitoring, performance visualization, and system configuration.                             |
-
-### Event-Driven Communication
-
-The platform relies on an event-driven architecture for low-latency, asynchronous communication between services:
-
-1.  **Market Events**: Price updates, order book changes, and trade executions.
-2.  **Signal Events**: Model predictions and trading signals generated by the AI Engine.
-3.  **Order Events**: Order creation, updates, and execution reports from the Execution Layer.
-4.  **System Events**: Infrastructure scaling and monitoring alerts.
-
----
+| Component                    | Details                                                                                                                                                                                                                                                        |
+| :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **API gateway**              | Flask app exposing `/api/auth`, `/api/portfolio`, `/api/trade`, `/api/admin`, and `/api/system` routes, plus `/health`. Portfolio management and the trading engine run in-process here rather than as separate services.                                      |
+| **Data service**             | Standalone Flask app for market data and alternative data, backed by PostgreSQL, InfluxDB (time series), MongoDB (alternative data), and Redis.                                                                                                                |
+| **AI engine**                | Standalone Flask app with a real model lifecycle: create, train, predict, evaluate, and delete for LSTM, CNN, and Transformer-style networks (TensorFlow/Keras), plus reinforcement-learning agents (PPO, DQN, A2C, SAC via Stable-Baselines3).                |
+| **Risk service**             | Standalone Flask app for Value at Risk, stress testing, position sizing, and an online-learning risk updater.                                                                                                                                                  |
+| **Execution service**        | Standalone Flask app for order management, execution strategies, and a broker adapter. The adapter is a generic HTTP client against a configurable `broker.url`; Alpaca API key fields exist in configuration, but there's no Alpaca-specific SDK integration. |
+| **Messaging**                | Kafka producer and consumer classes (via `confluent-kafka`) in the shared `common` module, now added to `requirements.txt`. `alpaca-trade-api` and `pika` are also listed there but aren't imported anywhere in the codebase.                                  |
+| **Auth**                     | JWT sessions via Flask-JWT-Extended, with MFA-related fields on the user model. The signing key falls back to a placeholder default if `SECRET_KEY` is unset, with no check that rejects the placeholder in production.                                        |
+| **Compliance and analytics** | Standalone modules for compliance monitoring, regulatory reporting, performance attribution, and factor analysis, imported by the API gateway.                                                                                                                 |
+| **Web dashboard**            | React app (JavaScript) with Redux Toolkit for state, Material-UI for components, and Recharts for charts.                                                                                                                                                      |
+| **Mobile app**               | React Native app (a mix of TypeScript and JavaScript) with React Navigation, Zustand for state, and `react-native-chart-kit` for charts.                                                                                                                       |
 
 ## Technology Stack
 
-The platform is built with a polyglot technology stack optimized for high performance and quantitative finance requirements.
+| Area             | Technology                                                                                                     |
+| :--------------- | :------------------------------------------------------------------------------------------------------------- |
+| Backend services | Python 3.11, Flask, Gunicorn                                                                                   |
+| Auth             | Flask-JWT-Extended, MFA-related user model fields                                                              |
+| Data layer       | PostgreSQL, MongoDB, InfluxDB, Redis                                                                           |
+| Messaging        | Kafka (confluent-kafka)                                                                                        |
+| ML / RL          | TensorFlow/Keras (LSTM, CNN, Transformer-style networks), Stable-Baselines3 (PPO, DQN, A2C, SAC), scikit-learn |
+| Web frontend     | React 18, Redux Toolkit, Material-UI, Recharts, Vite                                                           |
+| Mobile frontend  | React Native, TypeScript and JavaScript, React Navigation, Zustand, react-native-chart-kit                     |
+| Infrastructure   | Docker, Docker Compose, Kubernetes, Terraform                                                                  |
+| Monitoring       | Prometheus, Grafana, Elasticsearch, Kibana                                                                     |
+| CI/CD            | GitHub Actions                                                                                                 |
+| Testing          | pytest (backend and AI engine), Jest (web and mobile)                                                          |
 
-### Core Technologies
+## Architecture
 
-| Category                | Key Technologies                                                    | Description                                                                                                |
-| :---------------------- | :------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------- |
-| **Languages**           | Python, JavaScript/JSX                                              | Python for all backend ML/data/trading services; JavaScript/JSX for web and React Native mobile frontends. |
-| **ML Frameworks**       | PyTorch, TensorFlow, scikit-learn, Ray                              | Comprehensive suite for deep learning, traditional ML, and distributed computing.                          |
-| **Data Processing**     | Pandas, NumPy, Dask, Apache Spark                                   | Libraries for efficient data manipulation, large-scale data processing, and distributed computing.         |
-| **Financial Libraries** | QuantLib, Backtrader/zipline, PyPortfolioOpt                        | Specialized tools for quantitative finance, backtesting, and portfolio optimization.                       |
-| **Data Storage**        | InfluxDB (time series), PostgreSQL (relational), MongoDB (document) | Polyglot persistence strategy for specialized data types.                                                  |
-| **Streaming**           | Kafka, Redis Streams                                                | High-throughput message brokers for real-time data ingestion and event management.                         |
+```
+Clients
+  ├── web-frontend (React)               ── HTTP/JSON ──┐
+  └── mobile-frontend (React Native)     ── HTTP/JSON ──┤
+                                                        ▼
+API Gateway (Flask)
+  /api/auth · /api/portfolio · /api/trade · /api/admin · /api/system
+  Runs the portfolio_service and trading_engine modules in-process.
 
-### Frontend & Infrastructure
+Standalone services (each a separate Flask app, same shared Docker image)
+  data-service     market data, alternative data, feature engineering
+  ai-engine        model lifecycle (LSTM, CNN, Transformer, RL agents)
+  risk-service     VaR, stress testing, position sizing, online learning
+  execution-service order management, execution strategies, broker adapter
 
-| Category             | Key Technologies                                                     | Description                                                                                                  |
-| :------------------- | :------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------- |
-| **Frontend**         | React, TypeScript, D3.js, Plotly, Redux Toolkit, Material-UI         | Modern stack for a responsive, data-intensive web dashboard with advanced visualization capabilities.        |
-| **Containerization** | Docker, Kubernetes                                                   | Ensures deployment flexibility, service mesh capabilities, and GitOps-based continuous delivery.             |
-| **DevOps & MLOps**   | GitHub Actions, AWS/GCP, Prometheus, Grafana, ELK Stack, MLflow, DVC | Automated CI/CD, multi-cloud deployment, full observability, and MLOps tools for model lifecycle management. |
+Data layer
+  PostgreSQL · MongoDB · InfluxDB · Redis · Kafka
+```
 
----
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detail.
 
 ## Installation and Setup
 
-### Prerequisites
+Prerequisites: Python 3.11+, Node.js 18+, and Docker (for the full multi-service stack).
 
-To set up the platform, ensure you have the following installed:
+```bash
+git clone https://github.com/quantsingularity/QuantumAlpha.git
+cd QuantumAlpha
 
-- **Python** (v3.10+)
-- **Docker** and Docker Compose
-- **Node.js** (v16+)
-- **CUDA-compatible GPU** (highly recommended for ML training)
+# Backend (installs dependencies shared by all Flask services)
+cd code/backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 
-### Quick Setup
+# Web frontend
+cd ../../web-frontend
+npm install
 
-The fastest way to get the development environment running is using the provided script:
+# Mobile frontend
+cd ../mobile-frontend
+npm install
+```
 
-| Step                     | Command                                                                             | Description                                                     |
-| :----------------------- | :---------------------------------------------------------------------------------- | :-------------------------------------------------------------- |
-| **1. Clone Repository**  | `git clone https://github.com/quantsingularity/QuantumAlpha.git && cd QuantumAlpha` | Download the source code and navigate to the project directory. |
-| **2. Run Setup Script**  | `./setup_env.sh`                                                                    | Installs dependencies and configures the local environment.     |
-| **3. Start Application** | `docker-compose up`                                                                 | Starts all core services, databases, and the API Gateway.       |
+For an automated setup:
 
-**Access Points:**
+```bash
+git clone https://github.com/quantsingularity/QuantumAlpha.git
+cd QuantumAlpha
+./scripts/setup_env.sh
+docker-compose -f infrastructure/docker-compose.yml up
+```
 
-- **Dashboard**: `http://localhost:3000`
-- **API Gateway**: `http://localhost:8080`
-- **Swagger Documentation**: `http://localhost:8080/api-docs`
+Full, environment-specific instructions are in [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
-### Manual Setup
+## Running the Stack
 
-For manual setup, you must first configure the necessary environment variables in a `.env` file, including database credentials, API keys for data providers (Alpha Vantage, Polygon), and broker configurations (e.g., Alpaca). Individual services must then be started using their respective commands (e.g., `python main.py` for Python services, `npm start` for the frontend).
+```bash
+# Full stack, including Postgres, MongoDB, InfluxDB, Redis, Kafka, and every service
+docker-compose -f infrastructure/docker-compose.yml up
 
----
+# Or, run an individual Flask service directly (from code/, venv active)
+APP_MODULE=backend.data_service.app:app python -m flask run --port 8081
+APP_MODULE=backend.risk_service.app:app python -m flask run --port 8083
+APP_MODULE=backend.execution_service.app:app python -m flask run --port 8084
+APP_MODULE=ai_models.engine.app:app python -m flask run --port 8082
 
-## AI/ML Model Performance
+# API gateway (from code/backend, venv active)
+python -m api.main                 # serves http://0.0.0.0:8080
 
-QuantumAlpha's models are validated through rigorous walk-forward out-of-sample evaluation.
-Full tearsheets are in **[docs/ML_MODEL_PERFORMANCE.md](docs/ML_MODEL_PERFORMANCE.md)**.
+# Web dashboard (from web-frontend)
+npm run dev
 
-| Model               | OOS Sharpe | OOS Ann. Return | Max Drawdown |
-| ------------------- | ---------- | --------------- | ------------ |
-| LSTM (1-day)        | 1.82       | +24.3 %         | −14.7 %      |
-| Transformer (5-day) | 2.04       | +27.1 %         | −12.3 %      |
-| PPO RL Agent        | 2.31       | +31.4 %         | −11.8 %      |
-| **Ensemble**        | **2.58**   | **+34.7 %**     | **−10.4 %**  |
-| S&P 500 Benchmark   | 0.82       | +14.8 %         | −33.9 %      |
+# Mobile app (from mobile-frontend)
+npm start
+```
 
-All models are statistically significant vs. benchmark (Jobson-Korkie p < 0.05).
+See [docs/USAGE.md](docs/USAGE.md) and [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
-## Best Practices
+## API Surface
 
-The development and operation of QuantumAlpha adhere to strict best practices for quantitative systems:
+Each service exposes its own `/health` check.
 
-- **Version Control**: Rigorous version control for both code and data using **DVC** and **MLflow**.
-- **Testing**: Comprehensive unit and integration tests for strategy logic and risk calculations.
-- **Safety**: Deployment of **"kill-switch" mechanisms** to halt trading if risk metrics exceed predefined thresholds.
-- **Monitoring**: Continuous review of model outputs for regime shifts or performance degradation.
-- **Documentation**: Thorough documentation of all models, data sources, and system components.
-- **Reproducibility**: Emphasis on reproducible research and trading strategies.
+| Service           | Highlights                                                                                                                                                              |
+| :---------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API gateway       | `/api/auth/{register,login,logout,me}`, `/api/portfolio`, `/api/portfolio/positions`, `/api/trade/order`, `/api/trade/orders`, `/api/admin/users`, `/api/system/status` |
+| Data service      | `/api/market-data/{symbol}`, `/api/alternative-data/{source}`, `/api/features/{symbol}`, `/api/data-sources`                                                            |
+| AI engine         | `/api/models`, `/api/models/{id}`, `/api/train-model`, `/api/predict`, `/api/generate-signals`, `/api/rl/train`, `/api/rl/act`                                          |
+| Risk service      | `/api/risk-metrics`, `/api/stress-test`, `/api/calculate-position`, `/api/portfolio-risk`, `/api/risk-alerts`                                                           |
+| Execution service | `/api/orders`, `/api/orders/{id}/cancel`, `/api/execution-strategies`, `/api/brokers`, `/api/brokers/{id}/accounts`                                                     |
 
----
+Full request and response shapes are in [docs/API.md](docs/API.md).
 
 ## Testing
 
-QuantumAlpha maintains approximately **78% test coverage** across the platform, utilizing a comprehensive testing strategy to ensure reliability and performance.
+```bash
+# Backend (from code/backend)
+pytest
 
-### Testing Strategy
+# AI engine (from code/ai_models)
+pytest
 
-| Test Type             | Description                                                                 | Purpose                                                                         |
-| :-------------------- | :-------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
-| **Unit Tests**        | Individual components and functions tested in isolation.                    | Verifies correctness of core logic (e.g., signal generation, risk calculation). |
-| **Integration Tests** | Interactions between services (e.g., Data Layer to AI Engine).              | Ensures components work together seamlessly.                                    |
-| **System Tests**      | End-to-end workflows (e.g., signal to execution).                           | Validates critical user and trading journeys.                                   |
-| **Backtests**         | Historical performance validation using the Event-Driven Simulator.         | Evaluates strategy profitability and robustness over time.                      |
-| **Stress Tests**      | System behavior under extreme conditions (e.g., high-volume market events). | Confirms system resilience and capacity limits.                                 |
+# Web (from web-frontend)
+npm test
 
-### Running Tests
+# Mobile (from mobile-frontend)
+npm test
+```
 
-Tests are executed using `pytest` for the backend and `Jest`/`Cypress` for the frontend.
-
-| Test Scope            | Command Example                                   |
-| :-------------------- | :------------------------------------------------ |
-| **All Backend Tests** | `pytest`                                          |
-| **Specific Category** | `pytest tests/unit` or `pytest tests/integration` |
-| **Coverage Report**   | `pytest --cov=src tests/`                         |
-
----
+The mobile app also has an `e2e/` directory for end-to-end tests. The backend suite covers 7 test files across the services; the AI engine suite covers 3.
 
 ## CI/CD Pipeline
 
-QuantumAlpha uses GitHub Actions for continuous integration and deployment:
+GitHub Actions (`.github/workflows/cicd.yml`) runs three jobs on push, pull request, and manual dispatch:
 
-| Stage                | Control Area                    | Institutional-Grade Detail                                                              |
-| :------------------- | :------------------------------ | :-------------------------------------------------------------------------------------- |
-| **Formatting Check** | Change Triggers                 | Enforced on all `push` and `pull_request` events to `main` and `develop`                |
-|                      | Manual Oversight                | On-demand execution via controlled `workflow_dispatch`                                  |
-|                      | Source Integrity                | Full repository checkout with complete Git history for auditability                     |
-|                      | Python Runtime Standardization  | Python 3.10 with deterministic dependency caching                                       |
-|                      | Backend Code Hygiene            | `autoflake` to detect unused imports/variables using non-mutating diff-based validation |
-|                      | Backend Style Compliance        | `black --check` to enforce institutional formatting standards                           |
-|                      | Non-Intrusive Validation        | Temporary workspace comparison to prevent unauthorized source modification              |
-|                      | Node.js Runtime Control         | Node.js 18 with locked dependency installation via `npm ci`                             |
-|                      | Web Frontend Formatting Control | Prettier checks for web-facing assets                                                   |
-|                      | Mobile Frontend Formatting      | Prettier enforcement for mobile application codebases                                   |
-|                      | Documentation Governance        | Repository-wide Markdown formatting enforcement                                         |
-|                      | Infrastructure Configuration    | Prettier validation for YAML/YML infrastructure definitions                             |
-|                      | Compliance Gate                 | Any formatting deviation fails the pipeline and blocks merge                            |
+| Job                 | Depends on          | What it does                                                                       |
+| :------------------ | :------------------ | :--------------------------------------------------------------------------------- |
+| Code Quality Checks | -                   | Python formatter checks (autoflake, black) and a repository-wide Prettier check    |
+| Backend Tests       | Code Quality Checks | Runs the pytest suite with coverage and uploads the coverage report as an artifact |
+| Frontend Build      | Code Quality Checks | Installs dependencies and produces the production web build (no test step)         |
 
----
+There is currently no CI job for the AI engine or the mobile app, even though both have their own test suites.
 
 ## Documentation
 
-| Document                    | Path                 | Description                                                    |
-| :-------------------------- | :------------------- | :------------------------------------------------------------- |
-| **README**                  | `README.md`          | High-level overview, project scope, and repository entry point |
-| **Installation Guide**      | `INSTALLATION.md`    | Step-by-step installation and environment setup                |
-| **API Reference**           | `API.md`             | Detailed documentation for all API endpoints                   |
-| **CLI Reference**           | `CLI.md`             | Command-line interface usage, commands, and examples           |
-| **User Guide**              | `USAGE.md`           | Comprehensive end-user guide, workflows, and examples          |
-| **Architecture Overview**   | `ARCHITECTURE.md`    | System architecture, components, and design rationale          |
-| **Configuration Guide**     | `CONFIGURATION.md`   | Configuration options, environment variables, and tuning       |
-| **Feature Matrix**          | `FEATURE_MATRIX.md`  | Feature coverage, capabilities, and roadmap alignment          |
-| **Contributing Guidelines** | `CONTRIBUTING.md`    | Contribution workflow, coding standards, and PR requirements   |
-| **Troubleshooting**         | `TROUBLESHOOTING.md` | Common issues, diagnostics, and remediation steps              |
+| Document                                                     | Contents                               |
+| :----------------------------------------------------------- | :------------------------------------- |
+| [docs/README.md](docs/README.md)                             | Documentation index                    |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                 | System architecture                    |
+| [docs/API.md](docs/API.md)                                   | REST API reference                     |
+| [docs/INSTALLATION.md](docs/INSTALLATION.md)                 | Setup for all components               |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md)               | Environment variables and config       |
+| [docs/USAGE.md](docs/USAGE.md)                               | Running and using the platform         |
+| [docs/CLI.md](docs/CLI.md)                                   | Helper scripts reference               |
+| [docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md)             | Feature status, implemented vs planned |
+| [docs/ML_MODEL_PERFORMANCE.md](docs/ML_MODEL_PERFORMANCE.md) | Model evaluation methodology           |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)           | Common issues and fixes                |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)                 | Contribution guide                     |
+| [docs/examples/](docs/examples/)                             | Worked examples                        |
 
----
+## Contributing
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -44,6 +44,7 @@ websockets==10.4
 
 # Messaging and streaming
 pika==1.3.2
+confluent-kafka==2.3.0
 
 # Configuration and environment
 python-dotenv==1.0.0
