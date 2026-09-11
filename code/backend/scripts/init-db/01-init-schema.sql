@@ -6,13 +6,6 @@
 --   Every UNIQUE / PRIMARY KEY constraint on a hypertable MUST include the
 --   partition column (timestamp).  Any unique index that omits it causes:
 --     ERROR: cannot create a unique index without the column "timestamp"
---
--- Affected tables fixed below (all had a bare `id` primary key):
---   market_data.alternative_data
---   ai_models.prediction_history
---   ai_models.signals
---   risk_management.risk_metrics
---   execution.trades
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -69,12 +62,6 @@ SELECT create_hypertable(
     if_not_exists => TRUE   -- safe on re-run
 );
 
--- -----------------------------------------------------------------------------
--- alternative_data — hypertable
--- FIX: was `id SERIAL PRIMARY KEY` — unique index without timestamp → CRASH.
---      Changed to BIGINT GENERATED ALWAYS AS IDENTITY with composite PK
---      (id, timestamp) so TimescaleDB can partition without conflict.
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS market_data.alternative_data (
     id          BIGINT      GENERATED ALWAYS AS IDENTITY,
     source      TEXT        NOT NULL,
@@ -141,11 +128,6 @@ CREATE TABLE IF NOT EXISTS ai_models.model_versions (
     UNIQUE (model_id, version)
 );
 
--- -----------------------------------------------------------------------------
--- prediction_history — hypertable
--- FIX: was `id SERIAL PRIMARY KEY` → CRASH.
---      Composite PK (id, timestamp) applied.
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ai_models.prediction_history (
     id          BIGINT      GENERATED ALWAYS AS IDENTITY,
     model_id    TEXT        NOT NULL,
@@ -165,11 +147,6 @@ SELECT create_hypertable(
     if_not_exists => TRUE
 );
 
--- -----------------------------------------------------------------------------
--- signals — hypertable
--- FIX: was `id SERIAL PRIMARY KEY` → CRASH.
---      Composite PK (id, timestamp) applied.
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ai_models.signals (
     id          BIGINT      GENERATED ALWAYS AS IDENTITY,
     model_id    TEXT,
@@ -218,11 +195,6 @@ CREATE TABLE IF NOT EXISTS risk_management.positions (
     UNIQUE (portfolio_id, symbol)
 );
 
--- -----------------------------------------------------------------------------
--- risk_metrics — hypertable
--- FIX: was `id SERIAL PRIMARY KEY` → CRASH.
---      Composite PK (id, timestamp) applied.
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS risk_management.risk_metrics (
     id                 BIGINT      GENERATED ALWAYS AS IDENTITY,
     portfolio_id       TEXT        NOT NULL,
@@ -278,12 +250,6 @@ CREATE TABLE IF NOT EXISTS execution.orders (
     FOREIGN KEY (symbol)       REFERENCES market_data.symbols(symbol)
 );
 
--- -----------------------------------------------------------------------------
--- trades — hypertable
--- FIX: was `id VARCHAR(50) PRIMARY KEY` → CRASH.
---      id kept as TEXT (explicitly supplied by callers, not auto-generated).
---      Composite PK (id, timestamp) applied.
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS execution.trades (
     id          TEXT        NOT NULL,
     order_id    TEXT        NOT NULL,

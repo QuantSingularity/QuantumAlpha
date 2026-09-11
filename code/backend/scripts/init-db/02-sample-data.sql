@@ -156,13 +156,6 @@ VALUES
     ('order_007', 'portfolio_003', 'ETH-USD', 'limit',  'buy',   10, 3000.0,   'day', 'filled', 'broker_order_007', NULL)
 ON CONFLICT (id) DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- Trades  (hypertable — PK is now composite (id, timestamp))
---
--- FIX: ON CONFLICT must reference all columns of the PRIMARY KEY.
---      Was: ON CONFLICT (id)
---      Now: ON CONFLICT (id, timestamp)
--- ---------------------------------------------------------------------------
 INSERT INTO execution.trades
     (id, order_id, symbol, side, quantity, price, commission, timestamp)
 VALUES
