@@ -23,6 +23,7 @@ from backend.common.validation import CancelOrderRequest, OrderRequest
 from backend.execution_service.broker_integration import BrokerIntegration
 from backend.execution_service.execution_strategy import ExecutionStrategy
 from backend.execution_service.order_manager import OrderManager
+from backend.execution_service.trading_service import TradingService
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -40,6 +41,7 @@ execution_strategy = ExecutionStrategy(config_manager, db_manager)
 order_manager = OrderManager(
     config_manager, db_manager, broker_integration, execution_strategy
 )
+trading_service = TradingService(config_manager, db_manager)
 
 
 @app.errorhandler(Exception)
@@ -220,5 +222,62 @@ def get_broker_positions(broker_id: object) -> None:
             raise ServiceError(str(e))
 
 
+@app.route("/api/trade-from-signal", methods=["POST"])
+def trade_from_signal() -> None:
+    """Execute a trade from an already-generated trading signal"""
+    try:
+        data = request.json or {}
+        signal = data.get("signal")
+        portfolio_id = data.get("portfolio_id")
+        if not signal:
+            raise ValidationError("Signal is required")
+        if not portfolio_id:
+            raise ValidationError("Portfolio ID is required")
+        result = trading_service.execute_trade_from_signal(signal, portfolio_id)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error executing trade from signal: {e}")
+        if isinstance(e, ServiceError):
+            raise
+        else:
+            raise ServiceError(str(e))
+
+
+@app.route("/api/trade-from-model", methods=["POST"])
+def trade_from_model() -> None:
+    """Get a prediction from the AI engine and execute a trade from it"""
+    try:
+        data = request.json or {}
+        model_id = data.get("model_id")
+        symbol = data.get("symbol")
+        portfolio_id = data.get("portfolio_id")
+        if not model_id:
+            raise ValidationError("Model ID is required")
+        if not symbol:
+            raise ValidationError("Symbol is required")
+        if not portfolio_id:
+            raise ValidationError("Portfolio ID is required")
+        result = trading_service.execute_trade_from_model(
+            model_id=model_id,
+            symbol=symbol,
+            portfolio_id=portfolio_id,
+            timeframe=data.get("timeframe", "1d"),
+            period=data.get("period", "1mo"),
+            horizon=int(data.get("horizon", 5)),
+        )
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error executing trade from model: {e}")
+        if isinstance(e, ServiceError):
+            raise
+        else:
+            raise ServiceError(str(e))
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    port = int(
+        config_manager.get("services.execution_service.port")
+        or os.getenv("PORT")
+        or os.getenv("EXECUTION_SERVICE_PORT", "8084")
+    )
+    app.run(host="0.0.0.0", port=port, debug=True)

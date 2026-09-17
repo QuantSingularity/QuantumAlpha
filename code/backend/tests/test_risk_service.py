@@ -3,7 +3,7 @@ Unit tests for the Risk Service.
 """
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -200,6 +200,101 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertTrue("benchmark" in result)
         self.assertTrue(isinstance(result["beta"], float))
         self.assertEqual(result["benchmark"], "SPY")
+
+    def test_calculate_portfolio_value_with_prediction(self) -> None:
+        """Test the ai_engine-backed predicted portfolio value.
+
+        Previously this called a GET /api/predict/<model_id>/<symbol> URL
+        that didn't exist on the AI engine (only POST /api/predict did),
+        so every position silently fell back to its current price with no
+        real prediction ever happening. Now that route exists (see
+        ai_models/engine/routes/prediction_routes.py:predict_get) and
+        returns exactly the {"prediction": {"average": ...}} shape this
+        method expects.
+        """
+        self.config_manager.get.return_value = "http://localhost:8082"
+        fake_response = MagicMock()
+        fake_response.status_code = 200
+        fake_response.json.return_value = {
+            "symbol": "AAPL",
+            "prediction": {"average": 175.0},
+        }
+        with patch("requests.get", return_value=fake_response) as mock_get:
+            result = self.risk_calculator.calculate_portfolio_value_with_prediction(
+                portfolio=self.portfolio, model_id="model_1"
+            )
+        self.assertEqual(result["portfolio_id"], "portfolio1")
+        self.assertIn("current_value", result)
+        self.assertIn("predicted_value", result)
+        called_url = mock_get.call_args[0][0]
+        self.assertIn("/api/predict/model_1/", called_url)
+
+    def test_calculate_portfolio_value_with_prediction_unreachable(self) -> None:
+        """When the AI engine can't be reached, positions fall back to their
+        current price rather than raising."""
+        self.config_manager.get.return_value = "http://localhost:8082"
+        with patch("requests.get", side_effect=ConnectionError("no route to host")):
+            result = self.risk_calculator.calculate_portfolio_value_with_prediction(
+                portfolio=self.portfolio, model_id="model_1"
+            )
+        self.assertEqual(result["current_value"], result["predicted_value"])
+
+    def test_calculate_risk_metrics(self) -> None:
+        """calculate_risk_metrics should bundle VaR/ES per confidence level
+        plus the Sharpe ratio, built on the individual calculator methods."""
+        self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
+        result = self.risk_calculator.calculate_risk_metrics(
+            portfolio=self.portfolio, confidence_levels=[0.95, 0.99], timeframe="1m"
+        )
+        self.assertEqual(result["portfolio_id"], "portfolio1")
+        self.assertEqual(result["timeframe"], "1m")
+        self.assertIn("0.95", result["var"])
+        self.assertIn("0.99", result["var"])
+        self.assertIn("0.95", result["expected_shortfall"])
+        self.assertIn("sharpe_ratio", result)
+        self.assertIn("positions", result)
+
+    def test_calculate_risk_metrics_excludes_positions(self) -> None:
+        self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
+        result = self.risk_calculator.calculate_risk_metrics(
+            portfolio=self.portfolio, include_positions=False
+        )
+        self.assertNotIn("positions", result)
+
+    def test_get_portfolio_risk(self) -> None:
+        """get_portfolio_risk is a thin, default-args wrapper around
+        calculate_risk_metrics."""
+        self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
+        result = self.risk_calculator.get_portfolio_risk(self.portfolio)
+        self.assertEqual(result["portfolio_id"], "portfolio1")
+        self.assertIn("var", result)
+
+    def test_get_risk_alerts_var_breach(self) -> None:
+        self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
+        alerts = self.risk_calculator.get_risk_alerts(
+            self.portfolio, var_threshold_percent=0.0001
+        )
+        self.assertTrue(any(a["type"] == "var_breach" for a in alerts))
+
+    def test_get_risk_alerts_concentration(self) -> None:
+        self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
+        alerts = self.risk_calculator.get_risk_alerts(
+            self.portfolio,
+            var_threshold_percent=100.0,
+            concentration_threshold_percent=10.0,
+        )
+        concentration_alerts = [a for a in alerts if a["type"] == "concentration"]
+        self.assertTrue(len(concentration_alerts) >= 1)
+        self.assertTrue(all("symbol" in a for a in concentration_alerts))
+
+    def test_get_risk_alerts_none_when_within_thresholds(self) -> None:
+        self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
+        alerts = self.risk_calculator.get_risk_alerts(
+            self.portfolio,
+            var_threshold_percent=100.0,
+            concentration_threshold_percent=100.0,
+        )
+        self.assertEqual(alerts, [])
 
 
 class TestPositionSizing(unittest.TestCase):
@@ -547,6 +642,44 @@ class TestStressTesting(unittest.TestCase):
         self.assertEqual(result["final_value"], final_value)
         self.assertEqual(result["change"], change)
         self.assertEqual(result["change_percent"], change_percent)
+
+    def test_run_stress_test_dispatches_custom(self) -> None:
+        """run_stress_test("custom", shocks=...) should dispatch to
+        run_custom_scenario, converting fraction shocks (-1.0 to 10.0) to
+        the percentages run_custom_scenario's price_changes expects."""
+        result = self.stress_testing.run_stress_test(
+            portfolio=self.portfolio,
+            scenario_name="custom",
+            shocks={"AAPL": -0.15},
+        )
+        self.assertEqual(result["scenario_name"], "custom")
+        aapl_position = next(p for p in result["positions"] if p["symbol"] == "AAPL")
+        self.assertAlmostEqual(aapl_position["change_percent"], -15.0)
+
+    def test_run_stress_test_dispatches_historical(self) -> None:
+        """run_stress_test(<a known historical name>) should dispatch to
+        run_historical_scenario with that scenario's canned date range."""
+        self.stress_testing._get_historical_data = MagicMock(return_value={})
+        result = self.stress_testing.run_stress_test(
+            portfolio=self.portfolio, scenario_name="covid_crash_2020"
+        )
+        self.assertEqual(result["scenario"], "covid_crash_2020")
+        self.assertEqual(result["start_date"], "2020-02-01")
+        self.assertEqual(result["end_date"], "2020-04-01")
+
+    def test_run_stress_test_custom_without_shocks(self) -> None:
+        """A custom scenario without shocks should raise, not silently
+        run_custom_scenario with an empty/missing price_changes dict."""
+        with self.assertRaises(ValidationError):
+            self.stress_testing.run_stress_test(
+                portfolio=self.portfolio, scenario_name="custom"
+            )
+
+    def test_run_stress_test_unknown_scenario(self) -> None:
+        with self.assertRaises(ValidationError):
+            self.stress_testing.run_stress_test(
+                portfolio=self.portfolio, scenario_name="not_a_real_scenario"
+            )
 
 
 if __name__ == "__main__":

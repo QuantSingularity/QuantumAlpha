@@ -191,10 +191,7 @@ class ReinforcementLearningService:
     def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
         self.db_manager = db_manager
-        self.data_service_url = (
-            f"http://{config_manager.get('services.data_service.host')}"
-            f":{config_manager.get('services.data_service.port')}"
-        )
+        self.data_service_url = config_manager.get("services.data_service.url")
         self.model_dir = config_manager.get(
             "ai_engine.rl_model_dir", "backend/rl_models"
         )
@@ -493,7 +490,7 @@ class ReinforcementLearningService:
         self, market_data: List[Dict[str, Any]], features: List[str]
     ) -> pd.DataFrame:
         try:
-            from data_service.data_processor import DataProcessor
+            from backend.data_service.data_processor import DataProcessor
 
             processor = DataProcessor(self.config_manager, self.db_manager)
             return processor.process_market_data(market_data, features)

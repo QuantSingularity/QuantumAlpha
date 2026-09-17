@@ -28,7 +28,7 @@ QuantumAlpha is a quantitative trading platform built as a set of Flask services
 
 ## Overview
 
-QuantumAlpha demonstrates a quantitative trading workflow across a real, runnable set of services. The data, AI engine, risk, and execution services are each standalone Flask apps that can run as separate containers, while portfolio management and the trading engine run in-process inside the API gateway rather than as their own services. The AI engine's model lifecycle (create, train, predict, evaluate) is genuinely implemented for LSTM, CNN, and Transformer-style networks (TensorFlow/Keras) and for reinforcement-learning agents (PPO, DQN, A2C, SAC via Stable-Baselines3).
+QuantumAlpha demonstrates a quantitative trading workflow across a real, runnable set of services. The data, AI engine, risk, and execution services are each deployed as their own separate Flask app/container, while portfolio management and the trading engine run in-process inside the API gateway rather than as their own services. Despite running in its own container, the AI engine is not an isolated or disconnected piece: its model lifecycle (create, train, predict, evaluate) is genuinely implemented for LSTM, CNN, and Transformer-style networks (TensorFlow/Keras) and for reinforcement-learning agents (PPO, DQN, A2C, SAC via Stable-Baselines3), and it's called over HTTP by both the risk service (for AI-adjusted portfolio valuations) and the execution service (for executing trades directly from a model's prediction).
 
 ## Project Structure
 
@@ -38,9 +38,9 @@ QuantumAlpha/
 │   ├── backend/
 │   │   ├── api/                  # API gateway (Flask): auth, portfolio, trading,
 │   │   │                         # admin, system endpoints
-│   │   ├── data_service/         # Standalone service: market and alternative data
-│   │   ├── execution_service/    # Standalone service: orders, broker adapter
-│   │   ├── risk_service/         # Standalone service: VaR, stress testing, position sizing
+│   │   ├── data_service/         # Separate Flask app: market and alternative data
+│   │   ├── execution_service/    # Separate Flask app: orders, broker adapter
+│   │   ├── risk_service/         # Separate Flask app: VaR, stress testing, position sizing
 │   │   ├── portfolio_service/    # In-process module (imported by the API gateway)
 │   │   ├── trading_engine/       # In-process module (imported by the API gateway)
 │   │   ├── analytics_service/    # Performance attribution, factor analysis
@@ -48,8 +48,8 @@ QuantumAlpha/
 │   │   ├── common/               # Shared auth, database, messaging, monitoring
 │   │   └── tests/                # Backend test suite (pytest)
 │   ├── ai_models/
-│   │   ├── engine/               # Standalone service: model_manager, prediction_service,
-│   │   │                         # reinforcement_learning
+│   │   ├── engine/               # Separate Flask app: model_manager, prediction_service,
+│   │   │                         # reinforcement_learning, routes (Flask blueprints)
 │   │   └── tests/                # AI engine test suite (pytest)
 │   └── Dockerfile.service        # Shared image; APP_MODULE build arg selects the service
 ├── web-frontend/                 # React (Vite) dashboard
@@ -64,18 +64,18 @@ QuantumAlpha/
 
 ### Application tier (wired and tested)
 
-| Component                    | Details                                                                                                                                                                                                                                                        |
-| :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **API gateway**              | Flask app exposing `/api/auth`, `/api/portfolio`, `/api/trade`, `/api/admin`, and `/api/system` routes, plus `/health`. Portfolio management and the trading engine run in-process here rather than as separate services.                                      |
-| **Data service**             | Standalone Flask app for market data and alternative data, backed by PostgreSQL, InfluxDB (time series), MongoDB (alternative data), and Redis.                                                                                                                |
-| **AI engine**                | Standalone Flask app with a real model lifecycle: create, train, predict, evaluate, and delete for LSTM, CNN, and Transformer-style networks (TensorFlow/Keras), plus reinforcement-learning agents (PPO, DQN, A2C, SAC via Stable-Baselines3).                |
-| **Risk service**             | Standalone Flask app for Value at Risk, stress testing, position sizing, and an online-learning risk updater.                                                                                                                                                  |
-| **Execution service**        | Standalone Flask app for order management, execution strategies, and a broker adapter. The adapter is a generic HTTP client against a configurable `broker.url`; Alpaca API key fields exist in configuration, but there's no Alpaca-specific SDK integration. |
-| **Messaging**                | Kafka producer and consumer classes (via `confluent-kafka`) in the shared `common` module, now added to `requirements.txt`. `alpaca-trade-api` and `pika` are also listed there but aren't imported anywhere in the codebase.                                  |
-| **Auth**                     | JWT sessions via Flask-JWT-Extended, with MFA-related fields on the user model. The signing key falls back to a placeholder default if `SECRET_KEY` is unset, with no check that rejects the placeholder in production.                                        |
-| **Compliance and analytics** | Standalone modules for compliance monitoring, regulatory reporting, performance attribution, and factor analysis, imported by the API gateway.                                                                                                                 |
-| **Web dashboard**            | React app (JavaScript) with Redux Toolkit for state, Material-UI for components, and Recharts for charts.                                                                                                                                                      |
-| **Mobile app**               | React Native app (a mix of TypeScript and JavaScript) with React Navigation, Zustand for state, and `react-native-chart-kit` for charts.                                                                                                                       |
+| Component                    | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **API gateway**              | Flask app exposing `/api/auth`, `/api/portfolio`, `/api/trade`, `/api/admin`, and `/api/system` routes, plus `/health`. Portfolio management and the trading engine run in-process here rather than as separate services.                                                                                                                                                                                                                                                                                                                                                                         |
+| **Data service**             | Separately-deployed Flask app for market data and alternative data, backed by PostgreSQL, InfluxDB (time series), MongoDB (alternative data), and Redis.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **AI engine**                | Separately-deployed Flask app with a real model lifecycle: create, train, predict, evaluate, and delete for LSTM, CNN, and Transformer-style networks (TensorFlow/Keras), plus reinforcement-learning agents (PPO, DQN, A2C, SAC via Stable-Baselines3). Routes live in `engine/routes/` (Flask blueprints per resource: models, predictions, signals, RL) so the HTTP layer and the service classes underneath it are exercised by the same tests. Called over HTTP by both the risk service and the execution service (see below) - not an isolated piece despite running in its own container. |
+| **Risk service**             | Separately-deployed Flask app for Value at Risk, Expected Shortfall, Sharpe ratio, stress testing (historical, Monte Carlo, sensitivity, and custom scenarios), risk-based position sizing, portfolio-level risk alerts, and an online-learning risk updater. Every route validates its input against a schema before reaching the calculator classes, and calls the method that schema's fields actually match. Calls the AI engine for AI-adjusted portfolio valuations.                                                                                                                        |
+| **Execution service**        | Separately-deployed Flask app for order management, execution strategies, and a broker adapter. The adapter is a generic HTTP client against a configurable `broker.url`; Alpaca API key fields exist in configuration, but there's no Alpaca-specific SDK integration. Calls the AI engine to execute trades directly from a model's prediction.                                                                                                                                                                                                                                                 |
+| **Messaging**                | Kafka producer and consumer classes (via `confluent-kafka`) in the shared `common` module, now added to `requirements.txt`. `alpaca-trade-api` and `pika` are also listed there but aren't imported anywhere in the codebase.                                                                                                                                                                                                                                                                                                                                                                     |
+| **Auth**                     | JWT sessions via Flask-JWT-Extended, with MFA-related fields on the user model. The signing key falls back to a placeholder default if `SECRET_KEY` is unset, with no check that rejects the placeholder in production.                                                                                                                                                                                                                                                                                                                                                                           |
+| **Compliance and analytics** | In-process modules (imported by the API gateway, not separately deployed) for compliance monitoring, regulatory reporting, performance attribution, and factor analysis.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Web dashboard**            | React app (JavaScript) with Redux Toolkit for state, Material-UI for components, and Recharts for charts.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Mobile app**               | React Native app (a mix of TypeScript and JavaScript) with React Navigation, Zustand for state, and `react-native-chart-kit` for charts.                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 ## Technology Stack
 
@@ -104,7 +104,7 @@ API Gateway (Flask)
   /api/auth · /api/portfolio · /api/trade · /api/admin · /api/system
   Runs the portfolio_service and trading_engine modules in-process.
 
-Standalone services (each a separate Flask app, same shared Docker image)
+Separately-deployed services (each its own Flask app, same shared Docker image)
   data-service     market data, alternative data, feature engineering
   ai-engine        model lifecycle (LSTM, CNN, Transformer, RL agents)
   risk-service     VaR, stress testing, position sizing, online learning
@@ -177,13 +177,13 @@ See [docs/USAGE.md](docs/USAGE.md) and [docs/CONFIGURATION.md](docs/CONFIGURATIO
 
 Each service exposes its own `/health` check.
 
-| Service           | Highlights                                                                                                                                                              |
-| :---------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API gateway       | `/api/auth/{register,login,logout,me}`, `/api/portfolio`, `/api/portfolio/positions`, `/api/trade/order`, `/api/trade/orders`, `/api/admin/users`, `/api/system/status` |
-| Data service      | `/api/market-data/{symbol}`, `/api/alternative-data/{source}`, `/api/features/{symbol}`, `/api/data-sources`                                                            |
-| AI engine         | `/api/models`, `/api/models/{id}`, `/api/train-model`, `/api/predict`, `/api/generate-signals`, `/api/rl/train`, `/api/rl/act`                                          |
-| Risk service      | `/api/risk-metrics`, `/api/stress-test`, `/api/calculate-position`, `/api/portfolio-risk`, `/api/risk-alerts`                                                           |
-| Execution service | `/api/orders`, `/api/orders/{id}/cancel`, `/api/execution-strategies`, `/api/brokers`, `/api/brokers/{id}/accounts`                                                     |
+| Service           | Highlights                                                                                                                                                                                                                                                                                                                                                                                    |
+| :---------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API gateway       | `/api/auth/{register,login,logout,me}`, `/api/portfolio`, `/api/portfolio/positions`, `/api/trade/order`, `/api/trade/orders`, `/api/admin/users`, `/api/system/status`                                                                                                                                                                                                                       |
+| Data service      | `/api/market-data/{symbol}`, `/api/alternative-data/{source}`, `/api/features/{symbol}`, `/api/data-sources`                                                                                                                                                                                                                                                                                  |
+| AI engine         | `/api/models` (GET, POST), `/api/models/{id}` (GET, PUT, DELETE), `/api/models/{id}/evaluate`, `/api/models/{id}/predictions/{symbol}`, `/api/models/{id}/performance`, `/api/train-model`, `/api/predict` (POST and `GET /api/predict/{model_id}/{symbol}`), `/api/generate-signals`, `/api/rl/models` (GET, POST), `/api/rl/models/{id}` (GET, PUT, DELETE), `/api/rl/train`, `/api/rl/act` |
+| Risk service      | `/api/risk-metrics`, `/api/stress-test`, `/api/calculate-position`, `/api/portfolio-risk`, `/api/risk-alerts`, `/api/portfolio-value-prediction` (calls the AI engine)                                                                                                                                                                                                                        |
+| Execution service | `/api/orders`, `/api/orders/{id}/cancel`, `/api/execution-strategies`, `/api/brokers`, `/api/brokers/{id}/accounts`, `/api/trade-from-signal`, `/api/trade-from-model` (calls the AI engine)                                                                                                                                                                                                  |
 
 Full request and response shapes are in [docs/API.md](docs/API.md).
 
@@ -203,7 +203,7 @@ npm test
 npm test
 ```
 
-The mobile app also has an `e2e/` directory for end-to-end tests. The backend suite covers 7 test files across the services; the AI engine suite covers 3.
+The mobile app also has an `e2e/` directory for end-to-end tests. The backend suite covers 8 test files across the services; the AI engine suite covers 3.
 
 ## CI/CD Pipeline
 

@@ -3,12 +3,21 @@ Stress testing for QuantumAlpha Risk Service.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-from backend.common import ServiceError, setup_logger
+from backend.common import ServiceError, ValidationError, setup_logger
 
 logger = setup_logger("stress_testing", logging.INFO)
+
+# Well-known date ranges for the named historical scenarios exposed via the
+# scenario_name field of StressTestRequest (see backend/common/validation.py).
+HISTORICAL_SCENARIOS: Dict[str, Dict[str, str]] = {
+    "2008_financial_crisis": {"start_date": "2007-10-01", "end_date": "2009-03-01"},
+    "covid_crash_2020": {"start_date": "2020-02-01", "end_date": "2020-04-01"},
+    "dot_com_bubble": {"start_date": "2000-03-01", "end_date": "2002-10-01"},
+    "black_monday_1987": {"start_date": "1987-10-01", "end_date": "1987-11-01"},
+}
 
 
 class StressTesting:
@@ -18,6 +27,40 @@ class StressTesting:
         self.config_manager = config_manager
         self.db_manager = db_manager
         logger.info("Stress testing initialized")
+
+    def run_stress_test(
+        self,
+        portfolio: Dict[str, Any],
+        scenario_name: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        shocks: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """Dispatch a named stress-test scenario to the right underlying
+        method: a "custom" scenario runs run_custom_scenario with the given
+        per-symbol shocks, and any of the well-known historical scenarios
+        (see HISTORICAL_SCENARIOS) runs run_historical_scenario over that
+        scenario's date range. parameters, if given, can override
+        start_date/end_date for a historical scenario.
+        """
+        parameters = parameters or {}
+        if scenario_name == "custom":
+            if not shocks:
+                raise ValidationError("shocks are required for custom scenarios")
+            # shocks are validated as fractions (-1.0 to 10.0, e.g. -0.3 for
+            # -30%), but run_custom_scenario's price_changes are percentages
+            # (e.g. -30 for -30%) - convert here so callers of this
+            # dispatcher only ever deal in fractions.
+            price_changes = {symbol: value * 100.0 for symbol, value in shocks.items()}
+            return self.run_custom_scenario(portfolio, scenario_name, price_changes)
+
+        if scenario_name not in HISTORICAL_SCENARIOS:
+            raise ValidationError(f"Unknown scenario: {scenario_name}")
+        date_range = HISTORICAL_SCENARIOS[scenario_name]
+        start_date = parameters.get("start_date", date_range["start_date"])
+        end_date = parameters.get("end_date", date_range["end_date"])
+        return self.run_historical_scenario(
+            portfolio, scenario_name, start_date, end_date
+        )
 
     def _portfolio_value(self, portfolio: Dict[str, Any]) -> float:
         positions = portfolio.get("positions", [])

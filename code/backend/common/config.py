@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 import yaml
 from dotenv import load_dotenv
@@ -60,6 +61,29 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"Error loading config file: {e}")
 
+    def _resolve_service(
+        self, url_env: str, host_env: str, port_env: str, default_port: str
+    ) -> Dict[str, Any]:
+        """Resolve a service's host/port/url from environment variables.
+
+        Docker Compose sets a single combined `<SERVICE>_URL` (e.g.
+        `AI_ENGINE_URL=http://ai-engine:8080`) for inter-container calls.
+        Local, non-Docker development instead sets the separate
+        `<SERVICE>_HOST`/`<SERVICE>_PORT` pair (see code/README.md). Support
+        both: prefer `<SERVICE>_URL` when set, otherwise build one from
+        host/port so callers can always just read `services.<name>.url`.
+        """
+        url = os.getenv(url_env)
+        if url:
+            parsed = urlparse(url)
+            host = parsed.hostname or "localhost"
+            port = parsed.port or int(default_port)
+        else:
+            host = os.getenv(host_env, "localhost")
+            port = int(os.getenv(port_env, default_port))
+            url = f"http://{host}:{port}"
+        return {"host": host, "port": port, "url": url}
+
     def _load_from_env(self) -> None:
         """Load configuration from environment variables"""
         self.config["postgres"] = {
@@ -108,22 +132,21 @@ class ConfigManager:
             )
         }
         self.config["services"] = {
-            "data_service": {
-                "host": os.getenv("DATA_SERVICE_HOST", "localhost"),
-                "port": int(os.getenv("DATA_SERVICE_PORT", "8081")),
-            },
-            "ai_engine": {
-                "host": os.getenv("AI_ENGINE_HOST", "localhost"),
-                "port": int(os.getenv("AI_ENGINE_PORT", "8082")),
-            },
-            "risk_service": {
-                "host": os.getenv("RISK_SERVICE_HOST", "localhost"),
-                "port": int(os.getenv("RISK_SERVICE_PORT", "8083")),
-            },
-            "execution_service": {
-                "host": os.getenv("EXECUTION_SERVICE_HOST", "localhost"),
-                "port": int(os.getenv("EXECUTION_SERVICE_PORT", "8084")),
-            },
+            "data_service": self._resolve_service(
+                "DATA_SERVICE_URL", "DATA_SERVICE_HOST", "DATA_SERVICE_PORT", "8081"
+            ),
+            "ai_engine": self._resolve_service(
+                "AI_ENGINE_URL", "AI_ENGINE_HOST", "AI_ENGINE_PORT", "8082"
+            ),
+            "risk_service": self._resolve_service(
+                "RISK_SERVICE_URL", "RISK_SERVICE_HOST", "RISK_SERVICE_PORT", "8083"
+            ),
+            "execution_service": self._resolve_service(
+                "EXECUTION_SERVICE_URL",
+                "EXECUTION_SERVICE_HOST",
+                "EXECUTION_SERVICE_PORT",
+                "8084",
+            ),
         }
         self.config["kafka"] = {
             "bootstrap_servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),

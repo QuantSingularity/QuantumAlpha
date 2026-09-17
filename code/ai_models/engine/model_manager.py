@@ -9,6 +9,7 @@ import os
 import pickle
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any, Dict, List
 
 import numpy as np
@@ -22,10 +23,17 @@ from backend.common import NotFoundError, ServiceError, ValidationError, setup_l
 logger = setup_logger("model_manager", logging.INFO)
 
 
-def _load_tf():
-    """Lazy-load TensorFlow and return (tf, keras_components) tuple."""
+def _load_tf() -> SimpleNamespace:
+    """Lazy-load TensorFlow/sklearn and return them bundled in a namespace.
+
+    Call this at the top of any function that needs TF/Keras/sklearn
+    symbols and reference them off the returned namespace (e.g. `tfm.LSTM`)
+    rather than importing them at module scope, so importing this module
+    doesn't require TensorFlow to be installed unless training/inference
+    actually runs.
+    """
     global _TF_AVAILABLE
-    import tensorflow as _tf
+    import tensorflow as tf
     from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
     from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
     from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
@@ -33,21 +41,21 @@ def _load_tf():
     from tensorflow.keras.optimizers import Adam
 
     _TF_AVAILABLE = True
-    return (
-        _tf,
-        EarlyStopping,
-        ModelCheckpoint,
-        LSTM,
-        Dense,
-        Dropout,
-        Input,
-        Model,
-        Sequential,
-        load_model,
-        Adam,
-        mean_absolute_error,
-        mean_squared_error,
-        r2_score,
+    return SimpleNamespace(
+        tf=tf,
+        EarlyStopping=EarlyStopping,
+        ModelCheckpoint=ModelCheckpoint,
+        LSTM=LSTM,
+        Dense=Dense,
+        Dropout=Dropout,
+        Input=Input,
+        Model=Model,
+        Sequential=Sequential,
+        load_model=load_model,
+        Adam=Adam,
+        mean_absolute_error=mean_absolute_error,
+        mean_squared_error=mean_squared_error,
+        r2_score=r2_score,
     )
 
 
@@ -63,7 +71,7 @@ class ModelManager:
         """
         self.config_manager = config_manager
         self.db_manager = db_manager
-        self.data_service_url = f"http://{config_manager.get('services.data_service.host')}:{config_manager.get('services.data_service.port')}"
+        self.data_service_url = config_manager.get("services.data_service.url")
         self.model_dir = config_manager.get("ai_engine.model_dir", "backend/models")
         os.makedirs(self.model_dir, exist_ok=True)
         self.registry_file = os.path.join(self.model_dir, "registry.json")
@@ -309,7 +317,7 @@ class ModelManager:
             ServiceError: If there is an error processing data
         """
         try:
-            from data_service.data_processor import DataProcessor
+            from backend.data_service.data_processor import DataProcessor
 
             data_processor = DataProcessor(self.config_manager, self.db_manager)
             processed_data = data_processor.process_market_data(market_data, features)
@@ -340,13 +348,14 @@ class ModelManager:
             ServiceError: If there is an error training the model
         """
         try:
+            tfm = _load_tf()
             target_column = training_params.get("target_column", "close")
             sequence_length = training_params.get("sequence_length", 60)
             target_shift = training_params.get("target_shift", 1)
             test_size = training_params.get("test_size", 0.2)
             epochs = training_params.get("epochs", 100)
             batch_size = training_params.get("batch_size", 32)
-            from data_service.data_processor import DataProcessor
+            from backend.data_service.data_processor import DataProcessor
 
             data_processor = DataProcessor(self.config_manager, self.db_manager)
             X_train, X_test, y_train, y_test, scaler = (
@@ -358,26 +367,26 @@ class ModelManager:
                     test_size=test_size,
                 )
             )
-            model = Sequential()
+            model = tfm.Sequential()
             model.add(
-                LSTM(
+                tfm.LSTM(
                     units=50,
                     return_sequences=True,
                     input_shape=(X_train.shape[1], X_train.shape[2]),
                 )
             )
-            model.add(Dropout(0.2))
-            model.add(LSTM(units=50, return_sequences=False))
-            model.add(Dropout(0.2))
-            model.add(Dense(units=1))
+            model.add(tfm.Dropout(0.2))
+            model.add(tfm.LSTM(units=50, return_sequences=False))
+            model.add(tfm.Dropout(0.2))
+            model.add(tfm.Dense(units=1))
             model.compile(
-                optimizer=Adam(learning_rate=0.001), loss="mean_squared_error"
+                optimizer=tfm.Adam(learning_rate=0.001), loss="mean_squared_error"
             )
             callbacks = [
-                EarlyStopping(
+                tfm.EarlyStopping(
                     monitor="val_loss", patience=10, restore_best_weights=True
                 ),
-                ModelCheckpoint(
+                tfm.ModelCheckpoint(
                     filepath=os.path.join(self.model_dir, f"{model_id}.h5"),
                     monitor="val_loss",
                     save_best_only=True,
@@ -393,10 +402,10 @@ class ModelManager:
                 verbose=1,
             )
             y_pred = model.predict(X_test)
-            mse = mean_squared_error(y_test, y_pred)
+            mse = tfm.mean_squared_error(y_test, y_pred)
             rmse = np.sqrt(mse)
-            mae = mean_absolute_error(y_test, y_pred)
-            r2 = r2_score(y_test, y_pred)
+            mae = tfm.mean_absolute_error(y_test, y_pred)
+            r2 = tfm.r2_score(y_test, y_pred)
             with open(
                 os.path.join(self.model_dir, f"{model_id}_scaler.pkl"), "wb"
             ) as f:
@@ -448,13 +457,14 @@ class ModelManager:
             ServiceError: If there is an error training the model
         """
         try:
+            tfm = _load_tf()
             target_column = training_params.get("target_column", "close")
             sequence_length = training_params.get("sequence_length", 60)
             target_shift = training_params.get("target_shift", 1)
             test_size = training_params.get("test_size", 0.2)
             epochs = training_params.get("epochs", 100)
             batch_size = training_params.get("batch_size", 32)
-            from data_service.data_processor import DataProcessor
+            from backend.data_service.data_processor import DataProcessor
 
             data_processor = DataProcessor(self.config_manager, self.db_manager)
             X_train, X_test, y_train, y_test, scaler = (
@@ -472,28 +482,28 @@ class ModelManager:
             X_test = X_test.reshape(
                 X_test.shape[0], X_test.shape[1], X_test.shape[2], 1
             )
-            model = Sequential()
+            model = tfm.Sequential()
             model.add(
-                tf.keras.layers.Conv2D(
+                tfm.tf.keras.layers.Conv2D(
                     filters=64,
                     kernel_size=(3, 3),
                     activation="relu",
                     input_shape=(X_train.shape[1], X_train.shape[2], 1),
                 )
             )
-            model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
-            model.add(tf.keras.layers.Flatten())
-            model.add(Dense(units=50, activation="relu"))
-            model.add(Dropout(0.2))
-            model.add(Dense(units=1))
+            model.add(tfm.tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
+            model.add(tfm.tf.keras.layers.Flatten())
+            model.add(tfm.Dense(units=50, activation="relu"))
+            model.add(tfm.Dropout(0.2))
+            model.add(tfm.Dense(units=1))
             model.compile(
-                optimizer=Adam(learning_rate=0.001), loss="mean_squared_error"
+                optimizer=tfm.Adam(learning_rate=0.001), loss="mean_squared_error"
             )
             callbacks = [
-                EarlyStopping(
+                tfm.EarlyStopping(
                     monitor="val_loss", patience=10, restore_best_weights=True
                 ),
-                ModelCheckpoint(
+                tfm.ModelCheckpoint(
                     filepath=os.path.join(self.model_dir, f"{model_id}.h5"),
                     monitor="val_loss",
                     save_best_only=True,
@@ -509,10 +519,10 @@ class ModelManager:
                 verbose=1,
             )
             y_pred = model.predict(X_test)
-            mse = mean_squared_error(y_test, y_pred)
+            mse = tfm.mean_squared_error(y_test, y_pred)
             rmse = np.sqrt(mse)
-            mae = mean_absolute_error(y_test, y_pred)
-            r2 = r2_score(y_test, y_pred)
+            mae = tfm.mean_absolute_error(y_test, y_pred)
+            r2 = tfm.r2_score(y_test, y_pred)
             with open(
                 os.path.join(self.model_dir, f"{model_id}_scaler.pkl"), "wb"
             ) as f:
@@ -564,13 +574,14 @@ class ModelManager:
             ServiceError: If there is an error training the model
         """
         try:
+            tfm = _load_tf()
             target_column = training_params.get("target_column", "close")
             sequence_length = training_params.get("sequence_length", 60)
             target_shift = training_params.get("target_shift", 1)
             test_size = training_params.get("test_size", 0.2)
             epochs = training_params.get("epochs", 100)
             batch_size = training_params.get("batch_size", 32)
-            from data_service.data_processor import DataProcessor
+            from backend.data_service.data_processor import DataProcessor
 
             data_processor = DataProcessor(self.config_manager, self.db_manager)
             X_train, X_test, y_train, y_test, scaler = (
@@ -584,39 +595,41 @@ class ModelManager:
             )
 
             def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
-                x = tf.keras.layers.MultiHeadAttention(
+                x = tfm.tf.keras.layers.MultiHeadAttention(
                     key_dim=head_size, num_heads=num_heads, dropout=dropout
                 )(inputs, inputs)
-                x = tf.keras.layers.Dropout(dropout)(x)
-                x = tf.keras.layers.LayerNormalization(epsilon=1e-06)(x)
+                x = tfm.tf.keras.layers.Dropout(dropout)(x)
+                x = tfm.tf.keras.layers.LayerNormalization(epsilon=1e-06)(x)
                 res = x + inputs
-                x = tf.keras.layers.Conv1D(
+                x = tfm.tf.keras.layers.Conv1D(
                     filters=ff_dim, kernel_size=1, activation="relu"
                 )(res)
-                x = tf.keras.layers.Dropout(dropout)(x)
-                x = tf.keras.layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
-                x = tf.keras.layers.LayerNormalization(epsilon=1e-06)(x)
+                x = tfm.tf.keras.layers.Dropout(dropout)(x)
+                x = tfm.tf.keras.layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(
+                    x
+                )
+                x = tfm.tf.keras.layers.LayerNormalization(epsilon=1e-06)(x)
                 return x + res
 
-            inputs = Input(shape=(X_train.shape[1], X_train.shape[2]))
+            inputs = tfm.Input(shape=(X_train.shape[1], X_train.shape[2]))
             x = inputs
             for _ in range(2):
                 x = transformer_encoder(
                     x, head_size=256, num_heads=4, ff_dim=512, dropout=0.2
                 )
-            x = tf.keras.layers.GlobalAveragePooling1D()(x)
-            x = tf.keras.layers.Dense(128, activation="relu")(x)
-            x = tf.keras.layers.Dropout(0.2)(x)
-            outputs = tf.keras.layers.Dense(1)(x)
-            model = Model(inputs=inputs, outputs=outputs)
+            x = tfm.tf.keras.layers.GlobalAveragePooling1D()(x)
+            x = tfm.tf.keras.layers.Dense(128, activation="relu")(x)
+            x = tfm.tf.keras.layers.Dropout(0.2)(x)
+            outputs = tfm.tf.keras.layers.Dense(1)(x)
+            model = tfm.Model(inputs=inputs, outputs=outputs)
             model.compile(
-                optimizer=Adam(learning_rate=0.001), loss="mean_squared_error"
+                optimizer=tfm.Adam(learning_rate=0.001), loss="mean_squared_error"
             )
             callbacks = [
-                EarlyStopping(
+                tfm.EarlyStopping(
                     monitor="val_loss", patience=10, restore_best_weights=True
                 ),
-                ModelCheckpoint(
+                tfm.ModelCheckpoint(
                     filepath=os.path.join(self.model_dir, f"{model_id}.h5"),
                     monitor="val_loss",
                     save_best_only=True,
@@ -632,10 +645,10 @@ class ModelManager:
                 verbose=1,
             )
             y_pred = model.predict(X_test)
-            mse = mean_squared_error(y_test, y_pred)
+            mse = tfm.mean_squared_error(y_test, y_pred)
             rmse = np.sqrt(mse)
-            mae = mean_absolute_error(y_test, y_pred)
-            r2 = r2_score(y_test, y_pred)
+            mae = tfm.mean_absolute_error(y_test, y_pred)
+            r2 = tfm.r2_score(y_test, y_pred)
             with open(
                 os.path.join(self.model_dir, f"{model_id}_scaler.pkl"), "wb"
             ) as f:
@@ -681,6 +694,7 @@ class ModelManager:
             ServiceError: If there is an error making predictions
         """
         try:
+            tfm = _load_tf()
             if model_id not in self.model_registry["models"]:
                 raise NotFoundError(f"Model not found: {model_id}")
             model_info = self.model_registry["models"][model_id]
@@ -703,7 +717,7 @@ class ModelManager:
             model_path = os.path.join(self.model_dir, f"{model_id}.h5")
             if not os.path.exists(model_path):
                 raise NotFoundError(f"Model file not found: {model_path}")
-            model = load_model(model_path)
+            model = tfm.load_model(model_path)
             scaler_path = os.path.join(self.model_dir, f"{model_id}_scaler.pkl")
             if not os.path.exists(scaler_path):
                 raise NotFoundError(f"Scaler file not found: {scaler_path}")
@@ -803,6 +817,7 @@ class ModelManager:
             ServiceError: If there is an error evaluating the model
         """
         try:
+            tfm = _load_tf()
             if model_id not in self.model_registry["models"]:
                 raise NotFoundError(f"Model not found: {model_id}")
             model_info = self.model_registry["models"][model_id]
@@ -825,7 +840,7 @@ class ModelManager:
             model_path = os.path.join(self.model_dir, f"{model_id}.h5")
             if not os.path.exists(model_path):
                 raise NotFoundError(f"Model file not found: {model_path}")
-            model = load_model(model_path)
+            model = tfm.load_model(model_path)
             scaler_path = os.path.join(self.model_dir, f"{model_id}_scaler.pkl")
             if not os.path.exists(scaler_path):
                 raise NotFoundError(f"Scaler file not found: {scaler_path}")
@@ -839,7 +854,7 @@ class ModelManager:
             target_column = params["target_column"]
             sequence_length = params["sequence_length"]
             target_shift = params["target_shift"]
-            from data_service.data_processor import DataProcessor
+            from backend.data_service.data_processor import DataProcessor
 
             data_processor = DataProcessor(self.config_manager, self.db_manager)
             X_train, X_test, y_train, y_test, _ = data_processor.prepare_data_for_ml(
@@ -854,10 +869,10 @@ class ModelManager:
                     X_test.shape[0], X_test.shape[1], X_test.shape[2], 1
                 )
             y_pred = model.predict(X_test)
-            mse = mean_squared_error(y_test, y_pred)
+            mse = tfm.mean_squared_error(y_test, y_pred)
             rmse = np.sqrt(mse)
-            mae = mean_absolute_error(y_test, y_pred)
-            r2 = r2_score(y_test, y_pred)
+            mae = tfm.mean_absolute_error(y_test, y_pred)
+            r2 = tfm.r2_score(y_test, y_pred)
             result = {
                 "symbol": data["symbol"],
                 "timeframe": data["timeframe"],

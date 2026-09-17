@@ -1,0 +1,17 @@
+{
+  "models": {
+    "model_afc7b495b43f4bcaaaebac58a7148688": {
+      "name": "Renamed LSTM",
+      "description": "",
+      "type": "lstm",
+      "status": "created",
+      "created_at": "2026-09-15T08:30:45.401874+00:00",
+      "updated_at": "2026-09-15T08:30:45.403829+00:00",
+      "parameters": {},
+      "features": [
+        "close",
+        "volume"
+      ]
+    }
+  }
+}

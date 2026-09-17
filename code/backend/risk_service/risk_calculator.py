@@ -3,7 +3,7 @@ Risk calculator for QuantumAlpha Risk Service.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -156,6 +156,106 @@ class RiskCalculator:
             "benchmark": benchmark,
         }
 
+    def calculate_risk_metrics(
+        self,
+        portfolio: Dict[str, Any],
+        confidence_levels: Optional[List[float]] = None,
+        timeframe: str = "1m",
+        include_positions: bool = True,
+    ) -> Dict[str, Any]:
+        """Compute a standard bundle of risk metrics for a portfolio: VaR
+        and Expected Shortfall at each requested confidence level, plus
+        the Sharpe ratio - built on top of the individual calculate_var /
+        calculate_expected_shortfall / calculate_sharpe_ratio methods."""
+        confidence_levels = confidence_levels or [0.95, 0.99]
+        value_info = self.calculate_portfolio_value(portfolio)
+        var_by_confidence = {}
+        expected_shortfall_by_confidence = {}
+        for level in confidence_levels:
+            var_by_confidence[str(level)] = self.calculate_var(
+                portfolio, confidence_level=level
+            )
+            expected_shortfall_by_confidence[str(level)] = (
+                self.calculate_expected_shortfall(portfolio, confidence_level=level)
+            )
+        sharpe = self.calculate_sharpe_ratio(portfolio, period=timeframe)
+        result = {
+            "portfolio_id": portfolio.get("id"),
+            "timeframe": timeframe,
+            "total_value": value_info["total_value"],
+            "var": var_by_confidence,
+            "expected_shortfall": expected_shortfall_by_confidence,
+            "sharpe_ratio": sharpe["sharpe_ratio"],
+            "annualized_return": sharpe["annualized_return"],
+            "annualized_volatility": sharpe["annualized_volatility"],
+        }
+        if include_positions:
+            result["positions"] = portfolio.get("positions", [])
+        return result
+
+    def get_portfolio_risk(self, portfolio: Dict[str, Any]) -> Dict[str, Any]:
+        """Quick 'what's my portfolio's risk' snapshot, using the default
+        confidence levels and a 1-month timeframe."""
+        return self.calculate_risk_metrics(portfolio)
+
+    def get_risk_alerts(
+        self,
+        portfolio: Dict[str, Any],
+        var_threshold_percent: float = 5.0,
+        concentration_threshold_percent: float = 25.0,
+    ) -> List[Dict[str, Any]]:
+        """Generate threshold-based risk alerts for a portfolio: a VaR
+        alert when 1-day 95% VaR exceeds var_threshold_percent of
+        portfolio value, and a concentration alert for any position
+        exceeding concentration_threshold_percent of portfolio value."""
+        alerts: List[Dict[str, Any]] = []
+        value_info = self.calculate_portfolio_value(portfolio)
+        total_value = value_info["total_value"]
+        if total_value <= 0:
+            return alerts
+
+        var_info = self.calculate_var(portfolio, confidence_level=0.95, time_horizon=1)
+        if var_info["var_percent"] > var_threshold_percent:
+            alerts.append(
+                {
+                    "type": "var_breach",
+                    "severity": (
+                        "high"
+                        if var_info["var_percent"] > var_threshold_percent * 2
+                        else "medium"
+                    ),
+                    "message": (
+                        f"1-day 95% VaR ({var_info['var_percent']:.2f}%) exceeds "
+                        f"threshold ({var_threshold_percent}%)"
+                    ),
+                    "value": var_info["var_percent"],
+                    "threshold": var_threshold_percent,
+                }
+            )
+
+        for pos in portfolio.get("positions", []):
+            pos_value = pos["quantity"] * pos["current_price"]
+            pos_percent = pos_value / total_value * 100
+            if pos_percent > concentration_threshold_percent:
+                alerts.append(
+                    {
+                        "type": "concentration",
+                        "severity": (
+                            "high"
+                            if pos_percent > concentration_threshold_percent * 1.5
+                            else "medium"
+                        ),
+                        "message": (
+                            f"{pos['symbol']} is {pos_percent:.2f}% of portfolio, "
+                            f"exceeding threshold ({concentration_threshold_percent}%)"
+                        ),
+                        "symbol": pos["symbol"],
+                        "value": pos_percent,
+                        "threshold": concentration_threshold_percent,
+                    }
+                )
+        return alerts
+
     def calculate_portfolio_value_with_prediction(
         self,
         portfolio: Dict[str, Any],
@@ -166,9 +266,7 @@ class RiskCalculator:
         import requests as _requests
 
         if ai_engine_url is None:
-            host = self.config_manager.get("services.ai_engine.host", "localhost")
-            port = self.config_manager.get("services.ai_engine.port", "8082")
-            ai_engine_url = f"http://{host}:{port}"
+            ai_engine_url = self.config_manager.get("services.ai_engine.url")
 
         positions = portfolio.get("positions", [])
         cash = portfolio.get("cash", 0.0)

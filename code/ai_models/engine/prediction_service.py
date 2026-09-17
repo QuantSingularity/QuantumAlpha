@@ -30,7 +30,7 @@ class PredictionService:
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.model_manager = model_manager
-        self.data_service_url = f"http://{config_manager.get('services.data_service.host')}:{config_manager.get('services.data_service.port')}"
+        self.data_service_url = config_manager.get("services.data_service.url")
         logger.info("Prediction service initialized")
 
     def generate_prediction(
@@ -244,7 +244,7 @@ class PredictionService:
                     symbol=symbol, timeframe=timeframe, period=period
                 )
                 df = pd.DataFrame(market_data)
-                from data_service.data_processor import DataProcessor
+                from backend.data_service.data_processor import DataProcessor
 
                 data_processor = DataProcessor(self.config_manager, self.db_manager)
                 df = data_processor.generate_signals(df, strategy="sma_crossover")

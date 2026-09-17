@@ -17,6 +17,8 @@ from marshmallow import ValidationError as MarshmallowValidationError
 from marshmallow import fields, pre_load, validate
 from marshmallow.decorators import validates, validates_schema
 
+from .logging_utils import ServiceError
+
 logger = structlog.get_logger(__name__)
 
 
@@ -48,14 +50,23 @@ class ValidationConfig:
     ALLOWED_HTML_ATTRIBUTES = {}
 
 
-class ValidationError(Exception):
-    """Custom validation exception"""
+class ValidationError(ServiceError):
+    """Custom validation exception (HTTP 400) with structured field/code
+    info, raised throughout this module's validators and by validate_schema.
+
+    Subclasses backend.common.logging_utils.ServiceError so every
+    service's Flask error handler (`isinstance(e, ServiceError)`) returns
+    the correct 400 status instead of falling through to a generic 500 -
+    this used to be a bare Exception subclass, so every input-validation
+    failure raised anywhere via this class surfaced as an unhandled 500.
+    """
 
     def __init__(self, message: str, field: str = None, code: str = None) -> None:
-        self.message = message
         self.field = field
         self.code = code
-        super().__init__(message)
+        super().__init__(
+            message, status_code=400, details={"field": field, "code": code}
+        )
 
 
 class SecurityValidator:
@@ -366,6 +377,33 @@ class OrderSchema(BaseSchema):
             raise MarshmallowValidationError(
                 {"price": "Price should not be specified for market orders"}
             )
+
+
+class PortfolioPositionSchema(BaseSchema):
+    """A single position within a portfolio *state* (as held/valued by
+    risk_service), as opposed to PortfolioSchema below, which validates a
+    portfolio *creation* request (name, initial cash, limits)."""
+
+    symbol = fields.Str(required=True, validate=validate.Length(min=1, max=20))
+    quantity = fields.Float(required=True)
+    current_price = fields.Float(required=True, validate=validate.Range(min=0))
+    entry_price = fields.Float(required=False, allow_none=True)
+
+    @validates("symbol")
+    def validate_symbol_format(self, value: object, **kwargs) -> None:
+        return FinancialValidator.validate_symbol(value)
+
+
+class PortfolioStateSchema(BaseSchema):
+    """A portfolio's current state (cash + positions), as consumed by
+    risk_service's RiskCalculator/PositionSizing/StressTesting - distinct
+    from PortfolioSchema, which validates portfolio *creation* requests."""
+
+    id = fields.Str(required=False, allow_none=True)
+    cash = fields.Float(required=False, load_default=0.0)
+    positions = fields.List(
+        fields.Nested(PortfolioPositionSchema), required=False, load_default=list
+    )
 
 
 class PortfolioSchema(BaseSchema):
@@ -772,7 +810,7 @@ class RiskMetricsRequest(BaseSchema):
         from common.validation import RiskMetricsRequest
     """
 
-    portfolio_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
+    portfolio = fields.Nested(PortfolioStateSchema, required=True)
     timeframe = fields.Str(
         required=False,
         validate=validate.OneOf(["1d", "1w", "1m", "3m", "6m", "1y", "ytd"]),
@@ -795,7 +833,7 @@ class PositionSizeRequest(BaseSchema):
         from common.validation import PositionSizeRequest
     """
 
-    portfolio_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
+    portfolio = fields.Nested(PortfolioStateSchema, required=True)
     symbol = fields.Str(required=True, validate=validate.Length(min=1, max=20))
     # Either a fixed dollar risk amount OR a percentage of portfolio — one required
     risk_amount = fields.Decimal(required=False, places=2, allow_none=True)
@@ -857,7 +895,7 @@ class StressTestRequest(BaseSchema):
         from common.validation import StressTestRequest
     """
 
-    portfolio_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
+    portfolio = fields.Nested(PortfolioStateSchema, required=True)
     scenario_name = fields.Str(
         required=True,
         validate=[

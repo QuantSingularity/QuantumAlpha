@@ -163,4 +163,9 @@ def create_data_source() -> None:
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    port = int(
+        config_manager.get("services.data_service.port")
+        or os.getenv("PORT")
+        or os.getenv("DATA_SERVICE_PORT", "8081")
+    )
+    app.run(host="0.0.0.0", port=port, debug=True)
