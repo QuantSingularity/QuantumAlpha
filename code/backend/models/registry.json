@@ -8,10 +8,7 @@
       "created_at": "2026-09-15T08:30:45.401874+00:00",
       "updated_at": "2026-09-15T08:30:45.403829+00:00",
       "parameters": {},
-      "features": [
-        "close",
-        "volume"
-      ]
+      "features": ["close", "volume"]
     }
   }
 }
