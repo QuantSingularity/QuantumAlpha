@@ -116,7 +116,7 @@ const Chart: React.FC<ChartProps> = ({
           />
         );
 
-      // "area" is rendered as LineChart with shadow enabled —
+      // "area" is rendered as LineChart with shadow enabled -
       // react-native-chart-kit has no dedicated AreaChart export
       case "area":
         return (

@@ -450,7 +450,7 @@ def validate_schema(
         schema:  A Marshmallow Schema *class* (not an instance) to validate
                  against.  All built-in schemas in this module are accepted,
                  as are any custom subclasses of BaseSchema.
-        partial: When True, required-field checks are skipped — useful for
+        partial: When True, required-field checks are skipped - useful for
                  PATCH/partial-update endpoints.
         context: Optional dict passed through to the schema as
                  ``schema.context``; handy for cross-field rules that need
@@ -835,7 +835,7 @@ class PositionSizeRequest(BaseSchema):
 
     portfolio = fields.Nested(PortfolioStateSchema, required=True)
     symbol = fields.Str(required=True, validate=validate.Length(min=1, max=20))
-    # Either a fixed dollar risk amount OR a percentage of portfolio — one required
+    # Either a fixed dollar risk amount OR a percentage of portfolio - one required
     risk_amount = fields.Decimal(required=False, places=2, allow_none=True)
     risk_percent = fields.Decimal(
         required=False,

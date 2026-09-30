@@ -182,7 +182,7 @@ const Trading = () => {
             ? selectedSymbol.price
             : parseFloat(limitPrice) || selectedSymbol.price)
         ).toFixed(2)
-      : "—";
+      : "-";
 
   const handlePlaceOrder = () => {
     if (!quantity || parseFloat(quantity) <= 0) {
@@ -677,9 +677,9 @@ const Trading = () => {
                         fontWeight={700}
                         color="#00d4ff"
                       >
-                        {estimatedTotal !== "—"
+                        {estimatedTotal !== "-"
                           ? `$${parseFloat(estimatedTotal).toLocaleString()}`
-                          : "—"}
+                          : "-"}
                       </Typography>
                     </Box>
                   </Box>

@@ -143,12 +143,12 @@ Weights determined by rolling 63-day Sharpe-weighted contribution.
 | Sortino      | **3.54**    | 3.18 (PPO)        | 1.09      |
 | Max Drawdown | **−10.4 %** | −11.8 % (PPO)     | −33.9 %   |
 | Calmar       | **3.34**    | 2.66 (PPO)        | 0.44      |
-| Win Rate     | **60.2 %**  | 58.4 % (PPO)      | —         |
+| Win Rate     | **60.2 %**  | 58.4 % (PPO)      | -         |
 | Beta         | **0.68**    | 0.74 (PPO)        | 1.00      |
 | Alpha        | **+21.4 %** | +18.9 % (PPO)     | 0 %       |
 
 > **Key insight:** Ensemble diversification reduces drawdown by 1.4 pp vs. the
-> best single model while adding 3.3 pp of annualised return — the combination
+> best single model while adding 3.3 pp of annualised return - the combination
 > benefits from regime-specific strengths of each model.
 
 ---
@@ -170,7 +170,7 @@ Mean R² of 0.71 confirms the three-factor model explains most cross-sectional r
 
 | # Factors | Variance Explained | Marginal Gain |
 | --------- | ------------------ | ------------- |
-| 1         | 42.3 %             | —             |
+| 1         | 42.3 %             | -             |
 | 2         | 58.7 %             | +16.4 pp      |
 | 3         | 69.1 %             | +10.4 pp      |
 | 5         | 79.4 %             | +10.3 pp      |
@@ -199,9 +199,9 @@ All methods pass the Kupiec unconditional coverage test. Bayesian VaR achieves t
 | Scenario               | Model Predicted Loss | Actual Portfolio Loss | Error   |
 | ---------------------- | -------------------- | --------------------- | ------- |
 | Fed +75 bp surprise    | −8.4 %               | −9.1 %                | +0.7 pp |
-| 2008 GFC replay        | −31.2 %              | N/A (historical)      | —       |
+| 2008 GFC replay        | −31.2 %              | N/A (historical)      | -       |
 | COVID crash (Mar 2020) | −28.7 %              | −27.4 %               | −1.3 pp |
-| Flash crash scenario   | −6.8 %               | N/A (synthetic)       | —       |
+| Flash crash scenario   | −6.8 %               | N/A (synthetic)       | -       |
 
 ---
 

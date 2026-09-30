@@ -204,7 +204,7 @@ const AlertsScreen = () => {
       }),
     ]).start();
 
-    // Only subscribe to real-time alerts — do NOT also run a setInterval that
+    // Only subscribe to real-time alerts - do NOT also run a setInterval that
     // calls simulateNewAlert(), because that already notifies subscribers,
     // which would cause every alert to be added twice.
     const alertListener = alertService.subscribeToAlerts((newAlert) => {

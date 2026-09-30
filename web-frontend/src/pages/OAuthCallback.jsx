@@ -12,7 +12,7 @@ import { handleOAuthCallback } from "../auth/oauth";
 import { loginSuccess } from "../store/slices/authSlice";
 
 /**
- * OAuthCallback — handles the redirect from the OAuth authorization server.
+ * OAuthCallback - handles the redirect from the OAuth authorization server.
  * Reads `code` and `state` from the URL search params, exchanges them for
  * tokens via PKCE, then stores the result and redirects to the dashboard.
  */

@@ -155,7 +155,7 @@ MOCK_PORTFOLIO: Dict[str, Any] = {
     ],
 }
 
-# Mutable mock stores — use list copies so appends don't bleed across tests
+# Mutable mock stores - use list copies so appends don't bleed across tests
 _BASE_STRATEGIES: List[Dict[str, Any]] = [
     {
         "id": "1",
@@ -381,7 +381,7 @@ def method_not_allowed(_error: Exception) -> Tuple[object, int]:
 
 @app.errorhandler(Exception)
 def handle_error(error: Exception) -> Tuple[Any, int]:
-    """Catch-all for unhandled exceptions — never leak tracebacks to clients."""
+    """Catch-all for unhandled exceptions - never leak tracebacks to clients."""
     logger.error(
         "Unhandled error | request_id=%s | %s",
         getattr(g, "request_id", "?"),

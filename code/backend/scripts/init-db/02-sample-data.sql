@@ -1,5 +1,5 @@
 -- =============================================================================
--- QuantumAlpha Sample / Seed Data  (idempotent — safe to re-run)
+-- QuantumAlpha Sample / Seed Data  (idempotent - safe to re-run)
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
--- Orders  (plain text PK, not a hypertable — ON CONFLICT (id) unchanged)
+-- Orders  (plain text PK, not a hypertable - ON CONFLICT (id) unchanged)
 -- ---------------------------------------------------------------------------
 INSERT INTO execution.orders
     (id, portfolio_id, symbol, order_type, side, quantity, price,

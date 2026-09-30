@@ -64,7 +64,7 @@ export const initiateOAuthFlow = async () => {
 };
 
 /**
- * Handle the OAuth callback — exchange the authorization code for tokens.
+ * Handle the OAuth callback - exchange the authorization code for tokens.
  * @param {string} code - Authorization code from the callback URL
  * @param {string} returnedState - State parameter from callback URL
  * @returns {Promise<{accessToken: string, expiresIn: number}>}
@@ -74,7 +74,7 @@ export const handleOAuthCallback = async (code, returnedState) => {
   const codeVerifier = sessionStorage.getItem("oauth_code_verifier");
 
   if (!storedState || returnedState !== storedState) {
-    throw new Error("OAuth state mismatch — possible CSRF attack");
+    throw new Error("OAuth state mismatch - possible CSRF attack");
   }
   if (!codeVerifier) {
     throw new Error("Missing PKCE code verifier");
@@ -101,7 +101,7 @@ export const handleOAuthCallback = async (code, returnedState) => {
   }
 
   const data = await response.json();
-  // Return access token for in-memory storage — do NOT persist to localStorage
+  // Return access token for in-memory storage - do NOT persist to localStorage
   return {
     accessToken: data.access_token,
     expiresIn: data.expires_in,

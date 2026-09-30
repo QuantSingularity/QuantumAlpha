@@ -1,6 +1,6 @@
 -- =============================================================================
 -- QuantumAlpha Database Schema
--- TimescaleDB-compatible initialisation script (idempotent — safe to re-run)
+-- TimescaleDB-compatible initialisation script (idempotent - safe to re-run)
 --
 -- TimescaleDB rule enforced here:
 --   Every UNIQUE / PRIMARY KEY constraint on a hypertable MUST include the
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS market_data.symbols (
 );
 
 -- -----------------------------------------------------------------------------
--- ohlcv — hypertable
+-- ohlcv - hypertable
 -- PK already includes timestamp  ✓  (no change needed)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS market_data.ohlcv (
@@ -80,7 +80,7 @@ SELECT create_hypertable(
 );
 
 -- -----------------------------------------------------------------------------
--- features — hypertable
+-- features - hypertable
 -- PK already includes timestamp  ✓  (no change needed)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS market_data.features (
@@ -369,7 +369,7 @@ $$ LANGUAGE plpgsql;
 -- ===========================================================================
 -- TRIGGERS
 -- OR REPLACE (PostgreSQL 14+) prevents "already exists" errors on re-run.
--- Running on PostgreSQL 15.6 — confirmed safe.
+-- Running on PostgreSQL 15.6 - confirmed safe.
 -- ===========================================================================
 CREATE OR REPLACE TRIGGER update_market_data_symbols_updated_at
     BEFORE UPDATE ON market_data.symbols

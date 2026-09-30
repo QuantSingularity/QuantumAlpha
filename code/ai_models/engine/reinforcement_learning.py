@@ -45,7 +45,7 @@ class TradingEnvironment(gym.Env):
     """
     Custom OpenAI Gym / Gymnasium trading environment.
 
-    Action space  : Discrete(3)  — 0 = hold, 1 = buy, 2 = sell
+    Action space  : Discrete(3)  - 0 = hold, 1 = buy, 2 = sell
     Observation   : market features + [balance, position, position_value]
     """
 
@@ -104,7 +104,7 @@ class TradingEnvironment(gym.Env):
         """Reset the environment to the initial state.
 
         Returns gymnasium-style (obs, info) tuple when gymnasium is
-        installed; plain obs otherwise — stable-baselines3 handles both.
+        installed; plain obs otherwise - stable-baselines3 handles both.
         """
         super().reset(seed=seed)
         self._reset_state()
@@ -179,7 +179,7 @@ class TradingEnvironment(gym.Env):
 
 class ReinforcementLearningService:
     """
-    Reinforcement learning service — manages model lifecycle (create, train,
+    Reinforcement learning service - manages model lifecycle (create, train,
     predict, update, delete) backed by a flat JSON registry on disk.
 
     The class was previously called ``ReinforcementLearning``; it is now
@@ -509,5 +509,5 @@ class ReinforcementLearningService:
         return self.model_registry["models"][model_id]
 
 
-# Backwards-compat alias — keeps any code using the old class name working
+# Backwards-compat alias - keeps any code using the old class name working
 ReinforcementLearning = ReinforcementLearningService
