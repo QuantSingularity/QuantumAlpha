@@ -33,7 +33,15 @@ const rawBaseQuery = fetchBaseQuery({
 export const api = createApi({
   reducerPath: "api",
   baseQuery: rawBaseQuery,
-  tagTypes: ["Portfolio", "Strategy", "Trade", "User", "Watchlist", "News"],
+  tagTypes: [
+    "Portfolio",
+    "Strategy",
+    "Trade",
+    "User",
+    "Watchlist",
+    "News",
+    "AiModel",
+  ],
   endpoints: (builder) => ({
     // ── Auth ────────────────────────────────────────────────────────────
     login: builder.mutation({
@@ -148,6 +156,30 @@ export const api = createApi({
         strategyId ? `/risk/metrics/${strategyId}` : "/risk/metrics",
       transformResponse: unwrap,
     }),
+    getAiModels: builder.query({
+      query: (params) => ({ url: "/ai/models", params }),
+      transformResponse: unwrap,
+      providesTags: ["AiModel"],
+    }),
+    getAiModelHealth: builder.query({
+      query: ({ modelId, symbol }) => ({
+        url: `/ai/models/${modelId}/health`,
+        params: symbol ? { symbol } : undefined,
+      }),
+      transformResponse: unwrap,
+    }),
+    getAiPrediction: builder.mutation({
+      query: (body) => ({ url: "/ai/predict", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
+    generateAiSignals: builder.mutation({
+      query: (body) => ({ url: "/ai/signals/generate", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
+    getAiRecommendation: builder.mutation({
+      query: (body) => ({ url: "/ai/rl/act", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
   }),
 });
 
@@ -170,4 +202,9 @@ export const {
   useGetNewsQuery,
   useGetPerformanceAnalyticsQuery,
   useGetRiskMetricsQuery,
+  useGetAiModelsQuery,
+  useGetAiModelHealthQuery,
+  useGetAiPredictionMutation,
+  useGenerateAiSignalsMutation,
+  useGetAiRecommendationMutation,
 } = api;

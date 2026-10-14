@@ -1,7 +1,3 @@
-"""
-Unit tests for the Risk Service.
-"""
-
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -14,10 +10,8 @@ from backend.risk_service.stress_testing import StressTesting
 
 
 class TestRiskCalculator(unittest.TestCase):
-    """Test cases for RiskCalculator"""
 
     def setUp(self) -> None:
-        """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
         self.db_manager = MagicMock()
@@ -72,7 +66,6 @@ class TestRiskCalculator(unittest.TestCase):
         }
 
     def test_calculate_portfolio_value(self) -> None:
-        """Test portfolio value calculation"""
         result = self.risk_calculator.calculate_portfolio_value(self.portfolio)
         self.assertIsInstance(result, dict)
         self.assertEqual(result["portfolio_id"], "portfolio1")
@@ -86,7 +79,6 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertEqual(result["total_value"], expected_total_value)
 
     def test_calculate_portfolio_returns(self) -> None:
-        """Test portfolio returns calculation"""
         result = self.risk_calculator.calculate_portfolio_returns(self.portfolio)
         self.assertIsInstance(result, dict)
         self.assertEqual(result["portfolio_id"], "portfolio1")
@@ -107,7 +99,6 @@ class TestRiskCalculator(unittest.TestCase):
         )
 
     def test_calculate_var(self) -> None:
-        """Test Value at Risk calculation"""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         result = self.risk_calculator.calculate_var(
             portfolio=self.portfolio, confidence_level=0.95, time_horizon=1
@@ -124,7 +115,6 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertEqual(result["time_horizon"], 1)
 
     def test_calculate_var_invalid_confidence(self) -> None:
-        """Test VaR calculation with invalid confidence level"""
         with self.assertRaises(ValidationError):
             self.risk_calculator.calculate_var(
                 portfolio=self.portfolio, confidence_level=1.5, time_horizon=1
@@ -135,7 +125,6 @@ class TestRiskCalculator(unittest.TestCase):
             )
 
     def test_calculate_var_invalid_horizon(self) -> None:
-        """Test VaR calculation with invalid time horizon"""
         with self.assertRaises(ValidationError):
             self.risk_calculator.calculate_var(
                 portfolio=self.portfolio, confidence_level=0.95, time_horizon=0
@@ -146,7 +135,6 @@ class TestRiskCalculator(unittest.TestCase):
             )
 
     def test_calculate_expected_shortfall(self) -> None:
-        """Test Expected Shortfall calculation"""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         result = self.risk_calculator.calculate_expected_shortfall(
             portfolio=self.portfolio, confidence_level=0.95, time_horizon=1
@@ -163,7 +151,6 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertEqual(result["time_horizon"], 1)
 
     def test_calculate_sharpe_ratio(self) -> None:
-        """Test Sharpe Ratio calculation"""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         result = self.risk_calculator.calculate_sharpe_ratio(
             portfolio=self.portfolio, risk_free_rate=0.02, period="1y"
@@ -180,7 +167,6 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertEqual(result["risk_free_rate"], 0.02)
 
     def test_calculate_beta(self) -> None:
-        """Test Beta calculation"""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         benchmark_data = pd.DataFrame(
             {
@@ -202,16 +188,6 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertEqual(result["benchmark"], "SPY")
 
     def test_calculate_portfolio_value_with_prediction(self) -> None:
-        """Test the ai_engine-backed predicted portfolio value.
-
-        Previously this called a GET /api/predict/<model_id>/<symbol> URL
-        that didn't exist on the AI engine (only POST /api/predict did),
-        so every position silently fell back to its current price with no
-        real prediction ever happening. Now that route exists (see
-        ai_models/engine/routes/prediction_routes.py:predict_get) and
-        returns exactly the {"prediction": {"average": ...}} shape this
-        method expects.
-        """
         self.config_manager.get.return_value = "http://localhost:8082"
         fake_response = MagicMock()
         fake_response.status_code = 200
@@ -228,20 +204,24 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertIn("predicted_value", result)
         called_url = mock_get.call_args[0][0]
         self.assertIn("/api/predict/model_1/", called_url)
+        self.assertEqual(
+            result["positions_predicted"], len(self.portfolio["positions"])
+        )
+        self.assertEqual(result["prediction_errors"], [])
 
     def test_calculate_portfolio_value_with_prediction_unreachable(self) -> None:
-        """When the AI engine can't be reached, positions fall back to their
-        current price rather than raising."""
         self.config_manager.get.return_value = "http://localhost:8082"
         with patch("requests.get", side_effect=ConnectionError("no route to host")):
             result = self.risk_calculator.calculate_portfolio_value_with_prediction(
                 portfolio=self.portfolio, model_id="model_1"
             )
         self.assertEqual(result["current_value"], result["predicted_value"])
+        self.assertEqual(result["positions_predicted"], 0)
+        self.assertEqual(
+            len(result["prediction_errors"]), len(self.portfolio["positions"])
+        )
 
     def test_calculate_risk_metrics(self) -> None:
-        """calculate_risk_metrics should bundle VaR/ES per confidence level
-        plus the Sharpe ratio, built on the individual calculator methods."""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         result = self.risk_calculator.calculate_risk_metrics(
             portfolio=self.portfolio, confidence_levels=[0.95, 0.99], timeframe="1m"
@@ -262,8 +242,6 @@ class TestRiskCalculator(unittest.TestCase):
         self.assertNotIn("positions", result)
 
     def test_get_portfolio_risk(self) -> None:
-        """get_portfolio_risk is a thin, default-args wrapper around
-        calculate_risk_metrics."""
         self.risk_calculator._get_market_data = MagicMock(return_value=self.market_data)
         result = self.risk_calculator.get_portfolio_risk(self.portfolio)
         self.assertEqual(result["portfolio_id"], "portfolio1")
@@ -298,10 +276,8 @@ class TestRiskCalculator(unittest.TestCase):
 
 
 class TestPositionSizing(unittest.TestCase):
-    """Test cases for PositionSizing"""
 
     def setUp(self) -> None:
-        """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
         self.db_manager = MagicMock()
@@ -327,7 +303,6 @@ class TestPositionSizing(unittest.TestCase):
         }
 
     def test_calculate_position_size_fixed(self) -> None:
-        """Test fixed position size calculation"""
         result = self.position_sizing.calculate_position_size(
             portfolio=self.portfolio,
             symbol="GOOGL",
@@ -347,7 +322,6 @@ class TestPositionSizing(unittest.TestCase):
         self.assertAlmostEqual(result["value"], expected_value)
 
     def test_calculate_position_size_percent(self) -> None:
-        """Test percentage position size calculation"""
         result = self.position_sizing.calculate_position_size(
             portfolio=self.portfolio,
             symbol="GOOGL",
@@ -368,7 +342,6 @@ class TestPositionSizing(unittest.TestCase):
         self.assertAlmostEqual(result["value"], expected_value)
 
     def test_calculate_position_size_risk(self) -> None:
-        """Test risk-based position size calculation"""
         result = self.position_sizing.calculate_position_size(
             portfolio=self.portfolio,
             symbol="GOOGL",
@@ -393,7 +366,6 @@ class TestPositionSizing(unittest.TestCase):
         self.assertEqual(result["stop_loss"], stop_loss)
 
     def test_calculate_position_size_kelly(self) -> None:
-        """Test Kelly Criterion position size calculation"""
         result = self.position_sizing.calculate_position_size(
             portfolio=self.portfolio,
             symbol="GOOGL",
@@ -417,7 +389,6 @@ class TestPositionSizing(unittest.TestCase):
         self.assertEqual(result["kelly_percent"], kelly_percent)
 
     def test_calculate_position_size_invalid_method(self) -> None:
-        """Test position size calculation with invalid method"""
         with self.assertRaises(ValidationError):
             self.position_sizing.calculate_position_size(
                 portfolio=self.portfolio,
@@ -428,7 +399,6 @@ class TestPositionSizing(unittest.TestCase):
             )
 
     def test_calculate_position_size_missing_params(self) -> None:
-        """Test position size calculation with missing parameters"""
         with self.assertRaises(ValidationError):
             self.position_sizing.calculate_position_size(
                 portfolio=self.portfolio,
@@ -463,7 +433,6 @@ class TestPositionSizing(unittest.TestCase):
             )
 
     def test_calculate_position_size_invalid_params(self) -> None:
-        """Test position size calculation with invalid parameters"""
         with self.assertRaises(ValidationError):
             self.position_sizing.calculate_position_size(
                 portfolio=self.portfolio,
@@ -491,10 +460,8 @@ class TestPositionSizing(unittest.TestCase):
 
 
 class TestStressTesting(unittest.TestCase):
-    """Test cases for StressTesting"""
 
     def setUp(self) -> None:
-        """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
         self.db_manager = MagicMock()
@@ -526,7 +493,6 @@ class TestStressTesting(unittest.TestCase):
         }
 
     def test_run_historical_scenario(self) -> None:
-        """Test historical scenario stress test"""
         historical_data = {
             "AAPL": pd.DataFrame(
                 {
@@ -574,7 +540,6 @@ class TestStressTesting(unittest.TestCase):
         self.assertEqual(result["change_percent"], change_percent)
 
     def test_run_monte_carlo_simulation(self) -> None:
-        """Test Monte Carlo simulation stress test"""
         result = self.stress_testing.run_monte_carlo_simulation(
             portfolio=self.portfolio,
             num_simulations=100,
@@ -598,7 +563,6 @@ class TestStressTesting(unittest.TestCase):
         self.assertTrue(len(result["simulations"]) == 100)
 
     def test_run_sensitivity_analysis(self) -> None:
-        """Test sensitivity analysis stress test"""
         result = self.stress_testing.run_sensitivity_analysis(
             portfolio=self.portfolio,
             factors=[
@@ -615,7 +579,6 @@ class TestStressTesting(unittest.TestCase):
         self.assertEqual(len(result["scenarios"]), 9)
 
     def test_run_custom_scenario(self) -> None:
-        """Test custom scenario stress test"""
         result = self.stress_testing.run_custom_scenario(
             portfolio=self.portfolio,
             scenario_name="Custom Scenario",
@@ -644,9 +607,6 @@ class TestStressTesting(unittest.TestCase):
         self.assertEqual(result["change_percent"], change_percent)
 
     def test_run_stress_test_dispatches_custom(self) -> None:
-        """run_stress_test("custom", shocks=...) should dispatch to
-        run_custom_scenario, converting fraction shocks (-1.0 to 10.0) to
-        the percentages run_custom_scenario's price_changes expects."""
         result = self.stress_testing.run_stress_test(
             portfolio=self.portfolio,
             scenario_name="custom",
@@ -657,8 +617,6 @@ class TestStressTesting(unittest.TestCase):
         self.assertAlmostEqual(aapl_position["change_percent"], -15.0)
 
     def test_run_stress_test_dispatches_historical(self) -> None:
-        """run_stress_test(<a known historical name>) should dispatch to
-        run_historical_scenario with that scenario's canned date range."""
         self.stress_testing._get_historical_data = MagicMock(return_value={})
         result = self.stress_testing.run_stress_test(
             portfolio=self.portfolio, scenario_name="covid_crash_2020"
@@ -668,8 +626,6 @@ class TestStressTesting(unittest.TestCase):
         self.assertEqual(result["end_date"], "2020-04-01")
 
     def test_run_stress_test_custom_without_shocks(self) -> None:
-        """A custom scenario without shocks should raise, not silently
-        run_custom_scenario with an empty/missing price_changes dict."""
         with self.assertRaises(ValidationError):
             self.stress_testing.run_stress_test(
                 portfolio=self.portfolio, scenario_name="custom"

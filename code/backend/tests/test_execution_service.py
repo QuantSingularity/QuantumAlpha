@@ -1,7 +1,3 @@
-"""
-Unit tests for the Execution Service.
-"""
-
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
@@ -13,10 +9,8 @@ from backend.execution_service.order_manager import OrderManager
 
 
 class TestOrderManager(unittest.TestCase):
-    """Test cases for OrderManager"""
 
     def setUp(self) -> None:
-        """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
         self.db_manager = MagicMock()
@@ -48,7 +42,6 @@ class TestOrderManager(unittest.TestCase):
         }
 
     def test_create_order(self) -> None:
-        """Test order creation"""
         self.session.execute.return_value.fetchone.return_value = ["order1"]
         result = self.order_manager.create_order(self.order_data)
         self.assertIsInstance(result, dict)
@@ -63,7 +56,6 @@ class TestOrderManager(unittest.TestCase):
         self.session.commit.assert_called_once()
 
     def test_create_order_missing_fields(self) -> None:
-        """Test order creation with missing fields"""
         order_data = self.order_data.copy()
         del order_data["portfolio_id"]
         with self.assertRaises(ValidationError):
@@ -86,7 +78,6 @@ class TestOrderManager(unittest.TestCase):
             self.order_manager.create_order(order_data)
 
     def test_create_order_invalid_fields(self) -> None:
-        """Test order creation with invalid fields"""
         order_data = self.order_data.copy()
         order_data["order_type"] = "invalid_type"
         with self.assertRaises(ValidationError):
@@ -114,7 +105,6 @@ class TestOrderManager(unittest.TestCase):
             self.order_manager.create_order(order_data)
 
     def test_get_order(self) -> None:
-        """Test getting an order"""
         mock_row = MagicMock()
         mock_row.items.return_value = [
             ("id", "order1"),
@@ -142,13 +132,11 @@ class TestOrderManager(unittest.TestCase):
         self.session.execute.assert_called_once()
 
     def test_get_order_not_found(self) -> None:
-        """Test getting a non-existent order"""
         self.session.execute.return_value.fetchone.return_value = None
         with self.assertRaises(NotFoundError):
             self.order_manager.get_order("non_existent_order")
 
     def test_get_orders(self) -> None:
-        """Test getting orders"""
         mock_row1 = MagicMock()
         mock_row1.items.return_value = [
             ("id", "order1"),
@@ -188,7 +176,6 @@ class TestOrderManager(unittest.TestCase):
         self.session.execute.assert_called_once()
 
     def test_update_order_status(self) -> None:
-        """Test updating order status"""
         self.session.execute.return_value.rowcount = 1
         result = self.order_manager.update_order_status("order1", "filled")
         self.assertIsInstance(result, dict)
@@ -198,18 +185,15 @@ class TestOrderManager(unittest.TestCase):
         self.session.commit.assert_called_once()
 
     def test_update_order_status_not_found(self) -> None:
-        """Test updating status of a non-existent order"""
         self.session.execute.return_value.rowcount = 0
         with self.assertRaises(NotFoundError):
             self.order_manager.update_order_status("non_existent_order", "filled")
 
     def test_update_order_status_invalid_status(self) -> None:
-        """Test updating order status with invalid status"""
         with self.assertRaises(ValidationError):
             self.order_manager.update_order_status("order1", "invalid_status")
 
     def test_cancel_order(self) -> None:
-        """Test canceling an order"""
         self.session.execute.return_value.rowcount = 1
         result = self.order_manager.cancel_order("order1")
         self.assertIsInstance(result, dict)
@@ -219,13 +203,11 @@ class TestOrderManager(unittest.TestCase):
         self.session.commit.assert_called_once()
 
     def test_cancel_order_not_found(self) -> None:
-        """Test canceling a non-existent order"""
         self.session.execute.return_value.rowcount = 0
         with self.assertRaises(NotFoundError):
             self.order_manager.cancel_order("non_existent_order")
 
     def test_create_trade(self) -> None:
-        """Test trade creation"""
         self.session.execute.return_value.fetchone.return_value = ["trade1"]
         trade_data = {
             "order_id": "order1",
@@ -248,7 +230,6 @@ class TestOrderManager(unittest.TestCase):
         self.session.commit.assert_called_once()
 
     def test_create_trade_missing_fields(self) -> None:
-        """Test trade creation with missing fields"""
         trade_data = {
             "symbol": "AAPL",
             "side": "buy",
@@ -296,7 +277,6 @@ class TestOrderManager(unittest.TestCase):
             self.order_manager.create_trade(trade_data)
 
     def test_get_trades(self) -> None:
-        """Test getting trades"""
         mock_row1 = MagicMock()
         mock_row1.items.return_value = [
             ("id", "trade1"),
@@ -331,10 +311,8 @@ class TestOrderManager(unittest.TestCase):
 
 
 class TestBrokerIntegration(unittest.TestCase):
-    """Test cases for BrokerIntegration"""
 
     def setUp(self) -> None:
-        """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
         self.db_manager = MagicMock()
@@ -357,7 +335,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.post")
     def test_submit_order_to_broker(self, mock_post: "MagicMock") -> None:
-        """Test submitting order to broker"""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -374,7 +351,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.post")
     def test_submit_order_to_broker_error(self, mock_post: "MagicMock") -> None:
-        """Test submitting order to broker with error"""
         mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.text = "Invalid order"
@@ -384,7 +360,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.get")
     def test_get_order_status_from_broker(self, mock_get: "MagicMock") -> None:
-        """Test getting order status from broker"""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -404,7 +379,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.get")
     def test_get_order_status_from_broker_error(self, mock_get: "MagicMock") -> None:
-        """Test getting order status from broker with error"""
         mock_response = MagicMock()
         mock_response.status_code = 404
         mock_response.text = "Order not found"
@@ -414,7 +388,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.delete")
     def test_cancel_order_at_broker(self, mock_delete: "MagicMock") -> None:
-        """Test canceling order at broker"""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -430,7 +403,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.delete")
     def test_cancel_order_at_broker_error(self, mock_delete: "MagicMock") -> None:
-        """Test canceling order at broker with error"""
         mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.text = "Cannot cancel order"
@@ -440,7 +412,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.get")
     def test_get_account_info(self, mock_get: "MagicMock") -> None:
-        """Test getting account info"""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -472,7 +443,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.get")
     def test_get_account_info_error(self, mock_get: "MagicMock") -> None:
-        """Test getting account info with error"""
         mock_response = MagicMock()
         mock_response.status_code = 401
         mock_response.text = "Unauthorized"
@@ -482,7 +452,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.get")
     def test_get_market_data(self, mock_get: "MagicMock") -> None:
-        """Test getting market data"""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -504,7 +473,6 @@ class TestBrokerIntegration(unittest.TestCase):
 
     @patch("requests.get")
     def test_get_market_data_error(self, mock_get: "MagicMock") -> None:
-        """Test getting market data with error"""
         mock_response = MagicMock()
         mock_response.status_code = 404
         mock_response.text = "Symbol not found"
@@ -514,10 +482,8 @@ class TestBrokerIntegration(unittest.TestCase):
 
 
 class TestExecutionStrategy(unittest.TestCase):
-    """Test cases for ExecutionStrategy"""
 
     def setUp(self) -> None:
-        """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
         self.db_manager = MagicMock()
@@ -546,7 +512,6 @@ class TestExecutionStrategy(unittest.TestCase):
         }
 
     def test_select_execution_strategy(self) -> None:
-        """Test selecting execution strategy"""
         strategy = self.execution_strategy.select_execution_strategy(self.order)
         self.assertEqual(strategy, "market")
         order = self.order.copy()
@@ -560,7 +525,6 @@ class TestExecutionStrategy(unittest.TestCase):
         self.assertEqual(strategy, "vwap")
 
     def test_execute_market_strategy(self) -> None:
-        """Test executing market strategy"""
         broker_integration = MagicMock()
         broker_integration.submit_order_to_broker.return_value = {
             "order_id": "order1",
@@ -585,7 +549,6 @@ class TestExecutionStrategy(unittest.TestCase):
         broker_integration.submit_order_to_broker.assert_called_once()
 
     def test_execute_limit_strategy(self) -> None:
-        """Test executing limit strategy"""
         broker_integration = MagicMock()
         broker_integration.submit_order_to_broker.return_value = {
             "order_id": "order1",
@@ -613,7 +576,6 @@ class TestExecutionStrategy(unittest.TestCase):
         broker_integration.submit_order_to_broker.assert_called_once()
 
     def test_execute_vwap_strategy(self) -> None:
-        """Test executing VWAP strategy"""
         broker_integration = MagicMock()
         broker_integration.submit_order_to_broker.side_effect = [
             {
@@ -649,7 +611,6 @@ class TestExecutionStrategy(unittest.TestCase):
         self.assertEqual(broker_integration.submit_order_to_broker.call_count, 5)
 
     def test_execute_twap_strategy(self) -> None:
-        """Test executing TWAP strategy"""
         broker_integration = MagicMock()
         broker_integration.submit_order_to_broker.side_effect = [
             {
@@ -686,7 +647,6 @@ class TestExecutionStrategy(unittest.TestCase):
         self.assertEqual(broker_integration.submit_order_to_broker.call_count, 5)
 
     def test_execute_iceberg_strategy(self) -> None:
-        """Test executing iceberg strategy"""
         broker_integration = MagicMock()
         broker_integration.submit_order_to_broker.side_effect = [
             {

@@ -1,6 +1,3 @@
-# QuantumAlpha Data Service Configuration
-
-# Service Configuration
 service:
   name: data-service
   version: 1.0.0
@@ -10,7 +7,6 @@ service:
   workers: 4
   timeout: 30
 
-# API Configuration
 api:
   prefix: /api/v1
   rate_limit: 100
@@ -19,7 +15,6 @@ api:
     - https://staging.quantumalpha.ai
     - https://app.quantumalpha.ai
 
-# Data Sources
 data_sources:
   market_data:
     - name: alpha_vantage
@@ -102,7 +97,6 @@ data_sources:
         - name: filings
           path: /Archives/edgar/daily-index
 
-# Data Processing
 data_processing:
   market_data:
     - name: price_normalization
@@ -138,7 +132,6 @@ data_processing:
         model: lda
         num_topics: 10
 
-# Feature Engineering
 feature_engineering:
   technical_indicators:
     - name: moving_averages
@@ -180,7 +173,6 @@ feature_engineering:
         window: 30
         min_symbols: 10
 
-# Storage Configuration
 storage:
   time_series:
     type: influxdb
@@ -247,7 +239,6 @@ storage:
           - name: sentiment_score
             type: NUMERIC
 
-# Caching Configuration
 caching:
   enabled: true
   backend: redis
@@ -260,27 +251,25 @@ caching:
     - key: "alternative_data:news:{symbol}"
       ttl: 7200
 
-# Scheduler Configuration
 scheduler:
   enabled: true
   jobs:
     - name: update_daily_data
-      schedule: "0 18 * * 1-5" # 6 PM on weekdays
+      schedule: "0 18 * * 1-5"
       function: update_daily_market_data
       params:
         symbols: "from_database"
     - name: update_fundamentals
-      schedule: "0 20 * * 1-5" # 8 PM on weekdays
+      schedule: "0 20 * * 1-5"
       function: update_fundamentals
       params:
         symbols: "from_database"
     - name: clean_old_data
-      schedule: "0 1 * * 0" # 1 AM on Sundays
+      schedule: "0 1 * * 0"
       function: clean_old_data
       params:
         older_than_days: 90
 
-# Monitoring
 monitoring:
   metrics:
     enabled: true

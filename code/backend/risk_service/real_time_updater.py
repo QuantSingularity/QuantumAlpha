@@ -1,8 +1,3 @@
-"""
-Real-time data updater for QuantumAlpha Risk Service.
-Handles continuous data ingestion and model updates.
-"""
-
 import logging
 import threading
 import time
@@ -19,15 +14,8 @@ logger = setup_logger("real_time_updater", logging.INFO)
 
 
 class RealTimeUpdater:
-    """Real-time data updater and model adapter"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize real-time updater
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.online_learning_engine = OnlineLearningEngine(config_manager, db_manager)
@@ -62,11 +50,6 @@ class RealTimeUpdater:
         logger.info("Real-time updater initialized")
 
     def start(self, symbols: List[str]) -> None:
-        """Start real-time data processing
-
-        Args:
-            symbols: List of symbols to track
-        """
         try:
             logger.info(f"Starting real-time updater for {len(symbols)} symbols")
             self.tracked_symbols = set(symbols)
@@ -84,7 +67,6 @@ class RealTimeUpdater:
             raise ServiceError(f"Error starting real-time updater: {str(e)}")
 
     def stop(self) -> None:
-        """Stop real-time data processing"""
         try:
             logger.info("Stopping real-time updater")
             self.running = False
@@ -98,40 +80,19 @@ class RealTimeUpdater:
             logger.error(f"Error stopping real-time updater: {e}")
 
     def add_symbol(self, symbol: str) -> None:
-        """Add a symbol to real-time tracking
-
-        Args:
-            symbol: Symbol to add
-        """
         self.tracked_symbols.add(symbol)
         logger.info(f"Added symbol {symbol} to real-time tracking")
 
     def remove_symbol(self, symbol: str) -> None:
-        """Remove a symbol from real-time tracking
-
-        Args:
-            symbol: Symbol to remove
-        """
         self.tracked_symbols.discard(symbol)
         logger.info(f"Removed symbol {symbol} from real-time tracking")
 
     def register_callback(self, event_type: str, callback: Callable) -> None:
-        """Register a callback for real-time events
-
-        Args:
-            event_type: Type of event ('data_received', 'model_updated', 'anomaly_detected', 'error_occurred')
-            callback: Callback function
-        """
         if event_type in self.callbacks:
             self.callbacks[event_type].append(callback)
             logger.info(f"Registered callback for {event_type}")
 
     def get_metrics(self) -> Dict[str, Any]:
-        """Get real-time processing metrics
-
-        Returns:
-            Processing metrics
-        """
         return {
             "metrics": self.metrics.copy(),
             "tracked_symbols": list(self.tracked_symbols),
@@ -144,11 +105,6 @@ class RealTimeUpdater:
         }
 
     def force_model_update(self) -> Dict[str, Any]:
-        """Force an immediate model update
-
-        Returns:
-            Update results
-        """
         try:
             logger.info("Forcing immediate model update")
             market_data = {}
@@ -173,7 +129,6 @@ class RealTimeUpdater:
             raise ServiceError(f"Error forcing model update: {str(e)}")
 
     def _start_data_processor(self) -> None:
-        """Start data processing thread"""
 
         def process_data():
             while self.running:
@@ -198,7 +153,6 @@ class RealTimeUpdater:
         logger.info("Data processor thread started")
 
     def _start_model_updater(self) -> None:
-        """Start model update thread"""
 
         def update_models():
             while self.running:
@@ -238,7 +192,6 @@ class RealTimeUpdater:
         logger.info("Model updater thread started")
 
     def _start_anomaly_detector(self) -> None:
-        """Start anomaly detection thread"""
 
         def detect_anomalies():
             while self.running:
@@ -281,7 +234,6 @@ class RealTimeUpdater:
         logger.info("Anomaly detector thread started")
 
     def _start_data_fetcher(self) -> None:
-        """Start periodic data fetching thread"""
 
         def fetch_data():
             while self.running:
@@ -319,11 +271,6 @@ class RealTimeUpdater:
         logger.info("Data fetcher thread started")
 
     def _process_data_point(self, data_point: Dict[str, Any]) -> None:
-        """Process a single data point
-
-        Args:
-            data_point: Data point to process
-        """
         try:
             data_point["symbol"]
             data_point["data"]
@@ -335,26 +282,18 @@ class RealTimeUpdater:
             raise
 
     def _initialize_feeds(self) -> None:
-        """Initialize real-time data feeds"""
         try:
             logger.info("Real-time feeds initialized (polling mode)")
         except Exception as e:
             logger.error(f"Error initializing feeds: {e}")
 
     def _close_feeds(self) -> None:
-        """Close real-time data feeds"""
         try:
             logger.info("Real-time feeds closed")
         except Exception as e:
             logger.error(f"Error closing feeds: {e}")
 
     def _trigger_callbacks(self, event_type: str, data: object) -> None:
-        """Trigger callbacks for an event type
-
-        Args:
-            event_type: Type of event
-            data: Event data
-        """
         try:
             for callback in self.callbacks.get(event_type, []):
                 try:
@@ -366,15 +305,8 @@ class RealTimeUpdater:
 
 
 class StreamingDataProcessor:
-    """Handles streaming data processing for high-frequency updates"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize streaming data processor
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.price_buffer = {}
@@ -392,11 +324,6 @@ class StreamingDataProcessor:
         logger.info("Streaming data processor initialized")
 
     def process_trade(self, trade_data: Dict[str, Any]) -> None:
-        """Process a trade message
-
-        Args:
-            trade_data: Trade data
-        """
         try:
             symbol = trade_data.get("symbol")
             if not symbol:
@@ -422,11 +349,6 @@ class StreamingDataProcessor:
             self.stats["errors"] += 1
 
     def process_quote(self, quote_data: Dict[str, Any]) -> None:
-        """Process a quote message
-
-        Args:
-            quote_data: Quote data
-        """
         try:
             symbol = quote_data.get("symbol")
             if not symbol:
@@ -447,11 +369,6 @@ class StreamingDataProcessor:
             self.stats["errors"] += 1
 
     def _flush_trade_buffer(self, symbol: str) -> None:
-        """Flush trade buffer for a symbol
-
-        Args:
-            symbol: Symbol to flush
-        """
         try:
             if symbol in self.trade_buffer and self.trade_buffer[symbol]:
                 trades = self.trade_buffer[symbol]
@@ -462,11 +379,6 @@ class StreamingDataProcessor:
             logger.error(f"Error flushing trade buffer: {e}")
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get processing statistics
-
-        Returns:
-            Processing statistics
-        """
         return {
             "stats": self.stats.copy(),
             "buffer_sizes": {

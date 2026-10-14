@@ -1,8 +1,3 @@
-"""
-Comprehensive Input Validation Framework for QuantumAlpha
-Implements robust validation, sanitization, and security controls for all inputs
-"""
-
 import html
 import re
 from decimal import Decimal, InvalidOperation
@@ -23,7 +18,6 @@ logger = structlog.get_logger(__name__)
 
 
 class ValidationConfig:
-    """Validation configuration constants"""
 
     MAX_STRING_LENGTH = 1000
     MAX_TEXT_LENGTH = 10000
@@ -51,15 +45,6 @@ class ValidationConfig:
 
 
 class ValidationError(ServiceError):
-    """Custom validation exception (HTTP 400) with structured field/code
-    info, raised throughout this module's validators and by validate_schema.
-
-    Subclasses backend.common.logging_utils.ServiceError so every
-    service's Flask error handler (`isinstance(e, ServiceError)`) returns
-    the correct 400 status instead of falling through to a generic 500 -
-    this used to be a bare Exception subclass, so every input-validation
-    failure raised anywhere via this class surfaced as an unhandled 500.
-    """
 
     def __init__(self, message: str, field: str = None, code: str = None) -> None:
         self.field = field
@@ -70,11 +55,9 @@ class ValidationError(ServiceError):
 
 
 class SecurityValidator:
-    """Security-focused input validation"""
 
     @staticmethod
     def check_sql_injection(value: str) -> bool:
-        """Check for SQL injection patterns"""
         if not isinstance(value, str):
             return False
         value_lower = value.lower()
@@ -85,7 +68,6 @@ class SecurityValidator:
 
     @staticmethod
     def check_xss(value: str) -> bool:
-        """Check for XSS patterns"""
         if not isinstance(value, str):
             return False
         for pattern in ValidationConfig.XSS_PATTERNS:
@@ -95,7 +77,6 @@ class SecurityValidator:
 
     @staticmethod
     def sanitize_html(value: str) -> str:
-        """Sanitize HTML content"""
         if not isinstance(value, str):
             return str(value)
         return bleach.clean(
@@ -107,14 +88,12 @@ class SecurityValidator:
 
     @staticmethod
     def escape_html(value: str) -> str:
-        """Escape HTML entities"""
         if not isinstance(value, str):
             return str(value)
         return html.escape(value)
 
     @staticmethod
     def validate_safe_string(value: str, field_name: str = "field") -> str:
-        """Validate and sanitize a string for safety"""
         if not isinstance(value, str):
             raise ValidationError(f"{field_name} must be a string")
         if SecurityValidator.check_sql_injection(value):
@@ -131,11 +110,9 @@ class SecurityValidator:
 
 
 class FinancialValidator:
-    """Financial data validation"""
 
     @staticmethod
     def validate_price(value: Union[str, float, Decimal]) -> Decimal:
-        """Validate and normalize price values"""
         try:
             if isinstance(value, str):
                 cleaned = re.sub("[^\\d.-]", "", value)
@@ -160,7 +137,6 @@ class FinancialValidator:
 
     @staticmethod
     def validate_quantity(value: Union[str, float, Decimal]) -> Decimal:
-        """Validate and normalize quantity values"""
         try:
             if isinstance(value, str):
                 cleaned = re.sub("[^\\d.-]", "", value)
@@ -179,7 +155,6 @@ class FinancialValidator:
 
     @staticmethod
     def validate_symbol(value: str) -> str:
-        """Validate stock symbol format"""
         if not isinstance(value, str):
             raise ValidationError("Symbol must be a string")
         symbol = value.upper().strip()
@@ -189,7 +164,6 @@ class FinancialValidator:
 
     @staticmethod
     def validate_currency(value: str) -> str:
-        """Validate currency code"""
         if not isinstance(value, str):
             raise ValidationError("Currency must be a string")
         currency = value.upper().strip()
@@ -199,11 +173,9 @@ class FinancialValidator:
 
 
 class UserValidator:
-    """User data validation"""
 
     @staticmethod
     def validate_email(value: str) -> str:
-        """Validate email format and security"""
         if not isinstance(value, str):
             raise ValidationError("Email must be a string")
         email = value.lower().strip()
@@ -219,7 +191,6 @@ class UserValidator:
 
     @staticmethod
     def validate_password(value: str) -> str:
-        """Validate password strength"""
         if not isinstance(value, str):
             raise ValidationError("Password must be a string")
         if len(value) < 12:
@@ -243,7 +214,6 @@ class UserValidator:
 
     @staticmethod
     def validate_name(value: str) -> str:
-        """Validate user name"""
         if not isinstance(value, str):
             raise ValidationError("Name must be a string")
         name = value.strip()
@@ -261,11 +231,9 @@ class UserValidator:
 
 
 class BaseSchema(Schema):
-    """Base schema with common validation"""
 
     @pre_load
     def strip_strings(self, data: object, **kwargs) -> None:
-        """Strip whitespace from string fields"""
         if isinstance(data, dict):
             for key, value in data.items():
                 if isinstance(value, str):
@@ -274,7 +242,6 @@ class BaseSchema(Schema):
 
     @validates_schema
     def validate_security(self, data: object, **kwargs) -> None:
-        """Validate data for security threats"""
         for field, value in data.items():
             if isinstance(value, str):
                 try:
@@ -284,7 +251,6 @@ class BaseSchema(Schema):
 
 
 class UserRegistrationSchema(BaseSchema):
-    """User registration validation schema"""
 
     email = fields.Email(required=True, validate=validate.Length(max=255))
     password = fields.Str(required=True, validate=validate.Length(min=12, max=128))
@@ -310,7 +276,6 @@ class UserRegistrationSchema(BaseSchema):
 
 
 class UserLoginSchema(BaseSchema):
-    """User login validation schema"""
 
     email = fields.Email(required=True)
     password = fields.Str(required=True)
@@ -323,7 +288,6 @@ class UserLoginSchema(BaseSchema):
 
 
 class OrderSchema(BaseSchema):
-    """Order validation schema"""
 
     portfolio_id = fields.Int(required=True, validate=validate.Range(min=1))
     symbol = fields.Str(required=True, validate=validate.Length(min=1, max=10))
@@ -361,7 +325,6 @@ class OrderSchema(BaseSchema):
 
     @validates_schema
     def validate_order_logic(self, data: object, **kwargs) -> None:
-        """Validate order business logic"""
         order_type = data.get("order_type")
         price = data.get("price")
         stop_price = data.get("stop_price")
@@ -380,9 +343,6 @@ class OrderSchema(BaseSchema):
 
 
 class PortfolioPositionSchema(BaseSchema):
-    """A single position within a portfolio *state* (as held/valued by
-    risk_service), as opposed to PortfolioSchema below, which validates a
-    portfolio *creation* request (name, initial cash, limits)."""
 
     symbol = fields.Str(required=True, validate=validate.Length(min=1, max=20))
     quantity = fields.Float(required=True)
@@ -395,9 +355,6 @@ class PortfolioPositionSchema(BaseSchema):
 
 
 class PortfolioStateSchema(BaseSchema):
-    """A portfolio's current state (cash + positions), as consumed by
-    risk_service's RiskCalculator/PositionSizing/StressTesting - distinct
-    from PortfolioSchema, which validates portfolio *creation* requests."""
 
     id = fields.Str(required=False, allow_none=True)
     cash = fields.Float(required=False, load_default=0.0)
@@ -407,7 +364,6 @@ class PortfolioStateSchema(BaseSchema):
 
 
 class PortfolioSchema(BaseSchema):
-    """Portfolio validation schema"""
 
     name = fields.Str(required=True, validate=validate.Length(min=1, max=255))
     description = fields.Str(required=False, validate=validate.Length(max=1000))
@@ -439,40 +395,6 @@ def validate_schema(
     partial: bool = False,
     context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """
-    Validate and deserialize a data dict against a Marshmallow schema class.
-
-    This is the primary entry point used by common/__init__.py and all
-    microservices that need programmatic (non-decorator) schema validation.
-
-    Args:
-        data:    Raw input dict to validate (e.g. request payload, DB row).
-        schema:  A Marshmallow Schema *class* (not an instance) to validate
-                 against.  All built-in schemas in this module are accepted,
-                 as are any custom subclasses of BaseSchema.
-        partial: When True, required-field checks are skipped - useful for
-                 PATCH/partial-update endpoints.
-        context: Optional dict passed through to the schema as
-                 ``schema.context``; handy for cross-field rules that need
-                 request-level state (e.g. the current user).
-
-    Returns:
-        A dict of validated, deserialized field values as produced by
-        ``schema.load()``.
-
-    Raises:
-        ValidationError: (the *custom* one defined above, NOT Marshmallow's)
-            raised with a human-readable ``message`` and ``field`` set to
-            ``"__all__"`` when the schema reports errors, so callers only
-            ever need to catch one exception type.
-
-    Example::
-
-        from common.validation import validate_schema, OrderSchema
-
-        validated = validate_schema(request.get_json(), OrderSchema)
-        place_order(validated["symbol"], validated["quantity"])
-    """
     if not isinstance(data, dict):
         raise ValidationError(
             "Input data must be a JSON object (dict).",
@@ -486,32 +408,17 @@ def validate_schema(
             instance.context.update(context)
         return instance.load(data)
     except MarshmallowValidationError as exc:
-        # Flatten Marshmallow's nested error dict into a single readable string
-        # while preserving the raw details on the exception for callers that
-        # want to inspect them.
         flat_errors = _flatten_marshmallow_errors(exc.messages)
         err = ValidationError(
             message=f"Validation failed: {flat_errors}",
             field="__all__",
             code="schema_validation_error",
         )
-        # Attach the original structured messages for introspection
         err.details = exc.messages
         raise err
 
 
 def _flatten_marshmallow_errors(errors: object, prefix: str = "") -> str:
-    """
-    Recursively flatten Marshmallow's nested error dict/list into a
-    comma-separated string suitable for log messages and API error responses.
-
-    Examples
-    --------
-    {"email": ["Not a valid email."]}
-        -> "email: Not a valid email."
-    {"price": {"amount": ["Must be greater than 0."]}}
-        -> "price.amount: Must be greater than 0."
-    """
     parts = []
     if isinstance(errors, dict):
         for field, messages in errors.items():
@@ -526,7 +433,6 @@ def _flatten_marshmallow_errors(errors: object, prefix: str = "") -> str:
 
 
 def validate_json(schema_class: Type[Schema]) -> None:
-    """Decorator to validate JSON request data"""
 
     def decorator(func):
 
@@ -569,7 +475,6 @@ def validate_json(schema_class: Type[Schema]) -> None:
 
 
 def validate_query_params(**param_validators) -> None:
-    """Decorator to validate query parameters"""
 
     def decorator(func):
 
@@ -606,23 +511,11 @@ def validate_query_params(**param_validators) -> None:
 
 
 class RateLimitValidator:
-    """Rate limiting for API endpoints"""
 
     def __init__(self, redis_client: object) -> None:
         self.redis = redis_client
 
     def check_rate_limit(self, key: str, limit: int, window: int) -> bool:
-        """
-        Check if rate limit is exceeded
-
-        Args:
-            key: Unique identifier for rate limiting
-            limit: Maximum number of requests
-            window: Time window in seconds
-
-        Returns:
-            True if within limit, False if exceeded
-        """
         try:
             current = self.redis.get(key)
             if current is None:
@@ -638,7 +531,6 @@ class RateLimitValidator:
 
 
 def sanitize_filename(filename: str) -> str:
-    """Sanitize filename for safe storage"""
     if not isinstance(filename, str):
         raise ValidationError("Filename must be a string")
     filename = filename.replace("..", "").replace("/", "").replace("\\", "")
@@ -651,7 +543,6 @@ def sanitize_filename(filename: str) -> str:
 
 
 def sanitize_search_query(query: str) -> str:
-    """Sanitize search query"""
     if not isinstance(query, str):
         raise ValidationError("Search query must be a string")
     query = re.sub("[<>\"\\';\\\\]", "", query)
@@ -660,20 +551,7 @@ def sanitize_search_query(query: str) -> str:
     return query.strip()
 
 
-# =============================================================================
-# Service Request Schemas
-# Used by data_service, execution_service, risk_service, and ai_engine to
-# validate inbound API request payloads via validate_schema().
-# =============================================================================
-
-
 class MarketDataRequest(BaseSchema):
-    """
-    Validates requests to the data_service market-data endpoints.
-
-    Used by:
-        from common.validation import MarketDataRequest
-    """
 
     symbol = fields.Str(
         required=True,
@@ -684,14 +562,13 @@ class MarketDataRequest(BaseSchema):
         validate=validate.OneOf(["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]),
         load_default="1d",
     )
-    # ISO-8601 date strings; validated further in validates_schema
     start_date = fields.DateTime(required=False, allow_none=True, load_default=None)
     end_date = fields.DateTime(required=False, allow_none=True, load_default=None)
-    # Convenience shorthand: "7d", "30d", "90d", "1y" etc.
     period = fields.Str(
         required=False,
         validate=validate.Regexp(
-            r"^\d+[dwmy]$", error="period must match pattern e.g. '30d', '3m', '1y'"
+            r"^(\d+(d|w|wk|m|mo|y)|max)$",
+            error="period must match pattern e.g. '30d', '1mo', '1y' or 'max'",
         ),
         load_default=None,
     )
@@ -716,12 +593,6 @@ class MarketDataRequest(BaseSchema):
 
 
 class OrderRequest(BaseSchema):
-    """
-    Validates new-order payloads sent to the execution_service.
-
-    Used by:
-        from common.validation import OrderRequest
-    """
 
     portfolio_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
     symbol = fields.Str(required=True, validate=validate.Length(min=1, max=20))
@@ -741,7 +612,6 @@ class OrderRequest(BaseSchema):
         validate=validate.OneOf(["day", "gtc", "ioc", "fok"]),
         load_default="day",
     )
-    # Optional broker routing hint
     broker_account_id = fields.Str(required=False, allow_none=True, load_default=None)
 
     @validates("symbol")
@@ -782,12 +652,6 @@ class OrderRequest(BaseSchema):
 
 
 class CancelOrderRequest(BaseSchema):
-    """
-    Validates order-cancellation requests sent to the execution_service.
-
-    Used by:
-        from common.validation import CancelOrderRequest
-    """
 
     order_id = fields.Str(required=True, validate=validate.Length(min=1, max=50))
     reason = fields.Str(
@@ -803,12 +667,6 @@ class CancelOrderRequest(BaseSchema):
 
 
 class RiskMetricsRequest(BaseSchema):
-    """
-    Validates requests for portfolio risk-metric calculations in risk_service.
-
-    Used by:
-        from common.validation import RiskMetricsRequest
-    """
 
     portfolio = fields.Nested(PortfolioStateSchema, required=True)
     timeframe = fields.Str(
@@ -816,7 +674,6 @@ class RiskMetricsRequest(BaseSchema):
         validate=validate.OneOf(["1d", "1w", "1m", "3m", "6m", "1y", "ytd"]),
         load_default="1m",
     )
-    # Confidence levels for VaR/CVaR; defaults match standard risk practice
     confidence_levels = fields.List(
         fields.Float(validate=validate.Range(min=0.01, max=0.9999)),
         required=False,
@@ -826,16 +683,9 @@ class RiskMetricsRequest(BaseSchema):
 
 
 class PositionSizeRequest(BaseSchema):
-    """
-    Validates position-sizing requests in risk_service.
-
-    Used by:
-        from common.validation import PositionSizeRequest
-    """
 
     portfolio = fields.Nested(PortfolioStateSchema, required=True)
     symbol = fields.Str(required=True, validate=validate.Length(min=1, max=20))
-    # Either a fixed dollar risk amount OR a percentage of portfolio - one required
     risk_amount = fields.Decimal(required=False, places=2, allow_none=True)
     risk_percent = fields.Decimal(
         required=False,
@@ -888,12 +738,6 @@ class PositionSizeRequest(BaseSchema):
 
 
 class StressTestRequest(BaseSchema):
-    """
-    Validates stress-test scenario requests in risk_service.
-
-    Used by:
-        from common.validation import StressTestRequest
-    """
 
     portfolio = fields.Nested(PortfolioStateSchema, required=True)
     scenario_name = fields.Str(
@@ -912,9 +756,7 @@ class StressTestRequest(BaseSchema):
             ),
         ],
     )
-    # Arbitrary parameters for custom or parameterised scenarios
     parameters = fields.Dict(required=False, load_default=None, allow_none=True)
-    # For custom scenarios: per-asset shock percentages keyed by symbol
     shocks = fields.Dict(
         keys=fields.Str(),
         values=fields.Float(validate=validate.Range(min=-1.0, max=10.0)),
@@ -936,25 +778,20 @@ class StressTestRequest(BaseSchema):
 
 
 __all__ = [
-    # Core exceptions & validators
     "ValidationError",
     "SecurityValidator",
     "FinancialValidator",
     "UserValidator",
-    # Auth schemas
     "UserRegistrationSchema",
     "UserLoginSchema",
-    # Trading schemas
     "OrderSchema",
     "PortfolioSchema",
-    # Service request schemas
     "MarketDataRequest",
     "OrderRequest",
     "CancelOrderRequest",
     "RiskMetricsRequest",
     "PositionSizeRequest",
     "StressTestRequest",
-    # Functions
     "validate_schema",
     "validate_json",
     "validate_query_params",

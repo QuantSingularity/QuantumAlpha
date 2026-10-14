@@ -1,6 +1,3 @@
-# QuantumAlpha Risk Service Configuration
-
-# Service Configuration
 service:
   name: risk-service
   version: 1.0.0
@@ -10,7 +7,6 @@ service:
   workers: 4
   timeout: 30
 
-# API Configuration
 api:
   prefix: /api/v1
   rate_limit: 100
@@ -19,38 +15,36 @@ api:
     - https://staging.quantumalpha.ai
     - https://app.quantumalpha.ai
 
-# Risk Limits
 risk_limits:
   portfolio:
-    max_drawdown: 0.15 # 15% maximum drawdown
-    max_leverage: 1.5 # 1.5x maximum leverage
-    max_concentration: 0.20 # 20% maximum in single position
-    min_diversification: 10 # Minimum number of positions
+    max_drawdown: 0.15
+    max_leverage: 1.5
+    max_concentration: 0.20
+    min_diversification: 10
 
   position:
-    max_position_size: 0.20 # 20% of portfolio
-    min_position_size: 0.01 # 1% of portfolio
-    max_daily_loss: 0.05 # 5% maximum daily loss per position
+    max_position_size: 0.20
+    min_position_size: 0.01
+    max_daily_loss: 0.05
 
   sector:
-    max_sector_exposure: 0.30 # 30% maximum exposure to a single sector
-    min_sectors: 3 # Minimum number of sectors
+    max_sector_exposure: 0.30
+    min_sectors: 3
 
   market:
-    max_market_correlation: 0.80 # 80% maximum correlation with market
-    max_beta: 1.5 # 1.5 maximum portfolio beta
+    max_market_correlation: 0.80
+    max_beta: 1.5
 
   volatility:
-    max_portfolio_volatility: 0.20 # 20% annualized volatility
-    volatility_lookback: 252 # 252 trading days lookback
+    max_portfolio_volatility: 0.20
+    volatility_lookback: 252
 
   trading:
-    max_daily_trades: 100 # Maximum number of trades per day
-    max_daily_volume: 0.10 # 10% of average daily volume
-    max_slippage: 0.01 # 1% maximum slippage
-    min_liquidity: 1000000 # $1M minimum daily volume
+    max_daily_trades: 100
+    max_daily_volume: 0.10
+    max_slippage: 0.01
+    min_liquidity: 1000000
 
-# Position Sizing
 position_sizing:
   methods:
     - name: equal_weight
@@ -63,33 +57,32 @@ position_sizing:
       description: "Position sizing based on volatility"
       params:
         target_volatility: 0.15
-        volatility_lookback: 63 # trading days
+        volatility_lookback: 63
         max_leverage: 1.5
 
     - name: kelly_criterion
       enabled: true
       description: "Kelly criterion for position sizing"
       params:
-        fraction: 0.5 # Half-Kelly for conservatism
-        win_rate_lookback: 100 # trades
+        fraction: 0.5
+        win_rate_lookback: 100
 
     - name: risk_parity
       enabled: true
       description: "Risk parity allocation"
       params:
         risk_measure: volatility
-        lookback: 252 # trading days
+        lookback: 252
 
     - name: fixed_notional
       enabled: true
       description: "Fixed notional amount per trade"
       params:
-        base_amount: 10000 # $10,000 per trade
+        base_amount: 10000
         scaling_factor: 1.0
 
   default_method: volatility_sizing
 
-# Risk Calculations
 risk_calculations:
   metrics:
     - name: value_at_risk
@@ -97,66 +90,65 @@ risk_calculations:
       description: "Value at Risk calculation"
       params:
         confidence_level: 0.95
-        time_horizon: 1 # days
-        method: historical # historical, parametric, monte_carlo
-        lookback: 252 # trading days
+        time_horizon: 1
+        method: historical
+        lookback: 252
 
     - name: expected_shortfall
       enabled: true
       description: "Expected Shortfall (Conditional VaR)"
       params:
         confidence_level: 0.95
-        time_horizon: 1 # days
+        time_horizon: 1
         method: historical
-        lookback: 252 # trading days
+        lookback: 252
 
     - name: sharpe_ratio
       enabled: true
       description: "Sharpe Ratio calculation"
       params:
-        risk_free_rate: 0.02 # 2% annual risk-free rate
-        period: 252 # trading days
+        risk_free_rate: 0.02
+        period: 252
 
     - name: sortino_ratio
       enabled: true
       description: "Sortino Ratio calculation"
       params:
         risk_free_rate: 0.02
-        period: 252 # trading days
+        period: 252
 
     - name: maximum_drawdown
       enabled: true
       description: "Maximum Drawdown calculation"
       params:
-        lookback: 252 # trading days
+        lookback: 252
 
     - name: beta
       enabled: true
       description: "Portfolio Beta calculation"
       params:
         market_index: "SPY"
-        lookback: 252 # trading days
+        lookback: 252
 
     - name: correlation_matrix
       enabled: true
       description: "Correlation matrix calculation"
       params:
-        lookback: 252 # trading days
+        lookback: 252
         min_periods: 100
 
-  update_frequency: 3600 # seconds
+  update_frequency: 3600
 
-# Stress Testing
 stress_testing:
   scenarios:
     - name: market_crash
       enabled: true
       description: "Market crash scenario"
       params:
-        market_return: -0.20 # 20% market drop
-        volatility_increase: 2.0 # 2x volatility
-        correlation_increase: 0.3 # 0.3 increase in correlations
-        liquidity_decrease: 0.5 # 50% decrease in liquidity
+        market_return: -0.20
+        volatility_increase: 2.0
+        correlation_increase: 0.3
+        liquidity_decrease: 0.5
 
     - name: sector_rotation
       enabled: true
@@ -172,7 +164,7 @@ stress_testing:
       enabled: true
       description: "Interest rate hike scenario"
       params:
-        rate_increase: 0.01 # 100 basis points
+        rate_increase: 0.01
         bond_return: -0.05
         financial_return: 0.03
         tech_return: -0.08
@@ -181,9 +173,9 @@ stress_testing:
       enabled: true
       description: "Liquidity crisis scenario"
       params:
-        spread_increase: 0.02 # 200 basis points
-        volume_decrease: 0.7 # 70% decrease
-        volatility_increase: 3.0 # 3x volatility
+        spread_increase: 0.02
+        volume_decrease: 0.7
+        volatility_increase: 3.0
 
     - name: historical_events
       enabled: true
@@ -202,7 +194,6 @@ stress_testing:
   frequency: daily
   report_format: pdf
 
-# Risk Alerts
 risk_alerts:
   enabled: true
   channels:
@@ -210,22 +201,21 @@ risk_alerts:
     - slack
     - in_app
   thresholds:
-    portfolio_drawdown: 0.10 # 10% portfolio drawdown
-    position_loss: 0.07 # 7% position loss
-    var_breach: 0.95 # 95% VaR breach
-    leverage_high: 1.4 # 1.4x leverage
-    concentration_high: 0.18 # 18% concentration
-    liquidity_low: 0.7 # 70% of minimum liquidity
+    portfolio_drawdown: 0.10
+    position_loss: 0.07
+    var_breach: 0.95
+    leverage_high: 1.4
+    concentration_high: 0.18
+    liquidity_low: 0.7
 
-  cooldown: 3600 # seconds between repeated alerts
+  cooldown: 3600
 
-# Kill Switch
 kill_switch:
   enabled: true
   triggers:
     - metric: portfolio_drawdown
       threshold: 0.15
-      time_window: 1440 # minutes (1 day)
+      time_window: 1440
     - metric: var_breach
       threshold: 0.99
       time_window: 1440
@@ -243,9 +233,8 @@ kill_switch:
     authorized_roles:
       - risk_manager
       - portfolio_manager
-    expiry: 3600 # seconds
+    expiry: 3600
 
-# Monitoring
 monitoring:
   metrics:
     enabled: true

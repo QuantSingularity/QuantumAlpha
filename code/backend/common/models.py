@@ -22,15 +22,10 @@ from sqlalchemy.dialects.postgresql import JSONB as _PG_JSONB
 from sqlalchemy.dialects.postgresql import UUID as _PG_UUID
 from sqlalchemy.orm import declarative_base, relationship, validates
 
-# Portable column types. On PostgreSQL these use the native JSONB and UUID
-# types; on other backends (notably SQLite, used as the local/test fallback)
-# they degrade to JSON and CHAR(36) so that schema creation succeeds. This lets
-# the documented SQLite fallback in database.py actually create the schema.
 JSONB = _PG_JSONB().with_variant(JSON(), "sqlite")
 
 
 def UUID(as_uuid: bool = True):
-    """PostgreSQL UUID that degrades to CHAR(36) on SQLite."""
     return _PG_UUID(as_uuid=as_uuid).with_variant(String(36), "sqlite")
 
 
@@ -41,7 +36,6 @@ cipher_suite = Fernet(ENCRYPTION_KEY)
 
 
 class UserRole(enum.Enum):
-    """User roles with hierarchical permissions"""
 
     ADMIN = "admin"
     TRADER = "trader"
@@ -52,7 +46,6 @@ class UserRole(enum.Enum):
 
 
 class OrderStatus(enum.Enum):
-    """Order status enumeration"""
 
     PENDING = "pending"
     SUBMITTED = "submitted"
@@ -63,7 +56,6 @@ class OrderStatus(enum.Enum):
 
 
 class OrderType(enum.Enum):
-    """Order type enumeration"""
 
     MARKET = "market"
     LIMIT = "limit"
@@ -72,14 +64,12 @@ class OrderType(enum.Enum):
 
 
 class OrderSide(enum.Enum):
-    """Order side enumeration"""
 
     BUY = "buy"
     SELL = "sell"
 
 
 class AuditAction(enum.Enum):
-    """Audit action types"""
 
     CREATE = "create"
     READ = "read"
@@ -93,7 +83,6 @@ class AuditAction(enum.Enum):
 
 
 class BaseModel(Base):
-    """Base model with common fields and audit functionality"""
 
     __abstract__ = True
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -114,7 +103,6 @@ class BaseModel(Base):
     version = Column(Integer, default=1, nullable=False)
 
     def to_dict(self, include_sensitive: bool = False) -> dict:
-        """Convert model to dictionary"""
         result = {}
         for column in self.__table__.columns:
             value = getattr(self, column.name)
@@ -161,20 +149,10 @@ class User(BaseModel):
         "Portfolio", foreign_keys="Portfolio.user_id", back_populates="user"
     )
     orders = relationship("Order", foreign_keys="Order.user_id", back_populates="user")
-    __table_args__ = (
-        # NOTE: the email-format regex constraint is enforced at the database
-        # level on PostgreSQL via a dialect-guarded DDL statement attached after
-        # this class (see add_postgres_email_check below). It is intentionally
-        # not declared inline here because the "~" regex operator is
-        # PostgreSQL-specific and would break table creation on SQLite, which is
-        # used as the local/test fallback. Application-level validation is
-        # always enforced by the validate_email validator below.
-        Index("idx_user_email_active", "email", "is_active"),
-    )
+    __table_args__ = (Index("idx_user_email_active", "email", "is_active"),)
 
     @validates("email")
     def validate_email(self, key: str, email: str) -> str:
-        """Validate email format"""
         import re
 
         if not re.match("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$", email):
@@ -183,13 +161,11 @@ class User(BaseModel):
 
     @property
     def roles(self) -> List[str]:
-        """Return user roles as a list for JWT claims compatibility"""
         if self.role is None:
             return []
         return [self.role.value if isinstance(self.role, UserRole) else str(self.role)]
 
     def get_permissions(self) -> List[str]:
-        """Get user permissions based on role"""
         role_permissions = {
             UserRole.ADMIN: [
                 "user.create",
@@ -253,18 +229,12 @@ class User(BaseModel):
         return role_permissions.get(self.role, [])
 
     def encrypt_sensitive_data(self, data: str) -> str:
-        """Encrypt sensitive data"""
         return cipher_suite.encrypt(data.encode()).decode()
 
     def decrypt_sensitive_data(self, encrypted_data: str) -> str:
-        """Decrypt sensitive data"""
         return cipher_suite.decrypt(encrypted_data.encode()).decode()
 
 
-# Enforce the email-format regex at the database level on PostgreSQL only.
-# The "~" regex operator is PostgreSQL-specific; guarding the DDL by dialect
-# keeps the constraint in production while allowing SQLite (the local/test
-# fallback) to create the schema without error.
 _USER_EMAIL_CHECK_DDL = DDL(
     "ALTER TABLE users ADD CONSTRAINT valid_email "
     "CHECK (email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$')"
@@ -277,7 +247,6 @@ event.listen(
 
 
 class UserSession(BaseModel):
-    """User session tracking for security"""
 
     __tablename__ = "user_sessions"
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -297,7 +266,6 @@ class UserSession(BaseModel):
 
 
 class AuditLog(BaseModel):
-    """Comprehensive audit logging for compliance"""
 
     __tablename__ = "audit_logs"
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -355,7 +323,6 @@ class Portfolio(BaseModel):
 
 
 class Position(BaseModel):
-    """Portfolio position with real-time tracking"""
 
     __tablename__ = "positions"
     portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=False)
@@ -427,7 +394,6 @@ class Order(BaseModel):
 
 
 class OrderExecution(BaseModel):
-    """Order execution details for audit trail"""
 
     __tablename__ = "order_executions"
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
@@ -449,7 +415,6 @@ class OrderExecution(BaseModel):
 
 
 class Execution(Base):
-    """Execution model for tracking order executions (simplified for execution service)"""
 
     __tablename__ = "executions"
     id = Column(String(255), primary_key=True)
@@ -461,7 +426,6 @@ class Execution(Base):
     created_at = Column(DateTime(timezone=True), nullable=True)
 
     def to_dict(self) -> dict:
-        """Convert model to dictionary"""
         result = {}
         for col in self.__table__.columns:
             value = getattr(self, col.name)
@@ -472,7 +436,6 @@ class Execution(Base):
 
 
 class Strategy(BaseModel):
-    """Trading strategy configuration and tracking"""
 
     __tablename__ = "strategies"
     name = Column(String(255), nullable=False)
@@ -496,7 +459,6 @@ class Strategy(BaseModel):
 
 
 class RiskLimit(BaseModel):
-    """Risk limits and controls"""
 
     __tablename__ = "risk_limits"
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -516,7 +478,6 @@ class RiskLimit(BaseModel):
 
 
 class ComplianceRule(BaseModel):
-    """Compliance rules and monitoring"""
 
     __tablename__ = "compliance_rules"
     name = Column(String(255), nullable=False)
@@ -535,7 +496,6 @@ class ComplianceRule(BaseModel):
 
 
 class MarketData(BaseModel):
-    """Market data storage with time-series optimization"""
 
     __tablename__ = "market_data"
     symbol = Column(String(20), nullable=False)
@@ -561,13 +521,11 @@ class MarketData(BaseModel):
 
 
 def create_tables(engine: "Engine") -> None:
-    """Create all database tables"""
     Base.metadata.create_all(engine)
     logger.info("Database tables created successfully")
 
 
 def init_database(engine: "Engine") -> None:
-    """Initialize database with default data"""
     from sqlalchemy.orm import sessionmaker
 
     Session = sessionmaker(bind=engine)

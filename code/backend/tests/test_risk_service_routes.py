@@ -1,18 +1,3 @@
-"""
-HTTP-level tests for backend/risk_service/app.py.
-
-Previously /api/risk-metrics, /api/stress-test, and /api/calculate-position
-validated requests with schemas whose fields (portfolio_id, risk_metrics,
-confidence_level, lookback_period, signal_strength, portfolio_value,
-risk_tolerance, scenarios) didn't match what the route handlers actually
-read off the validated data, and some of those handlers called
-RiskCalculator/StressTesting methods that didn't exist at all
-(calculate_risk_metrics, get_portfolio_risk, get_risk_alerts,
-run_stress_tests). These tests drive the real Flask app end-to-end so a
-schema/handler/method mismatch fails here instead of only at request time
-in production.
-"""
-
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -20,7 +5,6 @@ import numpy as np
 
 
 class TestRiskServiceRoutes(unittest.TestCase):
-    """HTTP-level tests for the real risk_service Flask app"""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -74,9 +58,6 @@ class TestRiskServiceRoutes(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_risk_metrics_invalid_position(self) -> None:
-        """A position missing a required field (current_price) should be
-        rejected by the nested PortfolioStateSchema, not reach the
-        calculator and fail with a confusing KeyError."""
         resp = self.client.post(
             "/api/risk-metrics",
             json={
@@ -186,8 +167,6 @@ class TestRiskServiceRoutes(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
     def test_calculate_position_invalid_stop_for_buy(self) -> None:
-        """Schema business-rule validation: stop_price must be below
-        entry_price for a buy order."""
         resp = self.client.post(
             "/api/calculate-position",
             json={

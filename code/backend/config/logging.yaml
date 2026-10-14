@@ -1,6 +1,3 @@
-# QuantumAlpha Logging Configuration
-
-# Default Configuration
 default:
   version: 1
   disable_existing_loggers: false
@@ -22,17 +19,17 @@ default:
       level: INFO
       formatter: standard
       filename: /var/log/quantumalpha/app.log
-      maxBytes: 10485760 # 10MB
+      maxBytes: 10485760
       backupCount: 10
     error_file:
       class: logging.handlers.RotatingFileHandler
       level: ERROR
       formatter: standard
       filename: /var/log/quantumalpha/error.log
-      maxBytes: 10485760 # 10MB
+      maxBytes: 10485760
       backupCount: 10
   loggers:
-    "": # root logger
+    "":
       level: INFO
       handlers: [console, file, error_file]
       propagate: true
@@ -49,7 +46,6 @@ default:
       handlers: [console]
       propagate: false
 
-# Development Environment
 development:
   version: 1
   disable_existing_loggers: false
@@ -71,10 +67,10 @@ development:
       level: DEBUG
       formatter: detailed
       filename: /var/log/quantumalpha/app.log
-      maxBytes: 10485760 # 10MB
+      maxBytes: 10485760
       backupCount: 5
   loggers:
-    "": # root logger
+    "":
       level: INFO
       handlers: [console, file]
       propagate: true
@@ -91,7 +87,6 @@ development:
       handlers: [console]
       propagate: false
 
-# Staging Environment
 staging:
   version: 1
   disable_existing_loggers: false
@@ -125,7 +120,7 @@ staging:
       interval: 1
       backupCount: 30
   loggers:
-    "": # root logger
+    "":
       level: INFO
       handlers: [console, file, error_file]
       propagate: true
@@ -142,7 +137,6 @@ staging:
       handlers: [file]
       propagate: false
 
-# Production Environment
 production:
   version: 1
   disable_existing_loggers: false
@@ -181,7 +175,7 @@ production:
       interval: 1
       backupCount: 365
   loggers:
-    "": # root logger
+    "":
       level: WARNING
       handlers: [console, file, error_file]
       propagate: true
@@ -206,7 +200,6 @@ production:
       handlers: [file]
       propagate: false
 
-# Service-Specific Configurations
 services:
   data_service:
     loggers:

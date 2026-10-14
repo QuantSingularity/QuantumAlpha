@@ -1,6 +1,3 @@
-# QuantumAlpha Execution Service Configuration
-
-# Service Configuration
 service:
   name: execution-service
   version: 1.0.0
@@ -10,7 +7,6 @@ service:
   workers: 4
   timeout: 30
 
-# API Configuration
 api:
   prefix: /api/v1
   rate_limit: 100
@@ -19,7 +15,6 @@ api:
     - https://staging.quantumalpha.ai
     - https://app.quantumalpha.ai
 
-# Broker Integration
 brokers:
   - name: alpaca
     enabled: true
@@ -73,7 +68,6 @@ brokers:
       extended_hours: true
       short_selling: true
 
-# Order Execution
 order_execution:
   default_broker: alpaca
   default_order_type: limit
@@ -89,8 +83,8 @@ order_execution:
       enabled: true
       description: "Limit order execution"
       params:
-        price_improvement: 0.001 # 0.1% price improvement
-        max_wait_time: 60 # seconds
+        price_improvement: 0.001
+        max_wait_time: 60
         aggressive_after_wait: true
 
     - name: twap
@@ -98,8 +92,8 @@ order_execution:
       description: "Time-Weighted Average Price execution"
       params:
         num_slices: 5
-        interval: 60 # seconds
-        price_limit_buffer: 0.005 # 0.5% buffer
+        interval: 60
+        price_limit_buffer: 0.005
 
     - name: vwap
       enabled: true
@@ -116,7 +110,7 @@ order_execution:
       params:
         display_size: 100
         price_limit: "best_bid_ask"
-        price_improvement: 0.0005 # 0.05% price improvement
+        price_improvement: 0.0005
 
     - name: smart_router
       enabled: true
@@ -128,7 +122,6 @@ order_execution:
 
   default_strategy: limit_order
 
-# Order Management
 order_management:
   order_validation:
     enabled: true
@@ -140,7 +133,7 @@ order_management:
       - duplicate_orders
 
   order_tracking:
-    update_frequency: 1 # seconds
+    update_frequency: 1
     status_change_notifications: true
     execution_details_logging: true
 
@@ -156,7 +149,6 @@ order_management:
     confirmation_required: false
     log_reason: true
 
-# Trading Parameters
 trading_parameters:
   market_hours:
     regular:
@@ -177,29 +169,28 @@ trading_parameters:
     - Friday
 
   holidays:
-    - "2023-01-02" # New Year's Day (observed)
-    - "2023-01-16" # Martin Luther King Jr. Day
-    - "2023-02-20" # Presidents' Day
-    - "2023-04-07" # Good Friday
-    - "2023-05-29" # Memorial Day
-    - "2023-06-19" # Juneteenth
-    - "2023-07-04" # Independence Day
-    - "2023-09-04" # Labor Day
-    - "2023-11-23" # Thanksgiving Day
-    - "2023-12-25" # Christmas Day
+    - "2023-01-02"
+    - "2023-01-16"
+    - "2023-02-20"
+    - "2023-04-07"
+    - "2023-05-29"
+    - "2023-06-19"
+    - "2023-07-04"
+    - "2023-09-04"
+    - "2023-11-23"
+    - "2023-12-25"
 
   circuit_breakers:
     level_1:
-      decline: 0.07 # 7% decline
+      decline: 0.07
       action: pause_15min
     level_2:
-      decline: 0.13 # 13% decline
+      decline: 0.13
       action: pause_15min
     level_3:
-      decline: 0.20 # 20% decline
+      decline: 0.20
       action: halt_trading
 
-# Transaction Cost Analysis
 transaction_cost_analysis:
   enabled: true
   metrics:
@@ -221,19 +212,18 @@ transaction_cost_analysis:
     format: csv
     store_days: 90
 
-# Event Processing
 event_processing:
   kafka:
     topics:
       - name: order_events
         partitions: 3
-        retention_ms: 604800000 # 7 days
+        retention_ms: 604800000
       - name: execution_events
         partitions: 3
-        retention_ms: 604800000 # 7 days
+        retention_ms: 604800000
       - name: position_updates
         partitions: 3
-        retention_ms: 604800000 # 7 days
+        retention_ms: 604800000
 
     consumer_groups:
       - name: execution-service
@@ -250,7 +240,6 @@ event_processing:
           - execution_events
           - position_updates
 
-# Monitoring
 monitoring:
   metrics:
     enabled: true
@@ -276,6 +265,6 @@ monitoring:
         - email
         - slack
       thresholds:
-        high_rejection_rate: 0.1 # 10% rejection rate
-        high_slippage: 0.005 # 0.5% slippage
-        high_latency: 1000 # 1000ms latency
+        high_rejection_rate: 0.1
+        high_slippage: 0.005
+        high_latency: 1000

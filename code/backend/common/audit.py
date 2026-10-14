@@ -1,8 +1,3 @@
-"""
-Comprehensive Audit Logging System for QuantumAlpha
-Implements immutable audit trails for financial compliance and security monitoring
-"""
-
 import enum
 import hashlib
 import json
@@ -24,12 +19,6 @@ logger = structlog.get_logger(__name__)
 
 
 def _json_safe(value: Any) -> Any:
-    """Recursively convert a value into JSON-serializable primitives.
-
-    Audit values are stored in JSON(B) columns; values such as Decimal, UUID,
-    datetime, and Enum are not JSON-serializable by default and would raise on
-    insert. This converts them to safe representations.
-    """
     if value is None:
         return None
     if isinstance(value, dict):
@@ -48,7 +37,6 @@ def _json_safe(value: Any) -> Any:
 
 
 class AuditLogger:
-    """Centralized audit logging system"""
 
     def __init__(self) -> None:
         self._local = threading.local()
@@ -69,26 +57,6 @@ class AuditLogger:
         endpoint: Optional[str] = None,
         method: Optional[str] = None,
     ) -> AuditLog:
-        """
-        Log an audit event with comprehensive details
-
-        Args:
-            action: Type of action performed
-            resource_type: Type of resource affected
-            resource_id: ID of the specific resource
-            old_values: Previous values (for updates)
-            new_values: New values (for creates/updates)
-            metadata: Additional context information
-            user_id: ID of user performing action
-            session_id: Session identifier
-            ip_address: Client IP address
-            user_agent: Client user agent
-            endpoint: API endpoint accessed
-            method: HTTP method used
-
-        Returns:
-            Created AuditLog instance
-        """
         try:
             if not user_id and hasattr(g, "current_user_id"):
                 user_id = g.current_user_id
@@ -140,9 +108,6 @@ class AuditLogger:
             with get_db_session() as db_session:
                 db_session.add(audit_log)
                 db_session.commit()
-                # Refresh while still bound so downstream reads do not trigger a
-                # lazy load on a detached instance, then perform external logging
-                # inside the session scope.
                 db_session.refresh(audit_log)
                 self._log_to_external_systems(audit_log)
                 if risk_score and risk_score > 0.8:
@@ -153,7 +118,6 @@ class AuditLogger:
             return None
 
     def _get_client_ip(self) -> str:
-        """Get client IP address from request"""
         if request.headers.get("X-Forwarded-For"):
             return request.headers.get("X-Forwarded-For").split(",")[0].strip()
         elif request.headers.get("X-Real-IP"):
@@ -162,7 +126,6 @@ class AuditLogger:
             return request.remote_addr
 
     def _generate_hash(self, audit_log: AuditLog) -> str:
-        """Generate SHA-256 hash for audit log integrity"""
         hash_data = {
             "user_id": audit_log.user_id,
             "action": audit_log.action.value if audit_log.action else None,
@@ -186,7 +149,6 @@ class AuditLogger:
         new_values: Optional[Dict],
         metadata: Optional[Dict],
     ) -> List[str]:
-        """Check for compliance violations or flags"""
         flags = []
         if resource_type == "order" and new_values:
             quantity = new_values.get("quantity") or 0
@@ -212,7 +174,6 @@ class AuditLogger:
         return flags
 
     def _log_to_external_systems(self, audit_log: AuditLog) -> None:
-        """Send audit log to external monitoring systems"""
         try:
             log_data = {
                 "timestamp": audit_log.created_at.isoformat(),
@@ -230,7 +191,6 @@ class AuditLogger:
             logger.error(f"Failed to log to external systems: {e}")
 
     def _handle_high_risk_event(self, audit_log: AuditLog) -> None:
-        """Handle high-risk audit events"""
         try:
             logger.warning(
                 "high_risk_audit_event",
@@ -247,7 +207,6 @@ class AuditLogger:
 
 
 class RiskCalculator:
-    """Calculate risk scores for audit events"""
 
     def calculate_risk_score(
         self,
@@ -256,12 +215,6 @@ class RiskCalculator:
         user_id: Optional[int],
         metadata: Optional[Dict],
     ) -> float:
-        """
-        Calculate risk score (0.0 - 1.0) for an audit event
-
-        Returns:
-            Risk score between 0.0 (low risk) and 1.0 (high risk)
-        """
         try:
             base_score = self._get_base_risk_score(action, resource_type)
             user_multiplier = self._get_user_risk_multiplier(user_id)
@@ -277,7 +230,6 @@ class RiskCalculator:
             return 0.5
 
     def _get_base_risk_score(self, action: AuditAction, resource_type: str) -> float:
-        """Get base risk score for action/resource combination"""
         risk_matrix = {
             (AuditAction.DELETE, "user"): 0.9,
             (AuditAction.UPDATE, "user"): 0.7,
@@ -298,7 +250,6 @@ class RiskCalculator:
         return risk_matrix.get((action, resource_type), 0.3)
 
     def _get_user_risk_multiplier(self, user_id: Optional[int]) -> float:
-        """Get risk multiplier based on user characteristics"""
         if not user_id:
             return 1.2
         try:
@@ -309,9 +260,6 @@ class RiskCalculator:
                 multiplier = 1.0
                 created_at = user.created_at
                 if created_at is not None:
-                    # Normalize to an aware datetime; some backends (e.g. SQLite)
-                    # return naive datetimes, which cannot be subtracted from an
-                    # aware datetime.
                     if created_at.tzinfo is None:
                         created_at = created_at.replace(tzinfo=timezone.utc)
                     if (datetime.now(timezone.utc) - created_at).days < 30:
@@ -326,7 +274,6 @@ class RiskCalculator:
             return 1.0
 
     def _get_metadata_risk_multiplier(self, metadata: Optional[Dict]) -> float:
-        """Get risk multiplier based on metadata"""
         if not metadata:
             return 1.0
         multiplier = 1.0
@@ -345,7 +292,6 @@ class RiskCalculator:
         return min(2.0, multiplier)
 
     def _get_timing_risk_multiplier(self) -> float:
-        """Get risk multiplier based on timing"""
         now = datetime.now(timezone.utc)
         if now.weekday() >= 5:
             return 1.2
@@ -355,7 +301,6 @@ class RiskCalculator:
 
 
 def audit_action(action: AuditAction, resource_type: str) -> object:
-    """Decorator to automatically audit function calls"""
 
     def decorator(func):
 
@@ -391,12 +336,10 @@ def audit_action(action: AuditAction, resource_type: str) -> object:
 
 
 def _get_resource_values(resource_type: str, resource_id: str) -> Optional[Dict]:
-    """Get current values of a resource before modification"""
     return None
 
 
 def _extract_values_from_result(result: object) -> Optional[Dict]:
-    """Extract values from function result"""
     if hasattr(result, "to_dict"):
         return result.to_dict()
     elif isinstance(result, dict):
@@ -405,7 +348,6 @@ def _extract_values_from_result(result: object) -> Optional[Dict]:
 
 
 def _extract_resource_id(result: object, kwargs: object) -> Optional[str]:
-    """Extract resource ID from result or kwargs"""
     if hasattr(result, "id"):
         return str(result.id)
     elif "id" in kwargs:
@@ -414,7 +356,6 @@ def _extract_resource_id(result: object, kwargs: object) -> Optional[str]:
 
 
 def log_security_event(event_type: str, details: Dict[str, Any]) -> None:
-    """Log security-related events"""
     audit_logger.log_event(
         action=AuditAction.READ,
         resource_type="security",
@@ -423,7 +364,6 @@ def log_security_event(event_type: str, details: Dict[str, Any]) -> None:
 
 
 def log_compliance_event(event_type: str, details: Dict[str, Any]) -> None:
-    """Log compliance-related events"""
     audit_logger.log_event(
         action=AuditAction.READ,
         resource_type="compliance",

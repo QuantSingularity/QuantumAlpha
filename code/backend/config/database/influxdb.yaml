@@ -1,13 +1,9 @@
-# QuantumAlpha InfluxDB Configuration
-
-# Connection Settings
 connection:
   url: ${INFLUXDB_URL}
   org: ${INFLUXDB_ORG}
   token: ${INFLUXDB_TOKEN}
-  timeout: 30000 # milliseconds
+  timeout: 30000
 
-# Buckets
 buckets:
   - name: market_data
     description: "Market data time series"
@@ -26,7 +22,7 @@ buckets:
 
   - name: market_data_1d
     description: "1-day downsampled market data"
-    retention_period: 1825d # 5 years
+    retention_period: 1825d
     shard_group_duration: 7d
 
   - name: technical_indicators
@@ -36,7 +32,7 @@ buckets:
 
   - name: portfolio_metrics
     description: "Portfolio performance metrics"
-    retention_period: 1825d # 5 years
+    retention_period: 1825d
     shard_group_duration: 7d
 
   - name: system_metrics
@@ -44,7 +40,6 @@ buckets:
     retention_period: 30d
     shard_group_duration: 1d
 
-# Measurements
 measurements:
   - name: price
     bucket: market_data
@@ -144,7 +139,6 @@ measurements:
       - name: latency_ms
         type: integer
 
-# Continuous Queries
 continuous_queries:
   - name: downsample_price_5m
     query: >
@@ -182,7 +176,6 @@ continuous_queries:
         |> to(bucket: "portfolio_metrics_daily", org: "quantumalpha")
     every: 1d
 
-# Tasks
 tasks:
   - name: clean_old_data
     query: >
@@ -215,10 +208,9 @@ tasks:
           )
     every: 1h
 
-# Backup Configuration
 backup:
   enabled: true
-  schedule: "0 3 * * *" # 3 AM daily
+  schedule: "0 3 * * *"
   retention:
     days: 30
     keep_daily: 7
@@ -230,7 +222,6 @@ backup:
     prefix: influxdb/
     region: us-east-1
 
-# Monitoring
 monitoring:
   enabled: true
   metrics_enabled: true
@@ -238,10 +229,9 @@ monitoring:
   store_metrics: true
   store_logs: true
 
-# Performance Tuning
 performance:
-  cache_max_memory_size: 1073741824 # 1GB
-  cache_snapshot_memory_size: 26214400 # 25MB
+  cache_max_memory_size: 1073741824
+  cache_snapshot_memory_size: 26214400
   cache_snapshot_write_cold_duration: "10m"
   compact_full_write_cold_duration: "4h"
   max_concurrent_compactions: 0

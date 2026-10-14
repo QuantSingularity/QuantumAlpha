@@ -1,3 +1,0 @@
-"""
-QuantumAlpha API Gateway package.
-"""

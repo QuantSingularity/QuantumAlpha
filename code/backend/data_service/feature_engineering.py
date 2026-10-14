@@ -1,8 +1,3 @@
-"""
-Feature engineering service for QuantumAlpha Data Service.
-Handles feature engineering and technical indicators.
-"""
-
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -15,15 +10,8 @@ logger = setup_logger("feature_engineering_service", logging.INFO)
 
 
 class FeatureEngineeringService:
-    """Feature engineering service"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize feature engineering service
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.market_data_service = MarketDataService(config_manager, db_manager)
@@ -44,21 +32,6 @@ class FeatureEngineeringService:
     def get_features(
         self, symbol: str, timeframe: str = "1d", features: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        """Get engineered features for a symbol
-
-        Args:
-            symbol: Symbol to get features for
-            timeframe: Data timeframe (e.g., '1m', '5m', '1h', '1d')
-            features: List of features to calculate (if None, calculate all)
-
-        Returns:
-            Engineered features
-
-        Raises:
-            ValidationError: If parameters are invalid
-            NotFoundError: If data is not found
-            ServiceError: If there is an error calculating features
-        """
         logger.info(f"Getting features for {symbol} ({timeframe})")
         if not symbol:
             raise ValidationError("Symbol is required")
@@ -100,41 +73,14 @@ class FeatureEngineeringService:
         return response
 
     def _calculate_sma(self, df: pd.DataFrame, window: int = 20) -> List[float]:
-        """Calculate Simple Moving Average
-
-        Args:
-            df: DataFrame with market data
-            window: Window size
-
-        Returns:
-            List of SMA values
-        """
         sma = df["close"].rolling(window=window).mean()
         return sma.tolist()
 
     def _calculate_ema(self, df: pd.DataFrame, window: int = 20) -> List[float]:
-        """Calculate Exponential Moving Average
-
-        Args:
-            df: DataFrame with market data
-            window: Window size
-
-        Returns:
-            List of EMA values
-        """
         ema = df["close"].ewm(span=window, adjust=False).mean()
         return ema.tolist()
 
     def _calculate_rsi(self, df: pd.DataFrame, window: int = 14) -> List[float]:
-        """Calculate Relative Strength Index
-
-        Args:
-            df: DataFrame with market data
-            window: Window size
-
-        Returns:
-            List of RSI values
-        """
         delta = df["close"].diff()
         gain = delta.where(delta > 0, 0)
         loss = -delta.where(delta < 0, 0)
@@ -151,17 +97,6 @@ class FeatureEngineeringService:
         slow_period: int = 26,
         signal_period: int = 9,
     ) -> List[float]:
-        """Calculate Moving Average Convergence Divergence
-
-        Args:
-            df: DataFrame with market data
-            fast_period: Fast period
-            slow_period: Slow period
-            signal_period: Signal period
-
-        Returns:
-            List of MACD values
-        """
         fast_ema = df["close"].ewm(span=fast_period, adjust=False).mean()
         slow_ema = df["close"].ewm(span=slow_period, adjust=False).mean()
         macd_line = fast_ema - slow_ema
@@ -172,16 +107,6 @@ class FeatureEngineeringService:
     def _calculate_bollinger_bands(
         self, df: pd.DataFrame, window: int = 20, num_std: float = 2.0
     ) -> Dict[str, List[float]]:
-        """Calculate Bollinger Bands
-
-        Args:
-            df: DataFrame with market data
-            window: Window size
-            num_std: Number of standard deviations
-
-        Returns:
-            Dictionary with upper and lower bands
-        """
         sma = df["close"].rolling(window=window).mean()
         std = df["close"].rolling(window=window).std()
         upper_band = sma + std * num_std
@@ -193,15 +118,6 @@ class FeatureEngineeringService:
         }
 
     def _calculate_atr(self, df: pd.DataFrame, window: int = 14) -> List[float]:
-        """Calculate Average True Range
-
-        Args:
-            df: DataFrame with market data
-            window: Window size
-
-        Returns:
-            List of ATR values
-        """
         high_low = df["high"] - df["low"]
         high_close = (df["high"] - df["close"].shift()).abs()
         low_close = (df["low"] - df["close"].shift()).abs()
@@ -210,14 +126,6 @@ class FeatureEngineeringService:
         return atr.tolist()
 
     def _calculate_obv(self, df: pd.DataFrame) -> List[float]:
-        """Calculate On-Balance Volume
-
-        Args:
-            df: DataFrame with market data
-
-        Returns:
-            List of OBV values
-        """
         price_change = df["close"].diff()
         obv = pd.Series(0, index=df.index)
         obv.iloc[1:] = np.where(
@@ -228,25 +136,9 @@ class FeatureEngineeringService:
         return obv.tolist()
 
     def _calculate_returns(self, df: pd.DataFrame) -> List[float]:
-        """Calculate returns
-
-        Args:
-            df: DataFrame with market data
-
-        Returns:
-            List of return values
-        """
         returns = df["close"].pct_change()
         return returns.tolist()
 
     def _calculate_log_returns(self, df: pd.DataFrame) -> List[float]:
-        """Calculate logarithmic returns
-
-        Args:
-            df: DataFrame with market data
-
-        Returns:
-            List of log return values
-        """
         log_returns = np.log(df["close"] / df["close"].shift(1))
         return log_returns.tolist()

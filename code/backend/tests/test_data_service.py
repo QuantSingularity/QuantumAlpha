@@ -1,7 +1,3 @@
-"""
-Unit tests for the Data Service.
-"""
-
 import unittest
 from unittest.mock import MagicMock
 
@@ -12,10 +8,8 @@ from backend.data_service.data_processor import DataProcessor
 
 
 class TestDataProcessor(unittest.TestCase):
-    """Test cases for DataProcessor"""
 
     def setUp(self) -> None:
-        """Set up test environment"""
         self.config_manager = MagicMock()
         self.config_manager.get.return_value = "test_value"
         self.db_manager = MagicMock()
@@ -64,7 +58,6 @@ class TestDataProcessor(unittest.TestCase):
         ]
 
     def test_process_market_data_basic(self) -> None:
-        """Test basic market data processing"""
         df = self.data_processor.process_market_data(self.market_data)
         self.assertIsInstance(df, pd.DataFrame)
         self.assertEqual(len(df), 5)
@@ -75,7 +68,6 @@ class TestDataProcessor(unittest.TestCase):
         self.assertTrue("volume" in df.columns)
 
     def test_process_market_data_with_features(self) -> None:
-        """Test market data processing with features"""
         df = self.data_processor.process_market_data(
             self.market_data, features=["sma", "rsi"]
         )
@@ -85,12 +77,10 @@ class TestDataProcessor(unittest.TestCase):
         self.assertTrue("rsi_14" in df.columns)
 
     def test_process_market_data_empty(self) -> None:
-        """Test market data processing with empty data"""
         with self.assertRaises(ValidationError):
             self.data_processor.process_market_data([])
 
     def test_process_market_data_missing_columns(self) -> None:
-        """Test market data processing with missing columns"""
         data = [
             {
                 "timestamp": "2023-01-01T00:00:00Z",
@@ -103,7 +93,6 @@ class TestDataProcessor(unittest.TestCase):
             self.data_processor.process_market_data(data)
 
     def test_normalize_data(self) -> None:
-        """Test data normalization"""
         df = self.data_processor.process_market_data(self.market_data)
         df_normalized = self.data_processor.normalize_data(df)
         self.assertIsInstance(df_normalized, pd.DataFrame)
@@ -124,7 +113,6 @@ class TestDataProcessor(unittest.TestCase):
         )
 
     def test_prepare_data_for_ml(self) -> None:
-        """Test data preparation for machine learning"""
         df = self.data_processor.process_market_data(self.market_data)
         X_train, X_test, y_train, y_test, scaler = (
             self.data_processor.prepare_data_for_ml(
@@ -143,7 +131,6 @@ class TestDataProcessor(unittest.TestCase):
         self.assertEqual(X_train.shape[2], 5)
 
     def test_detect_anomalies(self) -> None:
-        """Test anomaly detection"""
         df = self.data_processor.process_market_data(self.market_data)
         df_anomalies = self.data_processor.detect_anomalies(
             df=df, column="close", window=2, threshold=2.0
@@ -153,7 +140,6 @@ class TestDataProcessor(unittest.TestCase):
         self.assertTrue("anomaly" in df_anomalies.columns)
 
     def test_generate_signals(self) -> None:
-        """Test signal generation"""
         df = self.data_processor.process_market_data(self.market_data)
         df_signals = self.data_processor.generate_signals(
             df=df, strategy="sma_crossover"

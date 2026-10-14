@@ -16,6 +16,7 @@ import PortfolioScreen from "../screens/portfolio/PortfolioScreen";
 import StrategyScreen from "../screens/strategy/StrategyScreen";
 import StrategyDetailScreen from "../screens/strategy/StrategyDetailScreen";
 import TradeScreen from "../screens/trade/TradeScreen";
+import AIInsightsScreen from "../screens/ai/AIInsightsScreen";
 import AlertsScreen from "../screens/alerts/AlertsScreen";
 import ProfileScreen from "../screens/profile/ProfileScreen";
 import SettingsScreen from "../screens/settings/SettingsScreen";
@@ -265,6 +266,19 @@ const DrawerNavigator = () => {
           title: "Home",
           drawerIcon: ({ color, size }) => (
             <Icon name="home" color={color} size={size} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="AIInsightsScreen"
+        component={AIInsightsScreen}
+        options={{
+          title: "AI Insights",
+          headerShown: true,
+          headerStyle: { backgroundColor: theme.card },
+          headerTintColor: theme.text,
+          drawerIcon: ({ color, size }) => (
+            <Icon name="brain" color={color} size={size} />
           ),
         }}
       />

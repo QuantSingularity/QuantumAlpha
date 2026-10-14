@@ -1,10 +1,3 @@
--- =============================================================================
--- QuantumAlpha Sample / Seed Data  (idempotent - safe to re-run)
--- =============================================================================
-
--- ---------------------------------------------------------------------------
--- Symbols
--- ---------------------------------------------------------------------------
 INSERT INTO market_data.symbols (symbol, name, exchange, asset_class, is_active)
 VALUES
     ('AAPL',    'Apple Inc.',                    'NASDAQ', 'equity', TRUE),
@@ -19,9 +12,6 @@ VALUES
     ('JPY-USD', 'Japanese Yen US Dollar',        'FOREX',  'forex',  TRUE)
 ON CONFLICT (symbol) DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- AI models
--- ---------------------------------------------------------------------------
 INSERT INTO ai_models.models (id, name, description, type, status, parameters, metrics)
 VALUES
     (
@@ -50,9 +40,6 @@ VALUES
     )
 ON CONFLICT (id) DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- Portfolios
--- ---------------------------------------------------------------------------
 INSERT INTO risk_management.portfolios (id, name, description, owner_id, parameters)
 VALUES
     (
@@ -78,9 +65,6 @@ VALUES
     )
 ON CONFLICT (id) DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- Positions
--- ---------------------------------------------------------------------------
 INSERT INTO risk_management.positions
     (portfolio_id, symbol, quantity, entry_price, current_price)
 VALUES
@@ -93,11 +77,6 @@ VALUES
     ('portfolio_003', 'ETH-USD',  10,  3000.0,   3200.0)
 ON CONFLICT (portfolio_id, symbol) DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- Users
--- NOTE: password_hash values below are placeholder bcrypt hashes for
--- development only.  Replace with real hashes before any production use.
--- ---------------------------------------------------------------------------
 INSERT INTO auth.users
     (id, username, email, password_hash, first_name, last_name, is_active, is_admin)
 VALUES
@@ -118,11 +97,6 @@ VALUES
     )
 ON CONFLICT (id) DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- API keys
--- NOTE: api_key values here are plaintext seeds for development only.
--- In production, store only the hashed form and never the raw secret.
--- ---------------------------------------------------------------------------
 INSERT INTO auth.api_keys
     (id, user_id, key_name, api_key, permissions, expires_at, is_active)
 VALUES
@@ -140,9 +114,6 @@ VALUES
     )
 ON CONFLICT (id) DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- Orders  (plain text PK, not a hypertable - ON CONFLICT (id) unchanged)
--- ---------------------------------------------------------------------------
 INSERT INTO execution.orders
     (id, portfolio_id, symbol, order_type, side, quantity, price,
      time_in_force, status, broker_order_id, parameters)
@@ -166,11 +137,8 @@ VALUES
     ('trade_005', 'order_005', 'AMZN',    'buy',  10, 3200.0, 1.0, '2023-01-05 14:00:00+00'),
     ('trade_006', 'order_006', 'BTC-USD', 'buy',  2.5, 40000.0, 1.0, '2023-01-06 15:00:00+00'),
     ('trade_007', 'order_007', 'ETH-USD', 'buy',  10, 3000.0, 1.0, '2023-01-07 16:00:00+00')
-ON CONFLICT (id, timestamp) DO NOTHING;    -- composite PK  ✓
+ON CONFLICT (id, timestamp) DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- Broker accounts
--- ---------------------------------------------------------------------------
 INSERT INTO execution.broker_accounts
     (id, broker_name, account_number, api_key, api_secret, parameters, is_active)
 VALUES

@@ -1,8 +1,3 @@
-"""
-Alternative data service for QuantumAlpha Data Service.
-Handles alternative data collection, processing, and retrieval.
-"""
-
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Union
@@ -20,15 +15,8 @@ logger = setup_logger("alternative_data_service", logging.INFO)
 
 
 class AlternativeDataService:
-    """Alternative data service"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize alternative data service
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.data_sources = {
@@ -57,22 +45,6 @@ class AlternativeDataService:
         start_date: Optional[Union[str, datetime]] = None,
         end_date: Optional[Union[str, datetime]] = None,
     ) -> Dict[str, Any]:
-        """Get alternative data from a source
-
-        Args:
-            source: Data source (e.g., news, twitter, sec)
-            symbol: Filter by symbol (optional)
-            start_date: Start date (optional)
-            end_date: End date (optional)
-
-        Returns:
-            Alternative data
-
-        Raises:
-            ValidationError: If parameters are invalid
-            NotFoundError: If data is not found
-            ServiceError: If there is an error getting data
-        """
         logger.info(f"Getting alternative data from {source}")
         if not source:
             raise ValidationError("Source is required")
@@ -113,17 +85,6 @@ class AlternativeDataService:
         start_date: datetime,
         end_date: datetime,
     ) -> Dict[str, Any]:
-        """Get alternative data from database
-
-        Args:
-            source: Data source
-            symbol: Filter by symbol
-            start_date: Start date
-            end_date: End date
-
-        Returns:
-            Alternative data
-        """
         try:
             mongodb_client = self.db_manager.get_mongodb_client()
             db = mongodb_client[self.config_manager.get("mongodb.database")]
@@ -151,12 +112,6 @@ class AlternativeDataService:
             return {"source": source, "data": []}
 
     def _store_data_in_db(self, source: str, data: Dict[str, Any]) -> None:
-        """Store alternative data in database
-
-        Args:
-            source: Data source
-            data: Alternative data to store
-        """
         try:
             mongodb_client = self.db_manager.get_mongodb_client()
             db = mongodb_client[self.config_manager.get("mongodb.database")]
@@ -190,19 +145,6 @@ class AlternativeDataService:
     def _get_data_from_news_api(
         self, symbol: Optional[str], start_date: datetime, end_date: datetime
     ) -> Dict[str, Any]:
-        """Get news data from News API
-
-        Args:
-            symbol: Filter by symbol
-            start_date: Start date
-            end_date: End date
-
-        Returns:
-            News data
-
-        Raises:
-            ServiceError: If there is an error getting data
-        """
         try:
             if not self.data_sources["news_api"]["api_key"]:
                 raise ServiceError("News API key not configured")
@@ -254,37 +196,11 @@ class AlternativeDataService:
     def _get_data_from_twitter(
         self, symbol: Optional[str], start_date: datetime, end_date: datetime
     ) -> Dict[str, Any]:
-        """Get Twitter data
-
-        Args:
-            symbol: Filter by symbol
-            start_date: Start date
-            end_date: End date
-
-        Returns:
-            Twitter data
-
-        Raises:
-            ServiceError: If there is an error getting data
-        """
         logger.warning("Twitter API integration not implemented")
         return {"source": "twitter", "data": []}
 
     def _get_data_from_sec_filings(
         self, symbol: Optional[str], start_date: datetime, end_date: datetime
     ) -> Dict[str, Any]:
-        """Get SEC filings data
-
-        Args:
-            symbol: Filter by symbol
-            start_date: Start date
-            end_date: End date
-
-        Returns:
-            SEC filings data
-
-        Raises:
-            ServiceError: If there is an error getting data
-        """
         logger.warning("SEC filings API integration not implemented")
         return {"source": "sec", "data": []}

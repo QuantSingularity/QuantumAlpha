@@ -1,8 +1,3 @@
-"""
-Market data service for QuantumAlpha Data Service.
-Handles market data collection, storage, and retrieval.
-"""
-
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone

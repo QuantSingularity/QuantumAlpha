@@ -1,12 +1,3 @@
-"""
-Risk Service for QuantumAlpha
-This service is responsible for:
-1. Portfolio risk calculation
-2. Stress testing and scenario analysis
-3. Position sizing optimization
-4. Risk monitoring and alerts
-"""
-
 import logging
 import os
 import traceback
@@ -46,7 +37,6 @@ position_sizing = PositionSizing(config_manager, db_manager)
 
 @app.errorhandler(Exception)
 def handle_error(error: Exception) -> None:
-    """Handle errors"""
     if isinstance(error, ServiceError):
         return (jsonify(error.to_dict()), error.status_code)
     logger.error(f"Unhandled error: {error}")
@@ -65,13 +55,11 @@ def handle_error(error: Exception) -> None:
 
 @app.route("/health", methods=["GET"])
 def health_check() -> object:
-    """Health check endpoint"""
     return jsonify({"status": "ok", "service": "risk_service"})
 
 
 @app.route("/api/risk-metrics", methods=["POST"])
 def calculate_risk_metrics() -> None:
-    """Calculate risk metrics for a portfolio"""
     try:
         data = request.json
         validated_data = validate_schema(data, RiskMetricsRequest)
@@ -92,7 +80,6 @@ def calculate_risk_metrics() -> None:
 
 @app.route("/api/stress-test", methods=["POST"])
 def run_stress_test() -> None:
-    """Run stress tests on a portfolio"""
     try:
         data = request.json
         validated_data = validate_schema(data, StressTestRequest)
@@ -113,8 +100,6 @@ def run_stress_test() -> None:
 
 @app.route("/api/calculate-position", methods=["POST"])
 def calculate_position_size() -> None:
-    """Calculate optimal position size, sized so a stop-out at stop_price
-    loses no more than the requested risk_amount/risk_percent."""
     try:
         data = request.json
         validated_data = validate_schema(data, PositionSizeRequest)
@@ -124,8 +109,6 @@ def calculate_position_size() -> None:
         side = validated_data["side"]
         risk_percent = validated_data.get("risk_percent")
         if risk_percent is not None:
-            # Schema stores this as a 0-1 fraction; the sizing method wants
-            # a percentage.
             risk_percent = float(risk_percent) * 100
         else:
             portfolio_value = risk_calculator.calculate_portfolio_value(portfolio)[
@@ -161,12 +144,6 @@ def calculate_position_size() -> None:
 
 @app.route("/api/portfolio-risk", methods=["POST"])
 def get_portfolio_risk() -> None:
-    """Get a risk-metrics snapshot for a portfolio.
-
-    POST (not GET) because risk_service has no way to look up a portfolio
-    by ID on its own - the caller must supply the portfolio's current
-    state (positions + cash) in the request body.
-    """
     try:
         data = request.json or {}
         portfolio = data.get("portfolio")
@@ -184,8 +161,6 @@ def get_portfolio_risk() -> None:
 
 @app.route("/api/risk-alerts", methods=["POST"])
 def get_risk_alerts() -> None:
-    """Get threshold-based risk alerts for a portfolio (see POST
-    /api/portfolio-risk for why this takes a body instead of a GET query)."""
     try:
         data = request.json or {}
         portfolio = data.get("portfolio")
@@ -209,8 +184,6 @@ def get_risk_alerts() -> None:
 
 @app.route("/api/portfolio-value-prediction", methods=["POST"])
 def get_portfolio_value_prediction() -> None:
-    """Calculate a portfolio's current value alongside its AI-model-predicted
-    value, using the ai_engine service (ai_models/engine)."""
     try:
         data = request.json or {}
         portfolio = data.get("portfolio")

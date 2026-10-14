@@ -28,20 +28,19 @@ logger = structlog.get_logger(__name__)
 
 
 class OrderValidationError(Exception):
-    """Order validation exception"""
+    pass
 
 
 class RiskViolationError(Exception):
-    """Risk limit violation exception"""
+    pass
 
 
 class InsufficientFundsError(Exception):
-    """Insufficient funds exception"""
+    pass
 
 
 @dataclass
 class OrderRequest:
-    """Order request data structure"""
 
     portfolio_id: int
     symbol: str
@@ -54,18 +53,15 @@ class OrderRequest:
     user_id: Optional[int] = None
 
     def __post_init__(self) -> None:
-        # Allow callers that pass 'type' kwarg by accepting it via order_type
         pass
 
     @property
     def type(self) -> OrderType:
-        """Alias for order_type for API compatibility"""
         return self.order_type
 
 
 @dataclass
 class ExecutionReport:
-    """Order execution report"""
 
     order_id: int
     execution_id: str
@@ -80,7 +76,6 @@ class ExecutionReport:
 
 
 class RiskManager:
-    """Pre-trade and post-trade risk management"""
 
     def __init__(self) -> None:
         self.redis_client = get_redis_client()
@@ -88,7 +83,6 @@ class RiskManager:
     async def validate_order_risk(
         self, order_request: OrderRequest, portfolio: Portfolio
     ) -> bool:
-        """Validate order against risk limits"""
         try:
             await self._check_portfolio_limits(order_request, portfolio)
             await self._check_position_limits(order_request, portfolio)
@@ -106,7 +100,6 @@ class RiskManager:
     async def _check_portfolio_limits(
         self, order_request: OrderRequest, portfolio: Portfolio
     ):
-        """Check portfolio-level risk limits"""
         if portfolio.max_leverage and portfolio.max_leverage > 0:
             self._calculate_leverage(portfolio)
             order_value = await self._estimate_order_value(order_request)
@@ -121,7 +114,6 @@ class RiskManager:
     async def _check_position_limits(
         self, order_request: OrderRequest, portfolio: Portfolio
     ):
-        """Check position size limits"""
         if portfolio.max_position_size and portfolio.max_position_size > 0:
             with get_db_session() as session:
                 position = (
@@ -151,7 +143,6 @@ class RiskManager:
     async def _check_buying_power(
         self, order_request: OrderRequest, portfolio: Portfolio
     ):
-        """Check if sufficient buying power exists"""
         if order_request.side == OrderSide.BUY:
             order_value = await self._estimate_order_value(order_request)
             required_cash = order_value * Decimal("1.01")
@@ -163,14 +154,12 @@ class RiskManager:
     async def _check_concentration_limits(
         self, order_request: OrderRequest, portfolio: Portfolio
     ):
-        """Check sector/industry concentration limits"""
         if portfolio.max_sector_exposure and portfolio.max_sector_exposure > 0:
             pass
 
     async def _check_daily_limits(
         self, order_request: OrderRequest, portfolio: Portfolio
     ):
-        """Check daily trading volume limits"""
         try:
             if self.redis_client:
                 today = datetime.now(timezone.utc).date().isoformat()
@@ -192,7 +181,6 @@ class RiskManager:
             logger.warning(f"Could not check daily limits: {e}")
 
     def _calculate_leverage(self, portfolio: Portfolio) -> Decimal:
-        """Calculate current portfolio leverage"""
         if portfolio.total_value <= 0:
             return Decimal("0")
         return Decimal(str(portfolio.invested_amount)) / Decimal(
@@ -200,7 +188,6 @@ class RiskManager:
         )
 
     async def _estimate_order_value(self, order_request: OrderRequest) -> Decimal:
-        """Estimate the value of an order"""
         if order_request.order_type == OrderType.MARKET:
             market_data = MarketDataService()
             current_price = await market_data.get_current_price(order_request.symbol)
@@ -216,7 +203,6 @@ class RiskManager:
 
 
 class OrderManager:
-    """Order lifecycle management"""
 
     def __init__(self) -> None:
         self.risk_manager = RiskManager()
@@ -224,7 +210,6 @@ class OrderManager:
         self.redis_client = get_redis_client()
 
     async def submit_order(self, order_request: OrderRequest) -> Order:
-        """Submit a new order with validation and risk checks"""
         try:
             self._validate_order_request(order_request)
             with get_db_session() as session:
@@ -275,7 +260,6 @@ class OrderManager:
             raise
 
     def _validate_order_request(self, order_request: OrderRequest) -> object:
-        """Validate order request parameters"""
         order_request.symbol = FinancialValidator.validate_symbol(order_request.symbol)
         order_request.quantity = FinancialValidator.validate_quantity(
             order_request.quantity
@@ -297,7 +281,6 @@ class OrderManager:
             )
 
     async def _submit_to_broker(self, order: Order):
-        """Submit order to broker for execution"""
         try:
             with get_db_session() as session:
                 order = session.merge(order)
@@ -316,7 +299,6 @@ class OrderManager:
                 session.commit()
 
     async def _simulate_execution(self, order: Order):
-        """Simulate order execution (for demo purposes)"""
         try:
             current_price = await self.market_data.get_current_price(order.symbol)
             if not current_price:
@@ -329,8 +311,6 @@ class OrderManager:
                 execution_price *= Decimal(str(1 + random.uniform(0, 0.001)))
             else:
                 execution_price *= Decimal(str(1 - random.uniform(0, 0.001)))
-            # Quantize to the maximum allowed precision so downstream price
-            # validation (max 8 decimal places) accepts the value.
             execution_price = execution_price.quantize(Decimal("0.00000001"))
             await self.execute_order(
                 order.id,
@@ -350,7 +330,6 @@ class OrderManager:
         execution_id: str,
         venue: str,
     ) -> OrderExecution:
-        """Process order execution"""
         try:
             with get_db_session() as session:
                 order = session.query(Order).filter(Order.id == order_id).first()
@@ -398,8 +377,6 @@ class OrderManager:
                     order.avg_fill_price = float(total_value / total_quantity)
                 session.commit()
                 session.refresh(execution)
-                # Capture primitives while the instance is still session-bound so
-                # the position update does not touch a detached ORM instance.
                 exec_quantity = float(execution.quantity)
                 exec_price = float(execution.price)
                 exec_commission = float(execution.commission or 0)
@@ -444,12 +421,10 @@ class OrderManager:
             raise
 
     def _calculate_commission(self, quantity: Decimal, price: Decimal) -> Decimal:
-        """Calculate trading commission"""
         commission = quantity * Decimal("0.005")
         return max(commission, Decimal("1.00"))
 
     def _calculate_fees(self, quantity: Decimal, price: Decimal) -> Decimal:
-        """Calculate regulatory and exchange fees"""
         trade_value = quantity * price
         return trade_value * Decimal("0.0001")
 
@@ -464,11 +439,6 @@ class OrderManager:
         fees: float,
         user_id: int,
     ):
-        """Update portfolio position after execution.
-
-        Operates on primitive values captured while the execution instance was
-        bound to its session, avoiding detached-instance access.
-        """
         try:
             portfolio_service.add_position(
                 portfolio_id=portfolio_id,
@@ -495,7 +465,6 @@ class OrderManager:
             logger.error(f"Error updating portfolio position: {e}")
 
     def cancel_order(self, order_id: int, user_id: int) -> bool:
-        """Cancel a pending order"""
         try:
             with get_db_session() as session:
                 order = (
@@ -536,7 +505,6 @@ class OrderManager:
             return False
 
     def get_order(self, order_id: int, user_id: int) -> Optional[Order]:
-        """Get order by ID with user authorization"""
         try:
             with get_db_session() as session:
                 order = (
@@ -552,7 +520,6 @@ class OrderManager:
     def get_user_orders(
         self, user_id: int, status: Optional[OrderStatus] = None, limit: int = 100
     ) -> List[Order]:
-        """Get orders for a user"""
         try:
             with get_db_session() as session:
                 query = session.query(Order).filter(Order.user_id == user_id)
@@ -567,7 +534,6 @@ class OrderManager:
     def get_portfolio_orders(
         self, portfolio_id: int, user_id: int, status: Optional[OrderStatus] = None
     ) -> List[Order]:
-        """Get orders for a specific portfolio"""
         try:
             with get_db_session() as session:
                 query = session.query(Order).filter(
@@ -583,7 +549,6 @@ class OrderManager:
 
 
 class TradingEngine:
-    """Main trading engine orchestrator"""
 
     def __init__(self) -> None:
         self.order_manager = OrderManager()
@@ -591,7 +556,6 @@ class TradingEngine:
         self._running = False
 
     def place_order(self, order_request: OrderRequest) -> Order:
-        """Place a new order (sync wrapper around async submit_order)"""
         import asyncio
 
         try:
@@ -611,39 +575,32 @@ class TradingEngine:
             return asyncio.run(self.order_manager.submit_order(order_request))
 
     def cancel_order(self, order_id: int, user_id: int) -> bool:
-        """Cancel an existing order"""
         return self.order_manager.cancel_order(order_id, user_id)
 
     def get_order_status(self, order_id: int, user_id: int) -> Optional[Order]:
-        """Get order status"""
         return self.order_manager.get_order(order_id, user_id)
 
     def get_order_history(
         self, user_id: int, portfolio_id: Optional[int] = None
     ) -> List[Order]:
-        """Get order history"""
         if portfolio_id:
             return self.order_manager.get_portfolio_orders(portfolio_id, user_id)
         else:
             return self.order_manager.get_user_orders(user_id)
 
     def get_orders(self, user_id: int) -> List[Any]:
-        """Get all orders for a user (serialisable dicts)"""
         orders = self.order_manager.get_user_orders(user_id)
         return [o.to_dict() if hasattr(o, "to_dict") else o for o in orders]
 
     def start(self) -> None:
-        """Start the trading engine"""
         self._running = True
         logger.info("Trading engine started")
 
     def stop(self) -> None:
-        """Stop the trading engine"""
         self._running = False
         logger.info("Trading engine stopped")
 
     def check_health(self) -> dict:
-        """Return health status of the trading engine"""
         return {
             "status": "healthy" if self._running else "stopped",
             "running": self._running,

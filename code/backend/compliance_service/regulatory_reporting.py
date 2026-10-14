@@ -1,8 +1,3 @@
-"""
-Regulatory reporting module for QuantumAlpha Compliance Service.
-Handles comprehensive regulatory reporting and compliance monitoring.
-"""
-
 import json
 import logging
 import os
@@ -18,7 +13,6 @@ logger = setup_logger("regulatory_reporting", logging.INFO)
 
 
 class ReportType(Enum):
-    """Regulatory report types"""
 
     FORM_PF = "form_pf"
     FORM_ADV = "form_adv"
@@ -38,7 +32,6 @@ class ReportType(Enum):
 
 
 class RegulatoryJurisdiction(Enum):
-    """Regulatory jurisdictions"""
 
     US_SEC = "us_sec"
     US_CFTC = "us_cftc"
@@ -50,7 +43,6 @@ class RegulatoryJurisdiction(Enum):
 
 @dataclass
 class ReportingRequirement:
-    """Regulatory reporting requirement"""
 
     report_type: ReportType
     jurisdiction: RegulatoryJurisdiction
@@ -63,15 +55,8 @@ class ReportingRequirement:
 
 
 class RegulatoryReportingEngine:
-    """Comprehensive regulatory reporting engine"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize regulatory reporting engine
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.reporting_requirements = self._initialize_reporting_requirements()
@@ -90,23 +75,6 @@ class RegulatoryReportingEngine:
         portfolio_data: Optional[Dict[str, Any]] = None,
         additional_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Generate a regulatory report
-
-        Args:
-            report_type: Type of report to generate
-            jurisdiction: Regulatory jurisdiction
-            period_start: Report period start date
-            period_end: Report period end date
-            portfolio_data: Portfolio data for the report
-            additional_data: Additional data required for the report
-
-        Returns:
-            Generated report
-
-        Raises:
-            ValidationError: If parameters are invalid
-            ServiceError: If report generation fails
-        """
         try:
             logger.info(f"Generating {report_type} report for {jurisdiction}")
             self._validate_report_request(
@@ -158,15 +126,6 @@ class RegulatoryReportingEngine:
     def _generate_form_pf(
         self, report_data: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Generate Form PF report (Private Fund Adviser Reporting)
-
-        Args:
-            report_data: Collected report data
-            requirement: Reporting requirement
-
-        Returns:
-            Form PF report
-        """
         portfolio_data = report_data.get("portfolio_data", {})
         risk_data = report_data.get("risk_data", {})
         total_aum = sum(
@@ -256,15 +215,6 @@ class RegulatoryReportingEngine:
     def _generate_form_13f(
         self, report_data: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Generate Form 13F report (Institutional Investment Manager Filing)
-
-        Args:
-            report_data: Collected report data
-            requirement: Reporting requirement
-
-        Returns:
-            Form 13F report
-        """
         portfolio_data = report_data.get("portfolio_data", {})
         positions = portfolio_data.get("positions", [])
         eligible_positions = [
@@ -314,15 +264,6 @@ class RegulatoryReportingEngine:
     def _generate_basel_iii_capital_adequacy(
         self, report_data: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Generate Basel III Capital Adequacy report
-
-        Args:
-            report_data: Collected report data
-            requirement: Reporting requirement
-
-        Returns:
-            Basel III Capital Adequacy report
-        """
         portfolio_data = report_data.get("portfolio_data", {})
         capital_data = report_data.get("capital_data", {})
         positions = portfolio_data.get("positions", [])
@@ -392,15 +333,6 @@ class RegulatoryReportingEngine:
     def _generate_stress_test_results(
         self, report_data: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Generate stress test results report
-
-        Args:
-            report_data: Collected report data
-            requirement: Reporting requirement
-
-        Returns:
-            Stress test results report
-        """
         stress_test_data = report_data.get("stress_test_data", {})
         portfolio_data = report_data.get("portfolio_data", {})
         base_portfolio_value = sum(
@@ -474,15 +406,6 @@ class RegulatoryReportingEngine:
     def _generate_risk_metrics_report(
         self, report_data: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Generate comprehensive risk metrics report
-
-        Args:
-            report_data: Collected report data
-            requirement: Reporting requirement
-
-        Returns:
-            Risk metrics report
-        """
         risk_data = report_data.get("risk_data", {})
         portfolio_data = report_data.get("portfolio_data", {})
         risk_metrics_report = {
@@ -550,15 +473,6 @@ class RegulatoryReportingEngine:
     def _generate_portfolio_composition(
         self, report_data: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Generate portfolio composition report
-
-        Args:
-            report_data: Collected report data
-            requirement: Reporting requirement
-
-        Returns:
-            Portfolio composition report
-        """
         portfolio_data = report_data.get("portfolio_data", {})
         positions = portfolio_data.get("positions", [])
         total_value = sum((pos.get("market_value", 0) for pos in positions))
@@ -620,15 +534,6 @@ class RegulatoryReportingEngine:
     def _generate_liquidity_coverage_ratio(
         self, report_data: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Generate Liquidity Coverage Ratio (LCR) report
-
-        Args:
-            report_data: Collected report data
-            requirement: Reporting requirement
-
-        Returns:
-            LCR report
-        """
         liquidity_data = report_data.get("liquidity_data", {})
         report_data.get("portfolio_data", {})
         hqla_level_1 = liquidity_data.get("hqla_level_1", 0)
@@ -699,15 +604,6 @@ class RegulatoryReportingEngine:
     def _generate_generic_report(
         self, report_data: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Generate a generic regulatory report
-
-        Args:
-            report_data: Collected report data
-            requirement: Reporting requirement
-
-        Returns:
-            Generic report
-        """
         return {
             "report_type": requirement.report_type.value,
             "jurisdiction": requirement.jurisdiction.value,
@@ -720,7 +616,6 @@ class RegulatoryReportingEngine:
         }
 
     def _initialize_reporting_requirements(self) -> Dict[str, ReportingRequirement]:
-        """Initialize regulatory reporting requirements"""
         requirements = {}
         requirements["form_pf_us_sec"] = ReportingRequirement(
             report_type=ReportType.FORM_PF,
@@ -765,7 +660,6 @@ class RegulatoryReportingEngine:
         return requirements
 
     def _initialize_report_templates(self) -> Dict[str, Dict[str, Any]]:
-        """Initialize report templates"""
         return {
             "form_pf": {
                 "sections": [
@@ -783,7 +677,6 @@ class RegulatoryReportingEngine:
         }
 
     def _initialize_validation_rules(self) -> Dict[str, Dict[str, Any]]:
-        """Initialize validation rules"""
         return {
             "numeric_ranges": {
                 "leverage_ratio": {"min": 0, "max": 10},
@@ -803,7 +696,6 @@ class RegulatoryReportingEngine:
         period_start: datetime,
         period_end: datetime,
     ) -> None:
-        """Validate report generation request"""
         if not report_type:
             raise ValidationError("Report type is required")
         if not jurisdiction:
@@ -819,7 +711,6 @@ class RegulatoryReportingEngine:
     def _get_reporting_requirement(
         self, report_type: str, jurisdiction: str
     ) -> ReportingRequirement:
-        """Get reporting requirement for report type and jurisdiction"""
         requirement_key = f"{report_type}_{jurisdiction}"
         if requirement_key in self.reporting_requirements:
             return self.reporting_requirements[requirement_key]
@@ -842,7 +733,6 @@ class RegulatoryReportingEngine:
         portfolio_data: Optional[Dict[str, Any]],
         additional_data: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        """Collect data required for report generation"""
         report_data = {
             "period_start": period_start.isoformat(),
             "period_end": period_end.isoformat(),
@@ -861,7 +751,6 @@ class RegulatoryReportingEngine:
         return report_data
 
     def _generate_mock_portfolio_data(self) -> Dict[str, Any]:
-        """Generate mock portfolio data for demonstration"""
         return {
             "fund_name": "QuantumAlpha Hedge Fund",
             "fund_type": "hedge_fund",
@@ -915,7 +804,6 @@ class RegulatoryReportingEngine:
         }
 
     def _generate_mock_risk_data(self) -> Dict[str, Any]:
-        """Generate mock risk data for demonstration"""
         return {
             "var_95_1day": 2500000,
             "var_99_1day": 3500000,
@@ -936,7 +824,6 @@ class RegulatoryReportingEngine:
         }
 
     def _generate_mock_capital_data(self) -> Dict[str, Any]:
-        """Generate mock capital data for Basel III reports"""
         return {
             "cet1_capital": 80000000,
             "tier1_capital": 85000000,
@@ -947,7 +834,6 @@ class RegulatoryReportingEngine:
         }
 
     def _generate_mock_stress_test_data(self) -> Dict[str, Any]:
-        """Generate mock stress test data"""
         return {
             "base_var_95": 2500000,
             "base_expected_shortfall": 3000000,
@@ -967,7 +853,6 @@ class RegulatoryReportingEngine:
         }
 
     def _generate_mock_liquidity_data(self) -> Dict[str, Any]:
-        """Generate mock liquidity data for LCR reports"""
         return {
             "hqla_level_1": 100000000,
             "hqla_level_2a": 50000000,
@@ -984,7 +869,6 @@ class RegulatoryReportingEngine:
     def _calculate_sector_concentrations(
         self, positions: List[Dict[str, Any]]
     ) -> Dict[str, float]:
-        """Calculate sector concentrations"""
         total_value = sum((pos.get("market_value", 0) for pos in positions))
         sectors = {}
         for pos in positions:
@@ -999,7 +883,6 @@ class RegulatoryReportingEngine:
     def _calculate_geographic_concentrations(
         self, positions: List[Dict[str, Any]]
     ) -> Dict[str, float]:
-        """Calculate geographic concentrations"""
         total_value = sum((pos.get("market_value", 0) for pos in positions))
         countries = {}
         for pos in positions:
@@ -1016,7 +899,6 @@ class RegulatoryReportingEngine:
     def _calculate_currency_concentrations(
         self, positions: List[Dict[str, Any]]
     ) -> Dict[str, float]:
-        """Calculate currency concentrations"""
         total_value = sum((pos.get("market_value", 0) for pos in positions))
         currencies = {}
         for pos in positions:
@@ -1033,7 +915,6 @@ class RegulatoryReportingEngine:
     def _calculate_single_name_concentration(
         self, positions: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Calculate single name concentration metrics"""
         total_value = sum((pos.get("market_value", 0) for pos in positions))
         if not positions or total_value == 0:
             return {
@@ -1062,7 +943,6 @@ class RegulatoryReportingEngine:
     def _calculate_counterparty_exposures(
         self, positions: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Calculate counterparty exposures"""
         counterparties = {}
         for pos in positions:
             counterparty = pos.get("counterparty", "unknown")
@@ -1082,7 +962,6 @@ class RegulatoryReportingEngine:
         return sorted(exposures, key=lambda x: x["exposure"], reverse=True)
 
     def _get_basel_risk_weight(self, position: Dict[str, Any]) -> float:
-        """Get Basel III risk weight for a position"""
         asset_type = position.get("asset_type", "equity")
         position.get("credit_rating", "unrated")
         risk_weights = {
@@ -1101,7 +980,6 @@ class RegulatoryReportingEngine:
     def _validate_report(
         self, report: Dict[str, Any], requirement: ReportingRequirement
     ) -> Dict[str, Any]:
-        """Validate generated report"""
         validation_result = {"is_valid": True, "errors": [], "warnings": []}
         for field in requirement.mandatory_fields:
             if not self._check_field_exists(report, field):
@@ -1123,7 +1001,6 @@ class RegulatoryReportingEngine:
         return validation_result
 
     def _check_field_exists(self, report: Dict[str, Any], field_path: str) -> bool:
-        """Check if a field exists in the report"""
         try:
             keys = field_path.split(".")
             current = report
@@ -1137,7 +1014,6 @@ class RegulatoryReportingEngine:
             return False
 
     def _get_field_value(self, report: Dict[str, Any], field_path: str) -> object:
-        """Get field value from report"""
         try:
             keys = field_path.split(".")
             current = report
@@ -1150,7 +1026,6 @@ class RegulatoryReportingEngine:
     def _save_report(
         self, report: Dict[str, Any], report_type: str, jurisdiction: str
     ) -> str:
-        """Save report to storage"""
         try:
             report_id = f"report_{uuid.uuid4().hex}"
             timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -1165,17 +1040,6 @@ class RegulatoryReportingEngine:
             raise ServiceError(f"Error saving report: {str(e)}")
 
     def get_report(self, report_id: str) -> Dict[str, Any]:
-        """Retrieve a saved report
-
-        Args:
-            report_id: Report ID
-
-        Returns:
-            Report data
-
-        Raises:
-            NotFoundError: If report is not found
-        """
         try:
             for filename in os.listdir(self.report_storage_path):
                 if report_id in filename:
@@ -1196,17 +1060,6 @@ class RegulatoryReportingEngine:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
-        """List saved reports with optional filters
-
-        Args:
-            report_type: Filter by report type
-            jurisdiction: Filter by jurisdiction
-            start_date: Filter by start date
-            end_date: Filter by end date
-
-        Returns:
-            List of report metadata
-        """
         try:
             reports = []
             for filename in os.listdir(self.report_storage_path):

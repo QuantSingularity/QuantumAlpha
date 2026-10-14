@@ -1,7 +1,3 @@
-"""
-Common utilities for QuantumAlpha backend services.
-"""
-
 from .auth import AuthManager, require_auth, require_role
 from .config import get_config_manager
 from .database import DatabaseManager
@@ -19,15 +15,6 @@ from .validation import validate_schema
 
 
 def get_db_manager(database_url=None):
-    """Get or create a DatabaseManager instance.
-
-    Accepts either a database URL string, a config dict (from which a
-    'database_url'/'DATABASE_URL' key is extracted if present), or None. When
-    no usable URL is found, falls back to the DATABASE_URL environment variable.
-    Passing a config dict directly (as the services do) previously resulted in a
-    DatabaseManager that could not connect and silently fell back to an empty
-    in-memory SQLite database on every call.
-    """
     import os
 
     url = None

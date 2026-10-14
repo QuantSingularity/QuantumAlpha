@@ -1,8 +1,3 @@
-"""
-Configuration utilities for QuantumAlpha services.
-Loads configuration from environment variables and configuration files.
-"""
-
 import json
 import logging
 import os
@@ -19,17 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
-    """Manager for configuration settings"""
 
     def __init__(
         self, env_file: Optional[str] = None, config_file: Optional[str] = None
     ) -> None:
-        """Initialize configuration manager
-
-        Args:
-            env_file: Path to .env file
-            config_file: Path to config file (YAML or JSON)
-        """
         self.config = {}
         if env_file and os.path.exists(env_file):
             load_dotenv(env_file)
@@ -44,11 +32,6 @@ class ConfigManager:
         logger.info("Configuration manager initialized")
 
     def _load_config_file(self, config_file: str) -> None:
-        """Load configuration from file
-
-        Args:
-            config_file: Path to config file (YAML or JSON)
-        """
         _, ext = os.path.splitext(config_file)
         try:
             with open(config_file, "r") as f:
@@ -64,15 +47,6 @@ class ConfigManager:
     def _resolve_service(
         self, url_env: str, host_env: str, port_env: str, default_port: str
     ) -> Dict[str, Any]:
-        """Resolve a service's host/port/url from environment variables.
-
-        Docker Compose sets a single combined `<SERVICE>_URL` (e.g.
-        `AI_ENGINE_URL=http://ai-engine:8080`) for inter-container calls.
-        Local, non-Docker development instead sets the separate
-        `<SERVICE>_HOST`/`<SERVICE>_PORT` pair (see code/README.md). Support
-        both: prefer `<SERVICE>_URL` when set, otherwise build one from
-        host/port so callers can always just read `services.<name>.url`.
-        """
         url = os.getenv(url_env)
         if url:
             parsed = urlparse(url)
@@ -85,7 +59,6 @@ class ConfigManager:
         return {"host": host, "port": port, "url": url}
 
     def _load_from_env(self) -> None:
-        """Load configuration from environment variables"""
         self.config["postgres"] = {
             "host": os.getenv("DB_HOST", "localhost"),
             "port": int(os.getenv("DB_PORT", "5432")),
@@ -127,9 +100,7 @@ class ConfigManager:
             }
         }
         self.config["ml"] = {
-            "model_registry_path": os.getenv(
-                "MODEL_REGISTRY_PATH", "/path/to/model/registry"
-            )
+            "model_registry_path": os.getenv("MODEL_REGISTRY_PATH", "models")
         }
         self.config["services"] = {
             "data_service": self._resolve_service(
@@ -158,15 +129,6 @@ class ConfigManager:
         }
 
     def get(self, key: str, default: object = None) -> None:
-        """Get a configuration value
-
-        Args:
-            key: Configuration key (dot notation supported)
-            default: Default value if key not found
-
-        Returns:
-            Configuration value
-        """
         keys = key.split(".")
         value = self.config
         for k in keys:
@@ -177,11 +139,6 @@ class ConfigManager:
         return value
 
     def get_all(self) -> Dict[str, Any]:
-        """Get all configuration values
-
-        Returns:
-            Dictionary with all configuration values
-        """
         return self.config
 
 
@@ -191,15 +148,6 @@ _config_manager: Optional[ConfigManager] = None
 def get_config_manager(
     env_file: Optional[str] = None, config_file: Optional[str] = None
 ) -> ConfigManager:
-    """Get the configuration manager singleton
-
-    Args:
-        env_file: Path to .env file
-        config_file: Path to config file (YAML or JSON)
-
-    Returns:
-        Configuration manager instance
-    """
     global _config_manager
     if _config_manager is None:
         _config_manager = ConfigManager(env_file, config_file)

@@ -1,12 +1,3 @@
-"""
-Data Service for QuantumAlpha
-This service is responsible for:
-1. Market data collection from various sources
-2. Alternative data processing
-3. Feature engineering
-4. Data storage and retrieval
-"""
-
 import logging
 import os
 import traceback
@@ -41,7 +32,6 @@ feature_engineering_service = FeatureEngineeringService(config_manager, db_manag
 
 @app.errorhandler(Exception)
 def handle_error(error: Exception) -> None:
-    """Handle errors"""
     if isinstance(error, ServiceError):
         return (jsonify(error.to_dict()), error.status_code)
     logger.error(f"Unhandled error: {error}")
@@ -60,13 +50,11 @@ def handle_error(error: Exception) -> None:
 
 @app.route("/health", methods=["GET"])
 def health_check() -> object:
-    """Health check endpoint"""
     return jsonify({"status": "ok", "service": "data_service"})
 
 
 @app.route("/api/market-data/<symbol>", methods=["GET"])
 def get_market_data(symbol: object) -> None:
-    """Get market data for a symbol"""
     try:
         params = {
             "symbol": symbol,
@@ -94,7 +82,6 @@ def get_market_data(symbol: object) -> None:
 
 @app.route("/api/alternative-data/<source>", methods=["GET"])
 def get_alternative_data(source: object) -> None:
-    """Get alternative data from a source"""
     try:
         symbol = request.args.get("symbol")
         start_date = request.args.get("start_date")
@@ -113,7 +100,6 @@ def get_alternative_data(source: object) -> None:
 
 @app.route("/api/features/<symbol>", methods=["GET"])
 def get_features(symbol: object) -> None:
-    """Get engineered features for a symbol"""
     try:
         timeframe = request.args.get("timeframe", "1d")
         features = (
@@ -135,7 +121,6 @@ def get_features(symbol: object) -> None:
 
 @app.route("/api/data-sources", methods=["GET"])
 def get_data_sources() -> None:
-    """Get all data sources"""
     try:
         data_sources = market_data_service.get_data_sources()
         return jsonify({"data_sources": data_sources})
@@ -149,7 +134,6 @@ def get_data_sources() -> None:
 
 @app.route("/api/data-sources", methods=["POST"])
 def create_data_source() -> None:
-    """Create a new data source"""
     try:
         data = request.json
         data_source = market_data_service.create_data_source(data)

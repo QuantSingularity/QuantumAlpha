@@ -53,7 +53,6 @@ class QuantumAlphaApp:
         self.shutdown_handlers: List[Callable[[], None]] = []
 
     def create_app(self) -> Flask:
-        """Create and configure Flask application"""
         app = Flask(__name__)
         self._load_config(app)
         self._init_extensions(app)
@@ -65,23 +64,19 @@ class QuantumAlphaApp:
         return app
 
     def _load_config(self, app: Flask) -> None:
-        """Load application configuration"""
         app.config.from_object(Config)
         logger.info("Application configuration loaded")
 
     def _init_extensions(self, app: Flask) -> None:
-        """Initialize Flask extensions"""
         CORS(app, origins=app.config["CORS_ORIGINS"])
         self.jwt = JWTManager(app)
         auth_manager.init_app(app)
         logger.info("Flask extensions initialized")
 
     def _register_error_handlers(self, app: Flask) -> None:
-        """Register global error handlers"""
 
         @app.errorhandler(ValidationError)
         def handle_validation_error(error):
-            """Handle validation errors"""
             logger.warning("Validation error: %s", error)
             return (
                 jsonify(
@@ -97,7 +92,6 @@ class QuantumAlphaApp:
         @app.errorhandler(PermissionError)
         @app.errorhandler(AuthorizationError)
         def handle_permission_error(error):
-            """Handle authorization/permission errors (insufficient privileges)"""
             logger.warning("Authorization error: %s", error)
             log_security_event(
                 "permission_denied",
@@ -124,7 +118,6 @@ class QuantumAlphaApp:
 
         @app.errorhandler(AuthenticationError)
         def handle_authentication_error(error):
-            """Handle authentication errors (identity could not be established)"""
             logger.warning("Authentication error: %s", error)
             return (
                 jsonify(
@@ -139,7 +132,6 @@ class QuantumAlphaApp:
 
         @app.errorhandler(404)
         def handle_not_found(error):
-            """Handle 404 errors"""
             return (
                 jsonify(
                     {
@@ -153,7 +145,6 @@ class QuantumAlphaApp:
 
         @app.errorhandler(500)
         def handle_internal_error(error):
-            """Handle internal server errors"""
             error_id = f"error_{int(datetime.now(timezone.utc).timestamp())}"
             logger.error(
                 "Internal server error [%s]: %s", error_id, error, exc_info=True
@@ -182,7 +173,6 @@ class QuantumAlphaApp:
 
         @app.errorhandler(Exception)
         def handle_unexpected_error(error):
-            """Handle unexpected errors"""
             error_id = f"error_{int(datetime.now(timezone.utc).timestamp())}"
             logger.error("Unexpected error [%s]: %s", error_id, error, exc_info=True)
             return (
@@ -198,12 +188,10 @@ class QuantumAlphaApp:
             )
 
     def _register_request_handlers(self, app: Flask) -> None:
-        """Register request handlers for monitoring and security"""
         before_request, after_request = create_request_monitoring_middleware()
 
         @app.before_request
         def before_request_handler():
-            """Before request handler"""
             before_request()
             try:
                 if request.headers.get("Authorization"):
@@ -216,24 +204,25 @@ class QuantumAlphaApp:
 
         @app.after_request
         def after_request_handler(response):
-            """After request handler"""
             return after_request(response)
 
     def _register_blueprints(self, app: Flask) -> None:
-        """Register Flask blueprints"""
         monitoring_bp = create_monitoring_blueprint()
         app.register_blueprint(monitoring_bp)
         from backend.api.frontend_compat import compat_bp
 
         app.register_blueprint(compat_bp)
+        from backend.api.ai_gateway import create_ai_gateway_blueprint
+
+        app.register_blueprint(
+            create_ai_gateway_blueprint(auth_decorator=require_auth, enforce_roles=True)
+        )
         logger.info("Blueprints registered")
 
     def _register_routes(self, app: Flask) -> None:
-        """Register API routes"""
 
         @app.route("/health", methods=["GET"])
         def health_check():
-            """Public health check endpoint"""
             return jsonify(
                 {
                     "status": "ok",
@@ -246,7 +235,6 @@ class QuantumAlphaApp:
         @app.route("/api/auth/register", methods=["POST"])
         @validate_json(UserRegistrationSchema)
         def register(validated_data):
-            """User registration endpoint"""
             try:
                 from backend.common.database import get_db_session
                 from backend.common.models import User
@@ -308,7 +296,6 @@ class QuantumAlphaApp:
         @app.route("/api/auth/login", methods=["POST"])
         @validate_json(UserLoginSchema)
         def login(validated_data):
-            """User login endpoint"""
             try:
                 from backend.common.database import get_db_session
                 from backend.common.models import User
@@ -378,7 +365,6 @@ class QuantumAlphaApp:
         @app.route("/api/auth/logout", methods=["POST"])
         @require_auth
         def logout():
-            """User logout endpoint"""
             user_id = get_jwt_identity()
             audit_logger.log_event(
                 action=AuditAction.LOGOUT,
@@ -391,7 +377,6 @@ class QuantumAlphaApp:
         @app.route("/api/auth/me", methods=["GET"])
         @require_auth
         def get_current_user():
-            """Get current user details"""
             try:
                 from backend.common.database import get_db_session
                 from backend.common.models import User
@@ -434,7 +419,6 @@ class QuantumAlphaApp:
         @app.route("/api/portfolio", methods=["GET"])
         @require_auth
         def get_portfolio_summary():
-            """Get user's portfolio summary"""
             try:
                 user_id = int(get_jwt_identity())
                 summary = portfolio_service.get_portfolio_summary(user_id)
@@ -455,7 +439,6 @@ class QuantumAlphaApp:
         @app.route("/api/portfolio/positions", methods=["GET"])
         @require_auth
         def get_portfolio_positions():
-            """Get user's portfolio positions"""
             try:
                 user_id = int(get_jwt_identity())
                 positions = portfolio_service.get_portfolio_positions(user_id)
@@ -477,7 +460,6 @@ class QuantumAlphaApp:
         @require_auth
         @validate_json(OrderSchema)
         def place_order(validated_data):
-            """Place a new trade order"""
             try:
                 user_id = int(get_jwt_identity())
                 order_request = OrderRequest(
@@ -543,7 +525,6 @@ class QuantumAlphaApp:
         @app.route("/api/trade/orders", methods=["GET"])
         @require_auth
         def get_orders():
-            """Get user's trade orders"""
             try:
                 user_id = int(get_jwt_identity())
                 orders = trading_engine.get_orders(user_id)
@@ -565,7 +546,6 @@ class QuantumAlphaApp:
         @require_auth
         @require_role("admin")
         def get_all_users():
-            """Get a list of all users (Admin only)"""
             try:
                 from backend.common.database import get_db_session
                 from backend.common.models import User
@@ -600,7 +580,6 @@ class QuantumAlphaApp:
         @require_auth
         @require_role("admin")
         def shutdown_system():
-            """Initiate graceful system shutdown (Admin only)"""
             logger.info("System shutdown initiated by user %s", get_jwt_identity())
 
             def shutdown_handler():
@@ -608,9 +587,6 @@ class QuantumAlphaApp:
                     handler()
                 os.kill(os.getpid(), signal.SIGINT)
 
-            # Use a thread timer rather than the asyncio event loop. Request
-            # handlers run in worker threads with no running event loop, so
-            # asyncio.get_event_loop() would raise RuntimeError under gunicorn.
             timer = threading.Timer(1.0, shutdown_handler)
             timer.daemon = True
             timer.start()
@@ -619,7 +595,6 @@ class QuantumAlphaApp:
         @app.route("/api/system/status", methods=["GET"])
         @require_auth
         def get_system_status():
-            """Get system status and health checks"""
             try:
                 status = {
                     "database": db_manager.check_health(),
@@ -643,7 +618,6 @@ class QuantumAlphaApp:
                 )
 
     def run(self, host: str = "0.0.0.0", port: int = 5000, debug: bool = False) -> None:
-        """Run the Flask application"""
         app = self.create_app()
         app.run(host=host, port=port, debug=debug)
 

@@ -1,8 +1,3 @@
-"""
-Compliance monitoring module for QuantumAlpha Compliance Service.
-Handles real-time compliance monitoring and violation detection.
-"""
-
 import logging
 import threading
 import time
@@ -18,7 +13,6 @@ logger = setup_logger("compliance_monitoring", logging.INFO)
 
 
 class ViolationType(Enum):
-    """Types of compliance violations"""
 
     POSITION_LIMIT = "position_limit"
     CONCENTRATION_LIMIT = "concentration_limit"
@@ -33,7 +27,6 @@ class ViolationType(Enum):
 
 
 class ViolationSeverity(Enum):
-    """Severity levels for violations"""
 
     LOW = "low"
     MEDIUM = "medium"
@@ -42,7 +35,6 @@ class ViolationSeverity(Enum):
 
 
 class ComplianceStatus(Enum):
-    """Compliance status"""
 
     COMPLIANT = "compliant"
     WARNING = "warning"
@@ -52,7 +44,6 @@ class ComplianceStatus(Enum):
 
 @dataclass
 class ComplianceRule:
-    """Compliance rule definition"""
 
     rule_id: str
     name: str
@@ -71,7 +62,6 @@ class ComplianceRule:
 
 @dataclass
 class ComplianceViolation:
-    """Compliance violation record"""
 
     violation_id: str
     rule_id: str
@@ -90,15 +80,8 @@ class ComplianceViolation:
 
 
 class ComplianceMonitor:
-    """Real-time compliance monitoring system"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize compliance monitor
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.rules = {}
@@ -121,7 +104,6 @@ class ComplianceMonitor:
         logger.info("Compliance monitor initialized")
 
     def start_monitoring(self) -> None:
-        """Start real-time compliance monitoring"""
         try:
             if self.monitoring_active:
                 logger.warning("Compliance monitoring is already active")
@@ -137,7 +119,6 @@ class ComplianceMonitor:
             raise ServiceError(f"Error starting compliance monitoring: {str(e)}")
 
     def stop_monitoring(self) -> None:
-        """Stop real-time compliance monitoring"""
         try:
             self.monitoring_active = False
             if self.monitoring_thread and self.monitoring_thread.is_alive():
@@ -147,40 +128,20 @@ class ComplianceMonitor:
             logger.error(f"Error stopping compliance monitoring: {e}")
 
     def add_rule(self, rule: ComplianceRule) -> None:
-        """Add a compliance rule
-
-        Args:
-            rule: Compliance rule to add
-        """
         self.rules[rule.rule_id] = rule
         logger.info(f"Added compliance rule: {rule.name}")
 
     def remove_rule(self, rule_id: str) -> None:
-        """Remove a compliance rule
-
-        Args:
-            rule_id: Rule ID to remove
-        """
         if rule_id in self.rules:
             del self.rules[rule_id]
             logger.info(f"Removed compliance rule: {rule_id}")
 
     def enable_rule(self, rule_id: str) -> None:
-        """Enable a compliance rule
-
-        Args:
-            rule_id: Rule ID to enable
-        """
         if rule_id in self.rules:
             self.rules[rule_id].enabled = True
             logger.info(f"Enabled compliance rule: {rule_id}")
 
     def disable_rule(self, rule_id: str) -> None:
-        """Disable a compliance rule
-
-        Args:
-            rule_id: Rule ID to disable
-        """
         if rule_id in self.rules:
             self.rules[rule_id].enabled = False
             logger.info(f"Disabled compliance rule: {rule_id}")
@@ -191,16 +152,6 @@ class ComplianceMonitor:
         position_data: Optional[List[Dict[str, Any]]] = None,
         market_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Check compliance against all rules
-
-        Args:
-            portfolio_data: Portfolio data to check
-            position_data: Position data
-            market_data: Market data for calculations
-
-        Returns:
-            Compliance check results
-        """
         try:
             start_time = time.time()
             violations = []
@@ -264,20 +215,9 @@ class ComplianceMonitor:
             raise ServiceError(f"Error checking compliance: {str(e)}")
 
     def get_active_violations(self) -> List[Dict[str, Any]]:
-        """Get all active violations
-
-        Returns:
-            List of active violations
-        """
         return [self._violation_to_dict(v) for v in self.active_violations.values()]
 
     def resolve_violation(self, violation_id: str, resolution_note: str = "") -> None:
-        """Resolve a compliance violation
-
-        Args:
-            violation_id: Violation ID to resolve
-            resolution_note: Optional resolution note
-        """
         if violation_id in self.active_violations:
             violation = self.active_violations[violation_id]
             violation.resolved_at = datetime.utcnow()
@@ -291,19 +231,9 @@ class ComplianceMonitor:
     def add_violation_callback(
         self, callback: Callable[[ComplianceViolation], None]
     ) -> None:
-        """Add a callback for violation events
-
-        Args:
-            callback: Callback function
-        """
         self.violation_callbacks.append(callback)
 
     def get_compliance_metrics(self) -> Dict[str, Any]:
-        """Get compliance monitoring metrics
-
-        Returns:
-            Compliance metrics
-        """
         return {
             "metrics": self.metrics.copy(),
             "active_violations_count": len(self.active_violations),
@@ -314,7 +244,6 @@ class ComplianceMonitor:
         }
 
     def _monitoring_loop(self) -> None:
-        """Main monitoring loop"""
         while self.monitoring_active:
             try:
                 self._process_events()
@@ -324,7 +253,6 @@ class ComplianceMonitor:
                 time.sleep(5)
 
     def _process_events(self) -> None:
-        """Process events from the event queue"""
         try:
             while not self.event_queue.empty():
                 try:
@@ -337,11 +265,6 @@ class ComplianceMonitor:
             logger.error(f"Error processing events: {e}")
 
     def _process_event(self, event: Dict[str, Any]) -> None:
-        """Process a single compliance event
-
-        Args:
-            event: Event data
-        """
         try:
             event_type = event.get("type")
             if event_type == "portfolio_update":
@@ -365,17 +288,6 @@ class ComplianceMonitor:
         position_data: Optional[List[Dict[str, Any]]],
         market_data: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        """Check a single compliance rule
-
-        Args:
-            rule: Rule to check
-            portfolio_data: Portfolio data
-            position_data: Position data
-            market_data: Market data
-
-        Returns:
-            Rule check result
-        """
         try:
             current_value = self._get_measurement_value(
                 rule.measurement_field, portfolio_data, position_data, market_data
@@ -421,17 +333,6 @@ class ComplianceMonitor:
         position_data: Optional[List[Dict[str, Any]]],
         market_data: Optional[Dict[str, Any]],
     ) -> Optional[float]:
-        """Get measurement value for a field
-
-        Args:
-            measurement_field: Field to measure
-            portfolio_data: Portfolio data
-            position_data: Position data
-            market_data: Market data
-
-        Returns:
-            Measurement value
-        """
         try:
             if measurement_field == "total_portfolio_value":
                 return portfolio_data.get("total_value", 0)
@@ -510,15 +411,6 @@ class ComplianceMonitor:
     def _calculate_max_sector_concentration(
         self, position_data: List[Dict[str, Any]], portfolio_data: Dict[str, Any]
     ) -> float:
-        """Calculate maximum sector concentration
-
-        Args:
-            position_data: Position data
-            portfolio_data: Portfolio data
-
-        Returns:
-            Maximum sector concentration
-        """
         total_value = portfolio_data.get("total_value", 0)
         if total_value == 0:
             return 0
@@ -536,16 +428,6 @@ class ComplianceMonitor:
     def _evaluate_threshold(
         self, current_value: float, threshold: float, operator: str
     ) -> bool:
-        """Evaluate if current value violates threshold
-
-        Args:
-            current_value: Current measurement value
-            threshold: Threshold value
-            operator: Comparison operator
-
-        Returns:
-            True if violation, False if compliant
-        """
         if operator == ">":
             return current_value > threshold
         elif operator == "<":
@@ -563,14 +445,6 @@ class ComplianceMonitor:
             return False
 
     def _is_within_grace_period(self, rule: ComplianceRule) -> bool:
-        """Check if rule is within grace period
-
-        Args:
-            rule: Compliance rule
-
-        Returns:
-            True if within grace period
-        """
         if rule.grace_period_minutes == 0:
             return False
         for violation in self.active_violations.values():
@@ -588,16 +462,6 @@ class ComplianceMonitor:
         check_result: Dict[str, Any],
         portfolio_data: Dict[str, Any],
     ) -> ComplianceViolation:
-        """Create a compliance violation record
-
-        Args:
-            rule: Violated rule
-            check_result: Rule check result
-            portfolio_data: Portfolio data
-
-        Returns:
-            Compliance violation
-        """
         violation_id = f"violation_{int(time.time() * 1000)}"
         return ComplianceViolation(
             violation_id=violation_id,
@@ -619,11 +483,6 @@ class ComplianceMonitor:
         )
 
     def _handle_violation(self, violation: ComplianceViolation) -> None:
-        """Handle a compliance violation
-
-        Args:
-            violation: Compliance violation
-        """
         self.active_violations[violation.violation_id] = violation
         for callback in self.violation_callbacks:
             try:
@@ -635,14 +494,6 @@ class ComplianceMonitor:
         )
 
     def _violation_to_dict(self, violation: ComplianceViolation) -> Dict[str, Any]:
-        """Convert violation to dictionary
-
-        Args:
-            violation: Compliance violation
-
-        Returns:
-            Violation dictionary
-        """
         return {
             "violation_id": violation.violation_id,
             "rule_id": violation.rule_id,
@@ -665,26 +516,14 @@ class ComplianceMonitor:
     def _check_position_rules(
         self, position_data: Dict[str, Any], portfolio_data: Dict[str, Any]
     ) -> None:
-        """Check position-specific compliance rules
-
-        Args:
-            position_data: Position data
-            portfolio_data: Portfolio data
-        """
         logger.debug(
             f"Checking position rules for {position_data.get('symbol', 'unknown')}"
         )
 
     def _check_market_sensitive_rules(self, market_data: Dict[str, Any]) -> None:
-        """Check market-sensitive compliance rules
-
-        Args:
-            market_data: Market data
-        """
         logger.debug("Checking market-sensitive compliance rules")
 
     def _initialize_default_rules(self) -> None:
-        """Initialize default compliance rules"""
         self.add_rule(
             ComplianceRule(
                 rule_id="single_position_limit",
@@ -794,28 +633,13 @@ class ComplianceMonitor:
 
 
 class ComplianceReporter:
-    """Compliance reporting and analytics"""
 
     def __init__(self, compliance_monitor: ComplianceMonitor) -> None:
-        """Initialize compliance reporter
-
-        Args:
-            compliance_monitor: Compliance monitor instance
-        """
         self.compliance_monitor = compliance_monitor
 
     def generate_compliance_report(
         self, start_date: datetime, end_date: datetime
     ) -> Dict[str, Any]:
-        """Generate compliance report for a period
-
-        Args:
-            start_date: Report start date
-            end_date: Report end date
-
-        Returns:
-            Compliance report
-        """
         period_violations = [
             v
             for v in self.compliance_monitor.violation_history

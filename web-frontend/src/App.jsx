@@ -12,6 +12,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import Settings from "./pages/Settings";
+import AIInsights from "./pages/AIInsights";
 import Strategies from "./pages/Strategies";
 import StrategyDetails from "./pages/StrategyDetails";
 import Trading from "./pages/Trading";
@@ -83,6 +84,14 @@ const App = () => {
           element={
             <RequireAuth>
               <StrategyDetails />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/ai-insights"
+          element={
+            <RequireAuth>
+              <AIInsights />
             </RequireAuth>
           }
         />

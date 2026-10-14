@@ -17,7 +17,6 @@ logger = structlog.get_logger(__name__)
 
 
 class DatabaseConfig:
-    """Database configuration management"""
 
     def __init__(self) -> None:
         self.postgres_url = self._build_postgres_url()
@@ -36,12 +35,6 @@ class DatabaseConfig:
         self.pool_recycle = int(os.getenv("DB_POOL_RECYCLE", 3600))
 
     def _build_postgres_url(self) -> str:
-        """Build the primary database connection URL.
-
-        Honors an explicit DATABASE_URL when provided (matching the documented
-        setting in api/config.py and enabling the SQLite fallback for local and
-        test use). Otherwise builds a PostgreSQL URL from the POSTGRES_* vars.
-        """
         explicit_url = os.getenv("DATABASE_URL")
         if explicit_url:
             return explicit_url
@@ -56,8 +49,6 @@ class DatabaseConfig:
 class DatabaseManager:
 
     def __init__(self, config=None) -> None:
-        # Accept a plain database URL string (or None), a DatabaseConfig, or a
-        # ConfigManager-like object exposing .get().
         if config is None or isinstance(config, str):
             db_cfg = DatabaseConfig.__new__(DatabaseConfig)
             if isinstance(config, str) and config:
@@ -78,9 +69,7 @@ class DatabaseManager:
             db_cfg.pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", 30))
             db_cfg.pool_recycle = int(os.getenv("DB_POOL_RECYCLE", 3600))
             config = db_cfg
-        # Accept either DatabaseConfig or ConfigManager
         elif not isinstance(config, DatabaseConfig):
-            # Build a DatabaseConfig-like object from ConfigManager
             db_cfg = DatabaseConfig.__new__(DatabaseConfig)
             db_cfg.postgres_url = (
                 f"postgresql://{config.get('postgres.username','postgres')}:"
@@ -122,7 +111,6 @@ class DatabaseManager:
         self._lock = threading.Lock()
 
     def initialize(self) -> None:
-        """Initialize all database connections"""
         try:
             self._setup_postgresql()
             self._setup_redis()
@@ -134,12 +122,6 @@ class DatabaseManager:
             raise
 
     def _setup_postgresql(self) -> None:
-        """Setup the primary SQL connection with optimizations.
-
-        Uses PostgreSQL pooling and connect args when the configured URL is a
-        PostgreSQL URL; for SQLite (the local/test fallback) it creates a plain
-        engine without PostgreSQL-specific options so the fallback works.
-        """
         try:
             url = self.config.postgres_url
             if url.startswith("sqlite"):
@@ -176,7 +158,6 @@ class DatabaseManager:
             raise
 
     def _register_postgresql_events(self) -> None:
-        """Register SQLAlchemy event listeners for monitoring"""
 
         @event.listens_for(self._engine, "connect")
         def receive_connect(
@@ -199,7 +180,6 @@ class DatabaseManager:
             logger.error(f"Database error: {exception_context.original_exception}")
 
     def _setup_redis(self) -> None:
-        """Setup Redis connection with retry logic"""
         try:
             self._redis_client = redis.Redis(
                 host=self.config.redis_host,
@@ -215,11 +195,9 @@ class DatabaseManager:
             logger.info("Redis connection established")
         except Exception as e:
             logger.error(f"Failed to setup Redis: {e}")
-            # Reset so get_redis_client() knows to fall back to fakeredis
             self._redis_client = None
 
     def _setup_influxdb(self) -> None:
-        """Setup InfluxDB connection for time-series data"""
         try:
             if self.config.influx_token:
                 self._influx_client = InfluxDBClient(
@@ -239,7 +217,6 @@ class DatabaseManager:
             logger.error(f"Failed to setup InfluxDB: {e}")
 
     def _setup_mongodb(self) -> None:
-        """Setup MongoDB connection for document storage"""
         try:
             self._mongo_client = MongoClient(
                 self.config.mongo_url,
@@ -254,42 +231,35 @@ class DatabaseManager:
 
     @property
     def engine(self) -> Engine:
-        """Get PostgreSQL engine"""
         if not self._engine:
             raise RuntimeError("Database not initialized")
         return self._engine
 
     @property
     def session_factory(self) -> sessionmaker:
-        """Get session factory"""
         if not self._session_factory:
             raise RuntimeError("Database not initialized")
         return self._session_factory
 
     @property
     def redis(self) -> Optional[redis.Redis]:
-        """Get Redis client"""
         return self._redis_client
 
     @property
     def influx(self) -> Optional[InfluxDBClient]:
-        """Get InfluxDB client"""
         return self._influx_client
 
     @property
     def mongo(self) -> Optional[MongoClient]:
-        """Get MongoDB client"""
         return self._mongo_client
 
     def get_session(self) -> None:
-        """Get a new database session"""
         if not self._scoped_session:
             raise RuntimeError("Database not initialized")
         return self._scoped_session()
 
     @contextmanager
     def session_scope(self) -> Generator[Any, None, None]:
-        """Provide a transactional scope around a series of operations"""
         session = self.get_session()
         try:
             yield session
@@ -301,7 +271,6 @@ class DatabaseManager:
             session.close()
 
     def get_connection_stats(self) -> Dict[str, Any]:
-        """Get connection statistics"""
         with self._lock:
             stats = self._connection_stats.copy()
         if self._engine and hasattr(self._engine.pool, "size"):
@@ -317,7 +286,6 @@ class DatabaseManager:
         return stats
 
     def get_postgres_session(self) -> None:
-        """Get a PostgreSQL session, falling back to SQLite when PostgreSQL is unavailable."""
         if not self._scoped_session:
             try:
                 self._setup_postgresql()
@@ -326,12 +294,10 @@ class DatabaseManager:
         if self._scoped_session:
             try:
                 session = self._scoped_session()
-                # Quick connectivity check
                 session.execute(text("SELECT 1"))
                 return session
             except Exception:
                 pass
-        # Fall back to in-memory SQLite so tests can run without a real DB
         from sqlalchemy import create_engine as _ce
 
         engine = _ce("sqlite:///:memory:")
@@ -339,24 +305,20 @@ class DatabaseManager:
         return scoped_session(factory)()
 
     def get_timescale_session(self) -> None:
-        """Get a TimescaleDB session (uses same connection as PostgreSQL)."""
         return self.get_postgres_session()
 
     def get_redis_client(self) -> None:
-        """Get Redis client with lazy initialization, falling back to fakeredis."""
         if not self._redis_client:
             try:
                 self._setup_redis()
             except Exception:
                 pass
-        # Verify the client actually works; if not, fall back to fakeredis
         if self._redis_client:
             try:
                 self._redis_client.ping()
                 return self._redis_client
             except Exception:
                 self._redis_client = None
-        # Real Redis unavailable – use fakeredis so tests can run without infra
         try:
             import fakeredis
 
@@ -366,7 +328,6 @@ class DatabaseManager:
         return self._redis_client
 
     def get_kafka_producer(self) -> None:
-        """Get a Kafka producer (lazy init, falls back to in-memory stub)."""
         try:
             from kafka import KafkaProducer
 
@@ -378,7 +339,7 @@ class DatabaseManager:
             )
             return producer
         except Exception:
-            # Return a simple stub so tests don't break
+
             class _StubProducer:
                 def send(self, topic, value=None, key=None):
                     pass
@@ -392,7 +353,6 @@ class DatabaseManager:
             return _StubProducer()
 
     def get_kafka_consumer(self, topics: list) -> None:
-        """Get a Kafka consumer for specified topics, falls back to stub."""
         try:
             from kafka import KafkaConsumer
 
@@ -419,7 +379,6 @@ class DatabaseManager:
             return _StubConsumer()
 
     def health_check(self) -> Dict[str, Any]:
-        """Perform health check on all database connections"""
         health_status = {
             "postgresql": {"status": "unknown", "error": None},
             "redis": {"status": "unknown", "error": None},
@@ -465,11 +424,9 @@ class DatabaseManager:
         return health_status
 
     def check_health(self) -> Dict[str, Any]:
-        """Alias for health_check for consistent API"""
         return self.health_check()
 
     def close_all_connections(self) -> None:
-        """Close all database connections"""
         try:
             if self._scoped_session:
                 self._scoped_session.remove()
@@ -487,13 +444,11 @@ class DatabaseManager:
 
 
 class DatabaseMigrationManager:
-    """Database migration management"""
 
     def __init__(self, db_manager: DatabaseManager) -> None:
         self.db_manager = db_manager
 
     def create_tables(self) -> None:
-        """Create all database tables"""
         try:
             from .models import create_tables, init_database
 
@@ -505,7 +460,6 @@ class DatabaseMigrationManager:
             raise
 
     def check_migration_status(self) -> Dict[str, Any]:
-        """Check database migration status"""
         try:
             from sqlalchemy import inspect as sa_inspect
 
@@ -543,34 +497,28 @@ migration_manager = DatabaseMigrationManager(db_manager)
 
 
 def get_db_session() -> None:
-    """Get a database session"""
     return db_manager.get_session()
 
 
 def get_redis_client() -> Optional[redis.Redis]:
-    """Get Redis client"""
     return db_manager.redis
 
 
 def get_influx_client() -> Optional[InfluxDBClient]:
-    """Get InfluxDB client"""
     return db_manager.influx
 
 
 def get_mongo_client() -> Optional[MongoClient]:
-    """Get MongoDB client"""
     return db_manager.mongo
 
 
 @contextmanager
 def db_session_scope() -> Generator[Any, None, None]:
-    """Database session context manager"""
     with db_manager.session_scope() as session:
         yield session
 
 
 def initialize_database() -> None:
-    """Initialize all database connections"""
     try:
         db_manager.initialize()
         migration_status = migration_manager.check_migration_status()
@@ -584,7 +532,6 @@ def initialize_database() -> None:
 
 
 def cleanup_database() -> None:
-    """Cleanup database connections"""
     db_manager.close_all_connections()
 
 

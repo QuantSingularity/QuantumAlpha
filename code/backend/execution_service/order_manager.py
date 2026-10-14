@@ -1,8 +1,3 @@
-"""
-Order manager for QuantumAlpha Execution Service.
-Handles order management and execution.
-"""
-
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -31,7 +26,6 @@ VALID_STATUSES = [
 
 
 class OrderManager:
-    """Order manager"""
 
     def __init__(
         self,
@@ -281,7 +275,6 @@ class OrderManager:
             raise ServiceError(f"Error creating trade: {str(e)}")
 
     def create_order_with_risk_check(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create an order after performing a risk check via Risk Service."""
         import requests as _requests
 
         host = self.config_manager.get("services.risk_service.host", "localhost")

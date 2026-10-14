@@ -1,15 +1,3 @@
-"""
-Unit tests for backend.common.config.ConfigManager's service-endpoint
-resolution.
-
-Docker Compose sets a single combined `<SERVICE>_URL` env var per service
-(e.g. `AI_ENGINE_URL=http://ai-engine:8080`) for inter-container calls, but
-ConfigManager used to only read separate `<SERVICE>_HOST`/`<SERVICE>_PORT`
-vars - meaning every service was unreachable from every other service in
-the actual deployed stack. These tests cover both env var styles and the
-default fallback.
-"""
-
 import os
 import unittest
 from unittest.mock import patch
@@ -18,7 +6,6 @@ from backend.common.config import ConfigManager
 
 
 class TestServiceURLResolution(unittest.TestCase):
-    """Test cases for ConfigManager's services.* resolution"""
 
     def _config_with_env(self, env: dict) -> ConfigManager:
         with patch.dict(os.environ, env, clear=False):
@@ -26,7 +13,6 @@ class TestServiceURLResolution(unittest.TestCase):
                 return ConfigManager()
 
     def test_resolves_combined_url_env_var(self) -> None:
-        """The docker-compose style: a single <SERVICE>_URL env var"""
         config = self._config_with_env({"AI_ENGINE_URL": "http://ai-engine:8080"})
         service = config.get("services.ai_engine")
         self.assertEqual(service["host"], "ai-engine")
@@ -34,7 +20,6 @@ class TestServiceURLResolution(unittest.TestCase):
         self.assertEqual(service["url"], "http://ai-engine:8080")
 
     def test_falls_back_to_host_and_port_env_vars(self) -> None:
-        """The local-dev style: separate <SERVICE>_HOST/<SERVICE>_PORT vars"""
         config = self._config_with_env(
             {"AI_ENGINE_HOST": "127.0.0.1", "AI_ENGINE_PORT": "9999"}
         )
@@ -72,8 +57,6 @@ class TestServiceURLResolution(unittest.TestCase):
         )
 
     def test_url_env_var_takes_precedence_over_host_port(self) -> None:
-        """If both styles are set, the combined URL wins (matches how
-        docker-compose actually configures these services)."""
         config = self._config_with_env(
             {
                 "AI_ENGINE_URL": "http://ai-engine:8080",

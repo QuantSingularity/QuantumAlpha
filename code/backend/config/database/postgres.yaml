@@ -1,6 +1,3 @@
-# QuantumAlpha PostgreSQL Configuration
-
-# Connection Settings
 connection:
   host: ${DB_HOST}
   port: ${DB_PORT}
@@ -9,31 +6,26 @@ connection:
   database: ${DB_NAME}
   sslmode: prefer
 
-# Connection Pool
 pool:
   min_size: 5
   max_size: 20
-  max_idle_time: 300 # seconds
-  max_lifetime: 3600 # seconds
-  acquire_timeout: 30 # seconds
+  max_idle_time: 300
+  max_lifetime: 3600
+  acquire_timeout: 30
 
-# Query Settings
 query:
-  statement_timeout: 30000 # milliseconds
-  lock_timeout: 5000 # milliseconds
-  idle_in_transaction_session_timeout: 60000 # milliseconds
+  statement_timeout: 30000
+  lock_timeout: 5000
+  idle_in_transaction_session_timeout: 60000
   default_transaction_isolation: read_committed
   default_transaction_read_only: false
 
-# Schema Management
 schema:
   search_path: public
   version_table: schema_version
   migrations_path: /opt/quantumalpha/migrations
 
-# Tables
 tables:
-  # User Management
   - name: users
     description: "User accounts"
     indexes:
@@ -53,7 +45,6 @@ tables:
         unique: true
     partitioning: none
 
-  # Portfolio Management
   - name: portfolios
     description: "User portfolios"
     indexes:
@@ -81,7 +72,6 @@ tables:
       column: transaction_date
       interval: monthly
 
-  # Market Data
   - name: symbols
     description: "Tradable symbols"
     indexes:
@@ -100,7 +90,6 @@ tables:
       column: date
       interval: quarterly
 
-  # Strategy Management
   - name: strategies
     description: "Trading strategies"
     indexes:
@@ -128,13 +117,12 @@ tables:
       column: date
       interval: monthly
 
-# Backup Configuration
 backup:
   enabled: true
   method: pg_dump
   compression: true
   format: custom
-  schedule: "0 2 * * *" # 2 AM daily
+  schedule: "0 2 * * *"
   retention:
     days: 30
     keep_daily: 7
@@ -146,23 +134,21 @@ backup:
     prefix: postgres/
     region: us-east-1
 
-# Monitoring
 monitoring:
   enabled: true
-  slow_query_threshold: 1000 # milliseconds
-  log_min_duration_statement: 1000 # milliseconds
-  log_statement: none # none, ddl, mod, all
+  slow_query_threshold: 1000
+  log_min_duration_statement: 1000
+  log_statement: none
   log_connections: true
   log_disconnections: true
   log_lock_waits: true
-  log_temp_files: 0 # log all temp files
+  log_temp_files: 0
   track_activities: true
   track_counts: true
   track_io_timing: true
-  track_functions: all # none, pl, all
+  track_functions: all
   stats_temp_directory: /tmp/pg_stat_tmp
 
-# Performance Tuning
 performance:
   shared_buffers: 1GB
   work_mem: 64MB

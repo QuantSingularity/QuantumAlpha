@@ -1,7 +1,3 @@
-"""
-WSGI entry point for production deployment via gunicorn.
-"""
-
 import atexit
 
 from backend.api.main import QuantumAlphaApp

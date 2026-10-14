@@ -1,7 +1,3 @@
-"""
-Execution strategy for QuantumAlpha Execution Service.
-"""
-
 import logging
 from typing import Any, Dict
 
@@ -13,7 +9,6 @@ LARGE_ORDER_THRESHOLD = 10000
 
 
 class ExecutionStrategy:
-    """Execution strategy"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
@@ -21,7 +16,6 @@ class ExecutionStrategy:
         logger.info("Execution strategy initialized")
 
     def select_execution_strategy(self, order: Dict[str, Any]) -> str:
-        """Select execution strategy based on order properties."""
         order_type = order.get("order_type", "market")
         quantity = order.get("quantity", 0)
         if order_type == "limit":
@@ -33,7 +27,6 @@ class ExecutionStrategy:
     def execute_market_strategy(
         self, order: Dict[str, Any], broker_integration: object
     ) -> Dict[str, Any]:
-        """Execute order using market strategy."""
         try:
             submit_result = broker_integration.submit_order_to_broker(order)
             broker_order_id = submit_result["broker_order_id"]
@@ -55,7 +48,6 @@ class ExecutionStrategy:
     def execute_limit_strategy(
         self, order: Dict[str, Any], broker_integration: object
     ) -> Dict[str, Any]:
-        """Execute order using limit strategy."""
         try:
             submit_result = broker_integration.submit_order_to_broker(order)
             broker_order_id = submit_result["broker_order_id"]
@@ -81,7 +73,6 @@ class ExecutionStrategy:
         market_data: Dict[str, Any],
         num_slices: int = 5,
     ) -> Dict[str, Any]:
-        """Execute order using VWAP strategy by splitting into slices."""
         try:
             total_quantity = order.get("quantity", 0)
             slice_quantity = total_quantity / num_slices
@@ -131,7 +122,6 @@ class ExecutionStrategy:
         duration_minutes: int = 5,
         num_slices: int = 5,
     ) -> Dict[str, Any]:
-        """Execute order using TWAP strategy."""
         try:
             total_quantity = order.get("quantity", 0)
             slice_quantity = total_quantity / num_slices
@@ -180,7 +170,6 @@ class ExecutionStrategy:
         market_data: Dict[str, Any],
         display_size: int = 20,
     ) -> Dict[str, Any]:
-        """Execute order using iceberg strategy."""
         try:
             total_quantity = order.get("quantity", 0)
             num_slices = max(1, int(total_quantity / display_size))

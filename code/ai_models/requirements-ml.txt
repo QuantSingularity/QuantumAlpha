@@ -1,0 +1,4 @@
+-r requirements.txt
+tensorflow-cpu>=2.16
+stable-baselines3>=2.3
+torch>=2.2

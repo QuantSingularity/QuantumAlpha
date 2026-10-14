@@ -1,8 +1,3 @@
-"""
-Unit tests for the QuantumAlpha Analytics Service.
-Covers FactorAnalysisEngine and PerformanceAttributionEngine.
-"""
-
 import unittest
 from unittest.mock import MagicMock
 
@@ -20,10 +15,6 @@ from backend.analytics_service.performance_attribution import (
     AttributionMethod,
     PerformanceAttributionEngine,
 )
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _cfg() -> MagicMock:
@@ -53,11 +44,6 @@ def _weights_df(assets: list, n: int = 120) -> pd.DataFrame:
     idx = pd.date_range("2023-01-01", periods=n, freq="B")
     w = np.ones((n, len(assets))) / len(assets)
     return pd.DataFrame(w, index=idx, columns=assets)
-
-
-# ---------------------------------------------------------------------------
-# FactorAnalysisEngine tests
-# ---------------------------------------------------------------------------
 
 
 class TestFactorAnalysisEngine(unittest.TestCase):
@@ -176,14 +162,8 @@ class TestFactorAnalysisEngine(unittest.TestCase):
     def test_analyze_result_has_model_type(self) -> None:
         result = self.engine.analyze_portfolio_factors(self.returns)
         mt = result["model_type"]
-        # model_type may be a FactorModel enum or its string value
         valid = [m for m in FactorModel] + [m.value for m in FactorModel]
         self.assertIn(mt, valid)
-
-
-# ---------------------------------------------------------------------------
-# PerformanceAttributionEngine tests
-# ---------------------------------------------------------------------------
 
 
 class TestPerformanceAttributionEngine(unittest.TestCase):

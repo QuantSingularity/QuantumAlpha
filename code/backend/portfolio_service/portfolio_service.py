@@ -16,7 +16,6 @@ logger = structlog.get_logger(__name__)
 
 @dataclass
 class PortfolioMetrics:
-    """Portfolio performance metrics"""
 
     total_value: Decimal
     cash_balance: Decimal
@@ -40,7 +39,6 @@ class PortfolioMetrics:
 
 @dataclass
 class PositionMetrics:
-    """Individual position metrics"""
 
     symbol: str
     quantity: Decimal
@@ -61,7 +59,6 @@ class PositionMetrics:
 
 
 class RiskCalculator:
-    """Portfolio risk calculation engine"""
 
     def __init__(self) -> None:
         self.redis_client = get_redis_client()
@@ -69,7 +66,6 @@ class RiskCalculator:
     def calculate_var(
         self, returns: List[float], confidence_level: float = 0.05
     ) -> float:
-        """Calculate Value at Risk using historical simulation"""
         if not returns or len(returns) < 30:
             return 0.0
         returns_array = np.array(returns)
@@ -78,7 +74,6 @@ class RiskCalculator:
     def calculate_sharpe_ratio(
         self, returns: List[float], risk_free_rate: float = 0.02
     ) -> float:
-        """Calculate Sharpe ratio"""
         if not returns or len(returns) < 2:
             return 0.0
         returns_array = np.array(returns)
@@ -88,7 +83,6 @@ class RiskCalculator:
         return float(np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(252))
 
     def calculate_max_drawdown(self, values: List[float]) -> float:
-        """Calculate maximum drawdown"""
         if not values or len(values) < 2:
             return 0.0
         values_array = np.array(values)
@@ -99,7 +93,6 @@ class RiskCalculator:
     def calculate_beta(
         self, portfolio_returns: List[float], market_returns: List[float]
     ) -> float:
-        """Calculate portfolio beta against market"""
         if (
             not portfolio_returns
             or not market_returns
@@ -115,7 +108,6 @@ class RiskCalculator:
         return float(covariance / market_variance)
 
     def calculate_volatility(self, returns: List[float]) -> float:
-        """Calculate annualized volatility"""
         if not returns or len(returns) < 2:
             return 0.0
         returns_array = np.array(returns)
@@ -123,14 +115,12 @@ class RiskCalculator:
 
 
 class MarketDataService:
-    """Market data service for real-time pricing"""
 
     def __init__(self) -> None:
         self.redis_client = get_redis_client()
         self.cache_ttl = 60
 
     async def get_current_price(self, symbol: str) -> Optional[Decimal]:
-        """Get current market price for a symbol"""
         try:
             if self.redis_client:
                 cached_price = self.redis_client.get(f"price:{symbol}")
@@ -147,7 +137,6 @@ class MarketDataService:
             return None
 
     async def _fetch_market_price(self, symbol: str) -> Optional[Decimal]:
-        """Fetch price from market data provider (mock implementation)"""
         mock_prices = {
             "AAPL": Decimal("175.50"),
             "GOOGL": Decimal("142.80"),
@@ -167,7 +156,6 @@ class MarketDataService:
     async def get_historical_prices(
         self, symbol: str, days: int = 30
     ) -> List[Dict[str, Any]]:
-        """Get historical price data"""
         try:
             current_price = await self.get_current_price(symbol)
             if not current_price:
@@ -206,7 +194,6 @@ class PortfolioService:
         description: str = None,
         initial_cash: Decimal = Decimal("100000"),
     ) -> Portfolio:
-        """Create a new portfolio"""
         try:
             with get_db_session() as session:
                 name = FinancialValidator.validate_safe_string(name, "portfolio name")
@@ -242,7 +229,6 @@ class PortfolioService:
             raise
 
     def get_portfolio(self, portfolio_id: int, user_id: int) -> Optional[Portfolio]:
-        """Get portfolio by ID with user authorization"""
         try:
             with get_db_session() as session:
                 portfolio = (
@@ -269,7 +255,6 @@ class PortfolioService:
             return None
 
     def get_user_portfolios(self, user_id: int) -> List[Portfolio]:
-        """Get all portfolios for a user"""
         try:
             with get_db_session() as session:
                 portfolios = (
@@ -288,7 +273,6 @@ class PortfolioService:
     async def calculate_portfolio_metrics(
         self, portfolio_id: int
     ) -> Optional[PortfolioMetrics]:
-        """Calculate comprehensive portfolio metrics"""
         try:
             with get_db_session() as session:
                 portfolio = (
@@ -402,7 +386,6 @@ class PortfolioService:
             return None
 
     async def _update_position_prices(self, positions: List[Position]):
-        """Update current prices for all positions"""
         for position in positions:
             try:
                 current_price = await self.market_data.get_current_price(
@@ -416,7 +399,6 @@ class PortfolioService:
     async def _get_portfolio_returns(
         self, portfolio_id: int, days: int = 252
     ) -> List[float]:
-        """Get historical portfolio returns"""
         try:
             import random
 
@@ -432,7 +414,6 @@ class PortfolioService:
     async def _get_portfolio_values(
         self, portfolio_id: int, days: int = 252
     ) -> List[float]:
-        """Get historical portfolio values"""
         try:
             import random
 
@@ -450,7 +431,6 @@ class PortfolioService:
     def _calculate_sector_allocation(
         self, positions: List[Position]
     ) -> Dict[str, Decimal]:
-        """Calculate sector allocation percentages"""
         sector_values = {}
         total_value = Decimal("0")
         for position in positions:
@@ -470,7 +450,6 @@ class PortfolioService:
     def _calculate_country_allocation(
         self, positions: List[Position]
     ) -> Dict[str, Decimal]:
-        """Calculate country allocation percentages"""
         country_values = {}
         total_value = Decimal("0")
         for position in positions:
@@ -490,7 +469,6 @@ class PortfolioService:
     def _calculate_currency_allocation(
         self, positions: List[Position]
     ) -> Dict[str, Decimal]:
-        """Calculate currency allocation percentages"""
         currency_values = {}
         total_value = Decimal("0")
         for position in positions:
@@ -515,7 +493,6 @@ class PortfolioService:
         avg_cost: Decimal,
         user_id: int,
     ) -> Optional[Position]:
-        """Add or update a position in the portfolio"""
         try:
             with get_db_session() as session:
                 symbol = FinancialValidator.validate_symbol(symbol)
@@ -573,7 +550,6 @@ class PortfolioService:
             raise
 
     def get_portfolio_positions(self, user_id: int) -> List[Any]:
-        """Get all positions for a user's active portfolios"""
         try:
             with get_db_session() as session:
                 portfolios = (
@@ -597,7 +573,6 @@ class PortfolioService:
             return []
 
     def get_portfolio_summary(self, user_id: int) -> dict:
-        """Get aggregated portfolio summary for a user"""
         try:
             with get_db_session() as session:
                 portfolios = (
@@ -641,7 +616,6 @@ class PortfolioService:
             return {"error": str(e)}
 
     async def get_position_metrics(self, position_id: int) -> Optional[PositionMetrics]:
-        """Get detailed metrics for a specific position"""
         try:
             with get_db_session() as session:
                 position = (

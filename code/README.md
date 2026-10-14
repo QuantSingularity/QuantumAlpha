@@ -80,16 +80,23 @@ code/
 │   ├── pytest.ini                  # Test discovery for backend/tests/
 │   └── requirements.txt            # Python dependencies
 │
-├── ai_models/                      # AI/ML models and training infrastructure
-│   ├── engine/                     # Core AI engine
-│   │   ├── app.py                  # Flask app for ai_models microservice
-│   │   ├── model_manager.py        # Model registry, training, serialisation
-│   │   ├── prediction_service.py   # Signal generation & inference
-│   │   └── reinforcement_learning.py  # RL agents (Gymnasium-based)
-│   ├── tests/                      # AI model unit tests
-│   │   ├── conftest.py
-│   │   └── test_ai_engine.py
-│   └── pytest.ini                  # Test discovery for ai_models/tests/
+├── ai_models/                      # AI engine service (see ai_models/README.md)
+│   ├── api/                        # Flask app factory, routes, auth, error handling
+│   ├── core/                       # Settings, exceptions, logging, cache, job manager
+│   ├── data/                       # Data service client, features, windowing, scaling
+│   ├── models/                     # Deep and classical forecasters, factory
+│   ├── training/                   # Trainer, walk-forward validation, tuning
+│   ├── evaluation/                 # Metrics, backtesting, bundle evaluation
+│   ├── inference/                  # Predictions, ensembles, signals, explainability
+│   ├── registry/                   # Versioned model registry and artifact bundles
+│   ├── rl/                         # Trading environment, agents, RL service
+│   ├── monitoring/                 # Drift detection, performance tracking, metrics
+│   ├── persistence/                # Prediction and signal store
+│   ├── engine/                     # Compatibility shim for ai_models.engine.app
+│   ├── configs/                    # Reference configuration
+│   ├── tests/                      # Unit and integration tests
+│   ├── Dockerfile
+│   └── requirements*.txt
 │
 └── README.md
 ```
@@ -121,7 +128,7 @@ Each microservice has its own Flask `app.py`. Run from the `code/` root so packa
 python -m backend.data_service.app
 python -m backend.execution_service.app
 python -m backend.risk_service.app
-python -m ai_models.engine.app
+python -m ai_models
 
 # Main API gateway (production via Gunicorn)
 gunicorn backend.api.wsgi:application

@@ -1,8 +1,3 @@
-"""
-Data processor for QuantumAlpha Data Service.
-Handles data processing and feature engineering.
-"""
-
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -15,7 +10,6 @@ logger = setup_logger("data_processor", logging.INFO)
 
 
 class DataProcessor:
-    """Data processor"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
@@ -25,7 +19,6 @@ class DataProcessor:
     def process_market_data(
         self, data: List[Dict[str, Any]], features: Optional[List[str]] = None
     ) -> pd.DataFrame:
-        """Process market data and calculate features."""
         try:
             if not data:
                 raise ValidationError("Data is required")
@@ -132,7 +125,6 @@ class DataProcessor:
         return df
 
     def normalize_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Normalize close and volume columns using min-max scaling."""
         try:
             result = df.copy()
             scaler = MinMaxScaler()
@@ -153,7 +145,6 @@ class DataProcessor:
         target_shift: int = 1,
         test_size: float = 0.2,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, MinMaxScaler]:
-        """Prepare sequence data for ML training."""
         try:
             feature_cols = [c for c in df.select_dtypes(include=[np.number]).columns]
             data = df[feature_cols].values
@@ -185,7 +176,6 @@ class DataProcessor:
         window: int = 20,
         threshold: float = 2.0,
     ) -> pd.DataFrame:
-        """Detect anomalies using rolling z-score."""
         try:
             result = df.copy()
             rolling_mean = result[column].rolling(window=window).mean()
@@ -203,7 +193,6 @@ class DataProcessor:
     def generate_signals(
         self, df: pd.DataFrame, strategy: str = "sma_crossover"
     ) -> pd.DataFrame:
-        """Generate trading signals."""
         try:
             result = df.copy()
             if strategy == "sma_crossover":

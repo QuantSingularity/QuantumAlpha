@@ -1,7 +1,3 @@
-"""
-Position sizing for QuantumAlpha Risk Service.
-"""
-
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List
@@ -14,7 +10,6 @@ VALID_METHODS = ["fixed", "percent", "risk", "kelly"]
 
 
 class PositionSizing:
-    """Position sizing"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
@@ -35,18 +30,6 @@ class PositionSizing:
         method: str,
         params: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Calculate position size.
-
-        Args:
-            portfolio: Portfolio dict with positions and cash
-            symbol: Ticker symbol
-            price: Current price of the asset
-            method: Sizing method: 'fixed', 'percent', 'risk', 'kelly'
-            params: Method-specific parameters
-
-        Returns:
-            Dict with quantity, value, method, symbol, price and extras
-        """
         try:
             if method not in VALID_METHODS:
                 raise ValidationError(

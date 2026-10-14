@@ -147,4 +147,17 @@ export const analyticsAPI = {
   getPerformance: () => api.get("/analytics/performance"),
 };
 
+export const aiAPI = {
+  getModels: (params) => api.get("/ai/models", { params }),
+  predict: (payload) => api.post("/ai/predict", payload, { timeout: 60000 }),
+  generateSignals: (payload) =>
+    api.post("/ai/signals/generate", payload, { timeout: 60000 }),
+  getRecentSignals: (params) => api.get("/ai/signals", { params }),
+  getModelHealth: (modelId, params) =>
+    api.get(`/ai/models/${modelId}/health`, { params, timeout: 60000 }),
+  getRLRecommendation: (payload) =>
+    api.post("/ai/rl/act", payload, { timeout: 60000 }),
+  getRLModels: (params) => api.get("/ai/rl/models", { params }),
+};
+
 export default api;

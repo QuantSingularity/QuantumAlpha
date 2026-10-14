@@ -1,8 +1,3 @@
-"""
-Factor analysis module for QuantumAlpha Analytics Service.
-Provides comprehensive factor analysis and risk decomposition tools.
-"""
-
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,7 +17,6 @@ logger = setup_logger("factor_analysis", logging.INFO)
 
 
 class FactorModel(Enum):
-    """Factor model types"""
 
     FAMA_FRENCH_3 = "fama_french_3"
     FAMA_FRENCH_5 = "fama_french_5"
@@ -33,7 +27,6 @@ class FactorModel(Enum):
 
 
 class RiskFactorType(Enum):
-    """Risk factor types"""
 
     MARKET = "market"
     SIZE = "size"
@@ -53,7 +46,6 @@ class RiskFactorType(Enum):
 
 @dataclass
 class FactorExposure:
-    """Factor exposure result"""
 
     factor_name: str
     factor_type: RiskFactorType
@@ -67,7 +59,6 @@ class FactorExposure:
 
 @dataclass
 class FactorAnalysisResult:
-    """Factor analysis result"""
 
     model_type: FactorModel
     r_squared: float
@@ -84,15 +75,8 @@ class FactorAnalysisResult:
 
 
 class FactorAnalysisEngine:
-    """Comprehensive factor analysis engine"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize factor analysis engine
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.factor_data = {}
@@ -113,19 +97,6 @@ class FactorAnalysisEngine:
         end_date: Optional[datetime] = None,
         frequency: str = "daily",
     ) -> Dict[str, Any]:
-        """Analyze portfolio factor exposures
-
-        Args:
-            portfolio_returns: Portfolio return series
-            factor_model: Factor model to use
-            benchmark_returns: Optional benchmark returns
-            start_date: Analysis start date
-            end_date: Analysis end date
-            frequency: Data frequency
-
-        Returns:
-            Factor analysis results
-        """
         try:
             logger.info(f"Analyzing portfolio factors using {factor_model} model")
             if portfolio_returns.empty:
@@ -173,17 +144,6 @@ class FactorAnalysisEngine:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        """Analyze factor exposures for multiple securities
-
-        Args:
-            security_returns: Dictionary of security return series
-            factor_model: Factor model to use
-            start_date: Analysis start date
-            end_date: Analysis end date
-
-        Returns:
-            Security factor analysis results
-        """
         try:
             logger.info(f"Analyzing factors for {len(security_returns)} securities")
             security_results = {}
@@ -220,17 +180,6 @@ class FactorAnalysisEngine:
         factor_covariance_matrix: pd.DataFrame,
         specific_risks: Dict[str, float],
     ) -> Dict[str, Any]:
-        """Calculate portfolio risk decomposition by factors
-
-        Args:
-            portfolio_weights: Portfolio weights
-            security_factor_exposures: Security factor exposures
-            factor_covariance_matrix: Factor covariance matrix
-            specific_risks: Security-specific risks
-
-        Returns:
-            Risk decomposition results
-        """
         try:
             logger.info("Calculating factor risk decomposition")
             factors = factor_covariance_matrix.index.tolist()
@@ -304,16 +253,6 @@ class FactorAnalysisEngine:
         factor_returns: pd.DataFrame,
         rolling_window: int = 60,
     ) -> Dict[str, Any]:
-        """Perform factor timing analysis
-
-        Args:
-            portfolio_returns: Portfolio return series
-            factor_returns: Factor return data
-            rolling_window: Rolling window for analysis
-
-        Returns:
-            Factor timing analysis results
-        """
         try:
             logger.info("Performing factor timing analysis")
             common_index = portfolio_returns.index.intersection(factor_returns.index)
@@ -388,17 +327,6 @@ class FactorAnalysisEngine:
         factor_exposures: Dict[str, float],
         benchmark_exposures: Optional[Dict[str, float]] = None,
     ) -> Dict[str, Any]:
-        """Calculate factor-based return attribution
-
-        Args:
-            portfolio_returns: Portfolio return series
-            factor_returns: Factor return data
-            factor_exposures: Portfolio factor exposures
-            benchmark_exposures: Optional benchmark factor exposures
-
-        Returns:
-            Factor attribution results
-        """
         try:
             logger.info("Calculating factor attribution")
             common_index = portfolio_returns.index.intersection(factor_returns.index)
@@ -458,7 +386,6 @@ class FactorAnalysisEngine:
     def _perform_regression_analysis(
         self, aligned_data: Dict[str, pd.Series], factor_model: str
     ) -> Dict[str, Any]:
-        """Perform regression-based factor analysis"""
         try:
             portfolio_returns = aligned_data["portfolio_returns"]
             factor_data = aligned_data["factor_data"]
@@ -531,7 +458,6 @@ class FactorAnalysisEngine:
     def _perform_pca_analysis(
         self, aligned_data: Dict[str, pd.Series]
     ) -> Dict[str, Any]:
-        """Perform PCA-based factor analysis"""
         try:
             portfolio_returns = aligned_data["portfolio_returns"]
             factor_data = aligned_data["factor_data"]
@@ -584,7 +510,6 @@ class FactorAnalysisEngine:
     def _calculate_additional_metrics(
         self, result: Dict[str, Any], aligned_data: Dict[str, pd.Series]
     ) -> Dict[str, Any]:
-        """Calculate additional factor analysis metrics"""
         try:
             portfolio_returns = aligned_data["portfolio_returns"]
             result["time_varying_analysis"] = self._calculate_time_varying_exposures(
@@ -604,7 +529,6 @@ class FactorAnalysisEngine:
     def _calculate_time_varying_exposures(
         self, portfolio_returns: pd.Series, factor_data: pd.DataFrame, window: int = 60
     ) -> Dict[str, Any]:
-        """Calculate time-varying factor exposures"""
         try:
             if len(portfolio_returns) < window * 2:
                 return {"error": "Insufficient data for time-varying analysis"}
@@ -649,7 +573,6 @@ class FactorAnalysisEngine:
     def _calculate_factor_correlations(
         self, factor_data: pd.DataFrame
     ) -> Dict[str, Any]:
-        """Calculate factor correlation matrix"""
         try:
             correlation_matrix = factor_data.corr()
             return {
@@ -677,7 +600,6 @@ class FactorAnalysisEngine:
     def _calculate_regime_analysis(
         self, portfolio_returns: pd.Series, factor_data: pd.DataFrame
     ) -> Dict[str, Any]:
-        """Calculate regime-based factor analysis"""
         try:
             market_vol = portfolio_returns.rolling(20).std()
             high_vol_threshold = market_vol.quantile(0.75)
@@ -724,7 +646,6 @@ class FactorAnalysisEngine:
     def _calculate_timing_effectiveness(
         self, exposure_df: pd.DataFrame, factor_returns: pd.DataFrame
     ) -> Dict[str, Any]:
-        """Calculate factor timing effectiveness"""
         try:
             timing_effectiveness = {}
             for factor in exposure_df.columns:
@@ -756,7 +677,6 @@ class FactorAnalysisEngine:
     def _calculate_cross_sectional_stats(
         self, security_results: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Calculate cross-sectional statistics"""
         try:
             valid_results = {
                 k: v for k, v in security_results.items() if "error" not in v
@@ -800,7 +720,6 @@ class FactorAnalysisEngine:
             return {"error": str(e)}
 
     def _initialize_factor_models(self) -> None:
-        """Initialize factor model definitions"""
         self.factor_models = {
             FactorModel.FAMA_FRENCH_3.value: {
                 "factors": ["market_excess", "smb", "hml"],
@@ -820,7 +739,6 @@ class FactorAnalysisEngine:
         }
 
     def _load_factor_data(self) -> None:
-        """Load factor data (mock implementation)"""
         dates = pd.date_range("2020-01-01", "2024-01-01", freq="D")
         np.random.seed(42)
         self.factor_data["fama_french_3"] = pd.DataFrame(
@@ -855,7 +773,6 @@ class FactorAnalysisEngine:
     def _get_factor_data(
         self, factor_model: str, date_index: pd.DatetimeIndex
     ) -> pd.DataFrame:
-        """Get factor data for specified model and dates"""
         if factor_model not in self.factor_data:
             return pd.DataFrame()
         factor_df = self.factor_data[factor_model]
@@ -868,7 +785,6 @@ class FactorAnalysisEngine:
         factor_data: pd.DataFrame,
         benchmark_returns: Optional[pd.Series] = None,
     ) -> Dict[str, pd.Series]:
-        """Align portfolio, factor, and benchmark data"""
         common_index = portfolio_returns.index.intersection(factor_data.index)
         if benchmark_returns is not None:
             common_index = common_index.intersection(benchmark_returns.index)
@@ -886,7 +802,6 @@ class FactorAnalysisEngine:
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> pd.Series:
-        """Filter series by date range"""
         if start_date:
             series = series[series.index >= start_date]
         if end_date:
@@ -894,7 +809,6 @@ class FactorAnalysisEngine:
         return series
 
     def _get_factor_type(self, factor_name: str) -> RiskFactorType:
-        """Get factor type from factor name"""
         factor_name_lower = factor_name.lower()
         if "market" in factor_name_lower:
             return RiskFactorType.MARKET

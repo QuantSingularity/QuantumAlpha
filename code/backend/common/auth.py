@@ -26,24 +26,15 @@ logger = structlog.get_logger(__name__)
 
 
 def _get_blocklist_client():
-    """Return a usable Redis-like client for auth state.
-
-    Prefers the shared DatabaseManager client (which itself falls back to
-    fakeredis when no real Redis is reachable). Falls back to a direct
-    connection, then to fakeredis, and finally returns None if nothing is
-    available. Callers must tolerate a None return value.
-    """
-    # 1. Shared DatabaseManager client (real Redis or fakeredis fallback).
     try:
         from .database import db_manager
 
         client = db_manager.get_redis_client()
         if client is not None:
             return client
-    except Exception:  # pragma: no cover - defensive
+    except Exception:
         pass
 
-    # 2. Direct connection to a configured Redis instance.
     try:
         client = redis.Redis(
             host=os.getenv("REDIS_HOST", "localhost"),
@@ -54,25 +45,18 @@ def _get_blocklist_client():
         )
         client.ping()
         return client
-    except Exception:  # pragma: no cover - defensive
+    except Exception:
         pass
 
-    # 3. In-memory fakeredis so single-process/dev flows still function.
     try:
         import fakeredis
 
         return fakeredis.FakeRedis(decode_responses=True)
-    except Exception:  # pragma: no cover - defensive
+    except Exception:
         return None
 
 
 class _RedisProxy:
-    """Lazy, resilient proxy used by auth helpers.
-
-    Resolves the underlying client on each access via _get_blocklist_client so
-    that a Redis outage never raises at import time and degrades gracefully at
-    call time.
-    """
 
     def __getattr__(self, name):
         client = _get_blocklist_client()
@@ -81,21 +65,18 @@ class _RedisProxy:
         return getattr(client, name)
 
 
-# Backwards-compatible module-level handle. Existing call sites keep working,
-# but the connection is now lazy and resilient instead of eager.
 redis_client = _RedisProxy()
 
 
 class AuthenticationError(Exception):
-    """Custom authentication exception"""
+    pass
 
 
 class AuthorizationError(Exception):
-    """Custom authorization exception"""
+    pass
 
 
 class SecurityConfig:
-    """Security configuration constants"""
 
     MIN_PASSWORD_LENGTH = 12
     REQUIRE_UPPERCASE = True
@@ -121,7 +102,6 @@ class AuthManager:
             self.init_app(app)
 
     def init_app(self, app: "Flask") -> None:
-        """Initialize authentication with Flask app"""
         self.app = app
         self.jwt.init_app(app)
         app.config["JWT_SECRET_KEY"] = os.getenv(
@@ -135,19 +115,9 @@ class AuthManager:
         self._register_jwt_callbacks()
 
     def _register_jwt_callbacks(self) -> None:
-        """Register JWT event callbacks"""
 
         @self.jwt.token_in_blocklist_loader
         def check_if_token_revoked(jwt_header, jwt_payload):
-            """Check if token is blacklisted.
-
-            Resolves the Redis client through the shared DatabaseManager, which
-            falls back to fakeredis when no real Redis is reachable. If the
-            blocklist store cannot be queried at all, the check fails open
-            (token treated as not revoked) so that a Redis outage does not take
-            down every authenticated endpoint. The outage is logged so it is
-            visible in monitoring.
-            """
             jti = jwt_payload.get("jti")
             if not jti:
                 return False
@@ -156,7 +126,7 @@ class AuthManager:
                 if client is None:
                     return False
                 return client.get(f"blacklist:{jti}") is not None
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 logger.warning(
                     "Token blocklist check unavailable; failing open",
                     error=str(exc),
@@ -165,7 +135,6 @@ class AuthManager:
 
         @self.jwt.expired_token_loader
         def expired_token_callback(jwt_header, jwt_payload):
-            """Handle expired token"""
             log_security_event(
                 "token_expired",
                 {"user_id": jwt_payload.get("sub"), "jti": jwt_payload.get("jti")},
@@ -174,28 +143,20 @@ class AuthManager:
 
         @self.jwt.invalid_token_loader
         def invalid_token_callback(error):
-            """Handle invalid token"""
             log_security_event("invalid_token", {"error": str(error)})
             return (jsonify({"error": "Invalid token"}), 401)
 
         @self.jwt.unauthorized_loader
         def missing_token_callback(error):
-            """Handle missing token"""
             return (jsonify({"error": "Authorization token required"}), 401)
 
     def hash_password(self, password: str) -> str:
-        """Hash password using bcrypt with salt"""
         salt = bcrypt.gensalt(rounds=12)
         return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
     def create_access_token(
         self, identity: str, roles: Optional[List[str]] = None
     ) -> str:
-        """Create a JWT access token for the given identity.
-
-        The identity is cast to a string because the JWT "sub" claim must be a
-        string; passing an integer user id causes token validation to fail.
-        """
         additional_claims: Dict[str, Any] = {}
         if roles is not None:
             additional_claims["roles"] = roles if isinstance(roles, list) else [roles]
@@ -204,35 +165,25 @@ class AuthManager:
         )
 
     def create_refresh_token(self, identity: str) -> str:
-        """Create a JWT refresh token for the given identity.
-
-        The identity is cast to a string for the same reason as the access
-        token: the JWT "sub" claim must be a string.
-        """
         return create_refresh_token(identity=str(identity))
 
     def verify_password(self, password: str, hashed: str) -> bool:
-        """Verify password against hash"""
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
     def generate_mfa_secret(self) -> str:
-        """Generate MFA secret for TOTP"""
         return pyotp.random_base32()
 
     def verify_mfa_token(self, secret: str, token: str) -> bool:
-        """Verify MFA TOTP token"""
         totp = pyotp.TOTP(secret)
         return totp.verify(token, valid_window=1)
 
     def generate_backup_codes(self) -> List[str]:
-        """Generate backup codes for MFA"""
         return [
             secrets.token_hex(4).upper()
             for _ in range(SecurityConfig.BACKUP_CODES_COUNT)
         ]
 
     def check_account_lockout(self, user_id: int) -> bool:
-        """Check if account is locked due to failed attempts"""
         key = f"lockout:{user_id}"
         lockout_data = redis_client.get(key)
         if lockout_data:
@@ -240,7 +191,6 @@ class AuthManager:
         return False
 
     def record_failed_attempt(self, user_id: int) -> None:
-        """Record failed login attempt"""
         key = f"attempts:{user_id}"
         attempts = redis_client.incr(key)
         redis_client.expire(key, SecurityConfig.LOCKOUT_DURATION * 60)
@@ -259,13 +209,11 @@ class AuthManager:
             )
 
     def clear_failed_attempts(self, user_id: int) -> None:
-        """Clear failed login attempts after successful login"""
         redis_client.delete(f"attempts:{user_id}")
 
     def create_session(
         self, user: User, ip_address: str, user_agent: str
     ) -> Dict[str, Any]:
-        """Create authenticated session with tokens"""
         self._enforce_session_limit(user.id)
         additional_claims = {
             "user_id": user.id,
@@ -317,7 +265,6 @@ class AuthManager:
         }
 
     def _enforce_session_limit(self, user_id: int) -> None:
-        """Enforce maximum concurrent sessions"""
         with get_db_session() as db_session:
             active_sessions = (
                 db_session.query(UserSession)
@@ -339,8 +286,6 @@ class AuthManager:
                 db_session.commit()
 
     def _blacklist_session_tokens(self, session_id: str) -> None:
-        """Blacklist all tokens for a session"""
-        # Implementation: Store session_id in Redis blacklist with expiration
         try:
             redis_client.setex(
                 f"blacklist:session:{session_id}",
@@ -352,7 +297,6 @@ class AuthManager:
             logger.error(f"Failed to blacklist session tokens: {e}")
 
     def logout(self, token_jti: str, user_id: int) -> None:
-        """Logout user and blacklist token"""
         redis_client.setex(
             f"blacklist:{token_jti}",
             int(SecurityConfig.ACCESS_TOKEN_EXPIRES.total_seconds()),
@@ -372,7 +316,6 @@ class AuthManager:
     def authenticate_user(
         self, email: str, password: str, mfa_token: Optional[str] = None
     ) -> Optional[User]:
-        """Authenticate user with email/password and optional MFA"""
         with get_db_session() as db_session:
             user = db_session.query(User).filter(User.email == email).first()
             if not user:
@@ -413,7 +356,6 @@ class AuthManager:
 
 
 def require_auth(f: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to require authentication"""
 
     @wraps(f)
     @jwt_required()
@@ -426,7 +368,6 @@ def require_auth(f: Callable[..., Any]) -> Callable[..., Any]:
 def require_role(
     required_role: str,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Decorator to require specific role"""
 
     def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
 
@@ -434,8 +375,6 @@ def require_role(
         @jwt_required()
         def decorated_function(*args: object, **kwargs: object) -> object:
             claims = get_jwt()
-            # Tokens carry a "roles" list claim (see AuthManager.create_access_token
-            # and User.roles). Support a legacy singular "role" claim as a fallback.
             user_roles = claims.get("roles")
             if user_roles is None:
                 legacy = claims.get("role")
@@ -460,7 +399,6 @@ def require_role(
 def require_permission(
     permission: str,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Decorator to require specific permission"""
 
     def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
 
@@ -487,7 +425,6 @@ def require_permission(
 
 
 def require_mfa(f: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to require MFA verification"""
 
     @wraps(f)
     @jwt_required()

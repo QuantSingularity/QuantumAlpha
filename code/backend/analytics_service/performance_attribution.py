@@ -1,8 +1,3 @@
-"""
-Performance attribution module for QuantumAlpha Analytics Service.
-Provides detailed performance attribution and decomposition analysis.
-"""
-
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,7 +12,6 @@ logger = setup_logger("performance_attribution", logging.INFO)
 
 
 class AttributionMethod(Enum):
-    """Performance attribution methods"""
 
     BRINSON_HOOD_BEEBOWER = "brinson_hood_beebower"
     BRINSON_FACHLER = "brinson_fachler"
@@ -28,7 +22,6 @@ class AttributionMethod(Enum):
 
 
 class AttributionLevel(Enum):
-    """Attribution analysis levels"""
 
     SECURITY = "security"
     SECTOR = "sector"
@@ -40,7 +33,6 @@ class AttributionLevel(Enum):
 
 @dataclass
 class AttributionResult:
-    """Performance attribution result"""
 
     total_return: float
     benchmark_return: float
@@ -55,7 +47,6 @@ class AttributionResult:
 
 @dataclass
 class SecurityAttribution:
-    """Security-level attribution"""
 
     security_id: str
     security_name: str
@@ -69,15 +60,8 @@ class SecurityAttribution:
 
 
 class PerformanceAttributionEngine:
-    """Comprehensive performance attribution engine"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize performance attribution engine
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.default_method = AttributionMethod.BRINSON_HOOD_BEEBOWER
@@ -98,21 +82,6 @@ class PerformanceAttributionEngine:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        """Calculate performance attribution
-
-        Args:
-            portfolio_returns: Portfolio returns data
-            benchmark_returns: Benchmark returns data
-            portfolio_weights: Portfolio weights data
-            benchmark_weights: Benchmark weights data
-            method: Attribution method
-            level: Attribution level
-            start_date: Analysis start date
-            end_date: Analysis end date
-
-        Returns:
-            Attribution analysis results
-        """
         try:
             logger.info(
                 f"Calculating attribution using {method} method at {level} level"
@@ -207,20 +176,6 @@ class PerformanceAttributionEngine:
         method: str = "brinson_hood_beebower",
         level: str = "sector",
     ) -> Dict[str, Any]:
-        """Calculate attribution across multiple periods
-
-        Args:
-            portfolio_returns: Portfolio returns data
-            benchmark_returns: Benchmark returns data
-            portfolio_weights: Portfolio weights data
-            benchmark_weights: Benchmark weights data
-            periods: List of (start_date, end_date) tuples
-            method: Attribution method
-            level: Attribution level
-
-        Returns:
-            Multi-period attribution results
-        """
         try:
             logger.info(
                 f"Calculating multi-period attribution for {len(periods)} periods"
@@ -280,18 +235,6 @@ class PerformanceAttributionEngine:
         period_start: datetime,
         period_end: datetime,
     ) -> Dict[str, Any]:
-        """Calculate security-level performance attribution
-
-        Args:
-            portfolio_data: Portfolio holdings data
-            benchmark_data: Benchmark holdings data
-            returns_data: Security returns data
-            period_start: Analysis start date
-            period_end: Analysis end date
-
-        Returns:
-            Security-level attribution results
-        """
         try:
             logger.info("Calculating security-level attribution")
             security_attributions = []
@@ -422,18 +365,6 @@ class PerformanceAttributionEngine:
         benchmark_weights: pd.DataFrame,
         level: str,
     ) -> Dict[str, Any]:
-        """Calculate Brinson-Hood-Beebower attribution
-
-        Args:
-            portfolio_returns: Portfolio returns
-            benchmark_returns: Benchmark returns
-            portfolio_weights: Portfolio weights
-            benchmark_weights: Benchmark weights
-            level: Attribution level
-
-        Returns:
-            BHB attribution results
-        """
         try:
             common_index = portfolio_returns.index.intersection(benchmark_returns.index)
             common_columns = portfolio_returns.columns.intersection(
@@ -508,18 +439,6 @@ class PerformanceAttributionEngine:
         benchmark_weights: pd.DataFrame,
         level: str,
     ) -> Dict[str, Any]:
-        """Calculate Brinson-Fachler attribution (geometric)
-
-        Args:
-            portfolio_returns: Portfolio returns
-            benchmark_returns: Benchmark returns
-            portfolio_weights: Portfolio weights
-            benchmark_weights: Benchmark weights
-            level: Attribution level
-
-        Returns:
-            Brinson-Fachler attribution results
-        """
         try:
             bhb_result = self._calculate_brinson_hood_beebower(
                 portfolio_returns,
@@ -554,18 +473,6 @@ class PerformanceAttributionEngine:
         benchmark_weights: pd.DataFrame,
         level: str,
     ) -> Dict[str, Any]:
-        """Calculate geometric attribution
-
-        Args:
-            portfolio_returns: Portfolio returns
-            benchmark_returns: Benchmark returns
-            portfolio_weights: Portfolio weights
-            benchmark_weights: Benchmark weights
-            level: Attribution level
-
-        Returns:
-            Geometric attribution results
-        """
         try:
             (1 + portfolio_returns).cumprod()
             (1 + benchmark_returns).cumprod()
@@ -597,18 +504,6 @@ class PerformanceAttributionEngine:
         benchmark_weights: pd.DataFrame,
         level: str,
     ) -> Dict[str, Any]:
-        """Calculate factor-based attribution
-
-        Args:
-            portfolio_returns: Portfolio returns
-            benchmark_returns: Benchmark returns
-            portfolio_weights: Portfolio weights
-            benchmark_weights: Benchmark weights
-            level: Attribution level
-
-        Returns:
-            Factor-based attribution results
-        """
         try:
             market_factor = portfolio_returns.mean(axis=1)
             factor_loadings = {}
@@ -688,18 +583,6 @@ class PerformanceAttributionEngine:
         benchmark_weights: pd.DataFrame,
         level: str,
     ) -> Dict[str, Any]:
-        """Calculate arithmetic attribution (simple)
-
-        Args:
-            portfolio_returns: Portfolio returns
-            benchmark_returns: Benchmark returns
-            portfolio_weights: Portfolio weights
-            benchmark_weights: Benchmark weights
-            level: Attribution level
-
-        Returns:
-            Arithmetic attribution results
-        """
         try:
             portfolio_return = (
                 portfolio_weights.iloc[-1] * portfolio_returns.mean()
@@ -735,7 +618,6 @@ class PerformanceAttributionEngine:
         portfolio_weights: pd.DataFrame,
         benchmark_weights: pd.DataFrame,
     ) -> None:
-        """Validate attribution inputs"""
         if portfolio_returns.empty:
             raise ValidationError("Portfolio returns data is empty")
         if benchmark_returns.empty:
@@ -762,7 +644,6 @@ class PerformanceAttributionEngine:
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Filter data by date range"""
         date_filter = pd.Series(True, index=portfolio_returns.index)
         if start_date:
             date_filter = date_filter & (portfolio_returns.index >= start_date)
@@ -794,7 +675,6 @@ class PerformanceAttributionEngine:
     def _calculate_aggregate_attribution_stats(
         self, period_results: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Calculate aggregate statistics across periods"""
         try:
             total_returns = [r.get("total_return", 0) for r in period_results]
             benchmark_returns = [r.get("benchmark_return", 0) for r in period_results]
@@ -831,7 +711,6 @@ class PerformanceAttributionEngine:
             return {}
 
     def _initialize_factor_models(self) -> None:
-        """Initialize factor models for attribution"""
         self.factor_models["fama_french_3"] = {
             "factors": ["market", "size", "value"],
             "description": "Fama-French 3-factor model",
@@ -849,15 +728,6 @@ class PerformanceAttributionEngine:
     def generate_attribution_report(
         self, attribution_results: Dict[str, Any], include_charts: bool = True
     ) -> Dict[str, Any]:
-        """Generate comprehensive attribution report
-
-        Args:
-            attribution_results: Attribution analysis results
-            include_charts: Whether to include chart data
-
-        Returns:
-            Attribution report
-        """
         try:
             total_return = attribution_results.get("total_return", 0)
             benchmark_return = attribution_results.get("benchmark_return", 0)
@@ -943,14 +813,8 @@ class PerformanceAttributionEngine:
 
 
 class RiskAdjustedAttribution:
-    """Risk-adjusted performance attribution"""
 
     def __init__(self, attribution_engine: PerformanceAttributionEngine) -> None:
-        """Initialize risk-adjusted attribution
-
-        Args:
-            attribution_engine: Performance attribution engine
-        """
         self.attribution_engine = attribution_engine
 
     def calculate_risk_adjusted_attribution(
@@ -962,19 +826,6 @@ class RiskAdjustedAttribution:
         risk_factors: pd.DataFrame,
         method: str = "sharpe_ratio",
     ) -> Dict[str, Any]:
-        """Calculate risk-adjusted attribution
-
-        Args:
-            portfolio_returns: Portfolio returns
-            benchmark_returns: Benchmark returns
-            portfolio_weights: Portfolio weights
-            benchmark_weights: Benchmark weights
-            risk_factors: Risk factor data
-            method: Risk adjustment method
-
-        Returns:
-            Risk-adjusted attribution results
-        """
         try:
             standard_attribution = self.attribution_engine.calculate_attribution(
                 portfolio_returns,

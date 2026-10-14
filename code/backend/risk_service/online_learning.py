@@ -1,8 +1,3 @@
-"""
-Online learning module for QuantumAlpha Risk Service.
-Handles real-time model updates and adaptive risk modeling.
-"""
-
 import json
 import logging
 import os
@@ -22,15 +17,8 @@ logger = setup_logger("online_learning", logging.INFO)
 
 
 class OnlineLearningEngine:
-    """Online learning engine for adaptive risk modeling"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
-        """Initialize online learning engine
-
-        Args:
-            config_manager: Configuration manager
-            db_manager: Database manager
-        """
         self.config_manager = config_manager
         self.db_manager = db_manager
         self.models = {
@@ -68,15 +56,6 @@ class OnlineLearningEngine:
         market_data: Dict[str, List[Dict[str, Any]]],
         portfolio_data: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
-        """Update models with new market data
-
-        Args:
-            market_data: Dictionary of symbol -> historical data
-            portfolio_data: Optional portfolio positions for context
-
-        Returns:
-            Update results
-        """
         try:
             logger.info("Updating online learning models")
             features, targets = self._prepare_training_data(market_data)
@@ -117,16 +96,6 @@ class OnlineLearningEngine:
     def predict_volatility(
         self, symbol: str, features: np.ndarray, horizon: int = 1
     ) -> Dict[str, Any]:
-        """Predict volatility using online learning model
-
-        Args:
-            symbol: Symbol to predict for
-            features: Feature vector
-            horizon: Prediction horizon in days
-
-        Returns:
-            Volatility prediction
-        """
         try:
             scaled_features = self.scalers["volatility"].transform(
                 features.reshape(1, -1)
@@ -161,14 +130,6 @@ class OnlineLearningEngine:
     def detect_market_anomalies(
         self, market_data: Dict[str, List[Dict[str, Any]]]
     ) -> Dict[str, Any]:
-        """Detect market anomalies using online learning
-
-        Args:
-            market_data: Current market data
-
-        Returns:
-            Anomaly detection results
-        """
         try:
             logger.info("Detecting market anomalies")
             features = self._prepare_anomaly_features(market_data)
@@ -210,11 +171,6 @@ class OnlineLearningEngine:
             raise ServiceError(f"Error detecting anomalies: {str(e)}")
 
     def get_model_performance(self) -> Dict[str, Any]:
-        """Get performance metrics for all models
-
-        Returns:
-            Model performance metrics
-        """
         performance_summary = {}
         for model_name, performance in self.model_performance.items():
             if model_name == "anomaly_detector":
@@ -249,14 +205,6 @@ class OnlineLearningEngine:
     def _prepare_training_data(
         self, market_data: Dict[str, List[Dict[str, Any]]]
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-        """Prepare training data from market data
-
-        Args:
-            market_data: Raw market data
-
-        Returns:
-            Tuple of (features, targets)
-        """
         features = {}
         targets = {}
         for symbol, data in market_data.items():
@@ -311,14 +259,6 @@ class OnlineLearningEngine:
     def _prepare_anomaly_features(
         self, market_data: Dict[str, List[Dict[str, Any]]]
     ) -> np.ndarray:
-        """Prepare features for anomaly detection
-
-        Args:
-            market_data: Current market data
-
-        Returns:
-            Feature matrix for anomaly detection
-        """
         features = []
         for symbol, data in market_data.items():
             if len(data) < 5:
@@ -346,15 +286,6 @@ class OnlineLearningEngine:
     def _update_volatility_model(
         self, features: np.ndarray, targets: np.ndarray
     ) -> Dict[str, Any]:
-        """Update volatility prediction model
-
-        Args:
-            features: Training features
-            targets: Training targets
-
-        Returns:
-            Update results
-        """
         try:
             valid_indices = np.isfinite(features).all(axis=1) & np.isfinite(targets)
             features = features[valid_indices]
@@ -386,15 +317,6 @@ class OnlineLearningEngine:
     def _update_return_model(
         self, features: np.ndarray, targets: np.ndarray
     ) -> Dict[str, Any]:
-        """Update return prediction model
-
-        Args:
-            features: Training features
-            targets: Training targets
-
-        Returns:
-            Update results
-        """
         try:
             valid_indices = np.isfinite(features).all(axis=1) & np.isfinite(targets)
             features = features[valid_indices]
@@ -426,15 +348,6 @@ class OnlineLearningEngine:
     def _update_correlation_model(
         self, features: np.ndarray, targets: np.ndarray
     ) -> Dict[str, Any]:
-        """Update correlation prediction model
-
-        Args:
-            features: Training features
-            targets: Training targets
-
-        Returns:
-            Update results
-        """
         try:
             valid_indices = np.isfinite(features).all(axis=1) & np.isfinite(targets)
             features = features[valid_indices]
@@ -464,14 +377,6 @@ class OnlineLearningEngine:
             return {"status": "error", "error": str(e)}
 
     def _update_anomaly_model(self, features: np.ndarray) -> Dict[str, Any]:
-        """Update anomaly detection model
-
-        Args:
-            features: Training features
-
-        Returns:
-            Update results
-        """
         try:
             valid_indices = np.isfinite(features).all(axis=1)
             features = features[valid_indices]
@@ -499,7 +404,6 @@ class OnlineLearningEngine:
             return {"status": "error", "error": str(e)}
 
     def _save_models(self) -> None:
-        """Save models and scalers to disk"""
         try:
             for model_name, model in self.models.items():
                 model_path = os.path.join(self.model_save_path, f"{model_name}.pkl")
@@ -519,11 +423,6 @@ class OnlineLearningEngine:
             logger.error(f"Error saving models: {e}")
 
     def load_models(self) -> bool:
-        """Load models and scalers from disk
-
-        Returns:
-            True if successful, False otherwise
-        """
         try:
             for model_name in self.models.keys():
                 model_path = os.path.join(self.model_save_path, f"{model_name}.pkl")

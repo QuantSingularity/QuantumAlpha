@@ -1,8 +1,3 @@
-"""
-Messaging utilities for QuantumAlpha services.
-Provides Kafka producer and consumer integration.
-"""
-
 import json
 import logging
 import threading
@@ -18,15 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class KafkaProducer:
-    """Kafka producer for publishing messages"""
 
     def __init__(self, bootstrap_servers: str, client_id: str) -> None:
-        """Initialize Kafka producer
-
-        Args:
-            bootstrap_servers: Kafka bootstrap servers
-            client_id: Client ID
-        """
         self.config = {
             "bootstrap.servers": bootstrap_servers,
             "client.id": client_id,
@@ -38,13 +26,6 @@ class KafkaProducer:
     def publish(
         self, topic: str, message: Dict[str, Any], key: Optional[str] = None
     ) -> None:
-        """Publish a message to a topic
-
-        Args:
-            topic: Topic name
-            message: Message to publish
-            key: Message key (optional)
-        """
         try:
             message_json = json.dumps(message).encode("utf-8")
             self.producer.produce(
@@ -60,12 +41,6 @@ class KafkaProducer:
             raise
 
     def _delivery_callback(self, err: object, msg: object) -> object:
-        """Callback for message delivery
-
-        Args:
-            err: Error (if any)
-            msg: Message
-        """
         if err:
             logger.error(f"Message delivery failed: {err}")
         else:
@@ -74,13 +49,11 @@ class KafkaProducer:
             )
 
     def close(self) -> None:
-        """Close the producer"""
         self.producer.flush()
         logger.info("Kafka producer closed")
 
 
 class KafkaConsumer:
-    """Kafka consumer for subscribing to messages"""
 
     def __init__(
         self,
@@ -89,14 +62,6 @@ class KafkaConsumer:
         topics: List[str],
         auto_offset_reset: str = "earliest",
     ) -> None:
-        """Initialize Kafka consumer
-
-        Args:
-            bootstrap_servers: Kafka bootstrap servers
-            group_id: Consumer group ID
-            topics: List of topics to subscribe to
-            auto_offset_reset: Auto offset reset strategy ('earliest' or 'latest')
-        """
         self.config = {
             "bootstrap.servers": bootstrap_servers,
             "group.id": group_id,
@@ -112,11 +77,6 @@ class KafkaConsumer:
     def start(
         self, message_handler: Callable[[Dict[str, Any], str, int, int], None]
     ) -> None:
-        """Start consuming messages
-
-        Args:
-            message_handler: Function to handle messages
-        """
         if self.running:
             logger.warning("Consumer is already running")
             return
@@ -131,11 +91,6 @@ class KafkaConsumer:
     def _consume_loop(
         self, message_handler: Callable[[Dict[str, Any], str, int, int], None]
     ) -> None:
-        """Message consumption loop
-
-        Args:
-            message_handler: Function to handle messages
-        """
         try:
             while self.running:
                 msg = self.consumer.poll(1.0)
@@ -162,7 +117,6 @@ class KafkaConsumer:
             logger.info("Exiting consumer loop")
 
     def stop(self) -> None:
-        """Stop consuming messages"""
         self.running = False
         if self.consumer_thread:
             self.consumer_thread.join(timeout=5.0)
@@ -173,15 +127,8 @@ class KafkaConsumer:
 
 
 class MessageBus:
-    """Message bus for inter-service communication"""
 
     def __init__(self, bootstrap_servers: str, service_name: str) -> None:
-        """Initialize message bus
-
-        Args:
-            bootstrap_servers: Kafka bootstrap servers
-            service_name: Service name
-        """
         self.bootstrap_servers = bootstrap_servers
         self.service_name = service_name
         self.producer = KafkaProducer(bootstrap_servers, f"{service_name}-producer")
@@ -191,13 +138,6 @@ class MessageBus:
     def publish(
         self, topic: str, message: Dict[str, Any], key: Optional[str] = None
     ) -> None:
-        """Publish a message to a topic
-
-        Args:
-            topic: Topic name
-            message: Message to publish
-            key: Message key (optional)
-        """
         message["metadata"] = {
             "service": self.service_name,
             "timestamp": int(time.time() * 1000),
@@ -210,13 +150,6 @@ class MessageBus:
         group_id: str,
         message_handler: Callable[[Dict[str, Any], str, int, int], None],
     ) -> None:
-        """Subscribe to topics
-
-        Args:
-            topics: List of topics to subscribe to
-            group_id: Consumer group ID
-            message_handler: Function to handle messages
-        """
         consumer_key = f"{group_id}-{'-'.join(topics)}"
         if consumer_key in self.consumers:
             logger.warning(
@@ -228,7 +161,6 @@ class MessageBus:
         self.consumers[consumer_key] = consumer
 
     def close(self) -> None:
-        """Close all connections"""
         self.producer.close()
         for consumer in self.consumers.values():
             consumer.stop()

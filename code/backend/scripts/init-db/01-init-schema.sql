@@ -1,35 +1,13 @@
--- =============================================================================
--- QuantumAlpha Database Schema
--- TimescaleDB-compatible initialisation script (idempotent - safe to re-run)
---
--- TimescaleDB rule enforced here:
---   Every UNIQUE / PRIMARY KEY constraint on a hypertable MUST include the
---   partition column (timestamp).  Any unique index that omits it causes:
---     ERROR: cannot create a unique index without the column "timestamp"
--- =============================================================================
-
--- ---------------------------------------------------------------------------
--- Extension
--- ---------------------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
--- ---------------------------------------------------------------------------
--- Schemas
--- ---------------------------------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS market_data;
 CREATE SCHEMA IF NOT EXISTS ai_models;
 CREATE SCHEMA IF NOT EXISTS risk_management;
 CREATE SCHEMA IF NOT EXISTS execution;
 CREATE SCHEMA IF NOT EXISTS auth;
 
--- ===========================================================================
--- MARKET DATA
--- ===========================================================================
-
 CREATE TABLE IF NOT EXISTS market_data.symbols (
     id          SERIAL PRIMARY KEY,
-    -- TEXT preferred over VARCHAR per TimescaleDB best-practice (avoids catalog
-    -- warnings); semantics are identical.
     symbol      TEXT        NOT NULL UNIQUE,
     name        TEXT,
     exchange    TEXT,
@@ -39,10 +17,6 @@ CREATE TABLE IF NOT EXISTS market_data.symbols (
     updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
--- ohlcv - hypertable
--- PK already includes timestamp  ✓  (no change needed)
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS market_data.ohlcv (
     symbol     TEXT        NOT NULL,
     timestamp  TIMESTAMPTZ NOT NULL,
@@ -59,7 +33,7 @@ CREATE TABLE IF NOT EXISTS market_data.ohlcv (
 
 SELECT create_hypertable(
     'market_data.ohlcv', 'timestamp',
-    if_not_exists => TRUE   -- safe on re-run
+    if_not_exists => TRUE
 );
 
 CREATE TABLE IF NOT EXISTS market_data.alternative_data (
@@ -70,7 +44,7 @@ CREATE TABLE IF NOT EXISTS market_data.alternative_data (
     timestamp   TIMESTAMPTZ NOT NULL,
     data        JSONB       NOT NULL,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (id, timestamp),            -- timestamp included  ✓
+    PRIMARY KEY (id, timestamp),
     FOREIGN KEY (symbol) REFERENCES market_data.symbols(symbol)
 );
 
@@ -79,10 +53,6 @@ SELECT create_hypertable(
     if_not_exists => TRUE
 );
 
--- -----------------------------------------------------------------------------
--- features - hypertable
--- PK already includes timestamp  ✓  (no change needed)
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS market_data.features (
     symbol       TEXT        NOT NULL,
     timestamp    TIMESTAMPTZ NOT NULL,
@@ -99,10 +69,6 @@ SELECT create_hypertable(
     if_not_exists => TRUE
 );
 
--- ===========================================================================
--- AI MODELS
--- ===========================================================================
-
 CREATE TABLE IF NOT EXISTS ai_models.models (
     id          TEXT PRIMARY KEY,
     name        TEXT        NOT NULL,
@@ -116,7 +82,7 @@ CREATE TABLE IF NOT EXISTS ai_models.models (
 );
 
 CREATE TABLE IF NOT EXISTS ai_models.model_versions (
-    id          SERIAL PRIMARY KEY,   -- NOT a hypertable → bare PK is fine
+    id          SERIAL PRIMARY KEY,
     model_id    TEXT        NOT NULL,
     version     TEXT        NOT NULL,
     file_path   TEXT        NOT NULL,
@@ -137,7 +103,7 @@ CREATE TABLE IF NOT EXISTS ai_models.prediction_history (
     actual      NUMERIC(19,6),
     error       NUMERIC(19,6),
     created_at  TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (id, timestamp),            -- timestamp included  ✓
+    PRIMARY KEY (id, timestamp),
     FOREIGN KEY (model_id) REFERENCES ai_models.models(id),
     FOREIGN KEY (symbol)   REFERENCES market_data.symbols(symbol)
 );
@@ -157,7 +123,7 @@ CREATE TABLE IF NOT EXISTS ai_models.signals (
     price       NUMERIC(19,6),
     parameters  JSONB,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (id, timestamp),            -- timestamp included  ✓
+    PRIMARY KEY (id, timestamp),
     FOREIGN KEY (model_id) REFERENCES ai_models.models(id),
     FOREIGN KEY (symbol)   REFERENCES market_data.symbols(symbol)
 );
@@ -166,10 +132,6 @@ SELECT create_hypertable(
     'ai_models.signals', 'timestamp',
     if_not_exists => TRUE
 );
-
--- ===========================================================================
--- RISK MANAGEMENT
--- ===========================================================================
 
 CREATE TABLE IF NOT EXISTS risk_management.portfolios (
     id          TEXT PRIMARY KEY,
@@ -182,7 +144,7 @@ CREATE TABLE IF NOT EXISTS risk_management.portfolios (
 );
 
 CREATE TABLE IF NOT EXISTS risk_management.positions (
-    id            SERIAL PRIMARY KEY,   -- NOT a hypertable → bare PK is fine
+    id            SERIAL PRIMARY KEY,
     portfolio_id  TEXT        NOT NULL,
     symbol        TEXT        NOT NULL,
     quantity      NUMERIC(19,6) NOT NULL,
@@ -209,7 +171,7 @@ CREATE TABLE IF NOT EXISTS risk_management.risk_metrics (
     alpha              NUMERIC(10,4),
     volatility         NUMERIC(10,4),
     created_at         TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (id, timestamp),            -- timestamp included  ✓
+    PRIMARY KEY (id, timestamp),
     FOREIGN KEY (portfolio_id) REFERENCES risk_management.portfolios(id)
 );
 
@@ -219,7 +181,7 @@ SELECT create_hypertable(
 );
 
 CREATE TABLE IF NOT EXISTS risk_management.stress_tests (
-    id            SERIAL PRIMARY KEY,   -- NOT a hypertable → bare PK is fine
+    id            SERIAL PRIMARY KEY,
     portfolio_id  TEXT        NOT NULL,
     scenario_name TEXT        NOT NULL,
     parameters    JSONB,
@@ -228,12 +190,8 @@ CREATE TABLE IF NOT EXISTS risk_management.stress_tests (
     FOREIGN KEY (portfolio_id) REFERENCES risk_management.portfolios(id)
 );
 
--- ===========================================================================
--- EXECUTION
--- ===========================================================================
-
 CREATE TABLE IF NOT EXISTS execution.orders (
-    id              TEXT PRIMARY KEY,   -- NOT a hypertable → bare PK is fine
+    id              TEXT PRIMARY KEY,
     portfolio_id    TEXT        NOT NULL,
     symbol          TEXT        NOT NULL,
     order_type      TEXT        NOT NULL,
@@ -260,7 +218,7 @@ CREATE TABLE IF NOT EXISTS execution.trades (
     commission  NUMERIC(19,6) NOT NULL,
     timestamp   TIMESTAMPTZ NOT NULL,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (id, timestamp),            -- timestamp included  ✓
+    PRIMARY KEY (id, timestamp),
     FOREIGN KEY (order_id) REFERENCES execution.orders(id),
     FOREIGN KEY (symbol)   REFERENCES market_data.symbols(symbol)
 );
@@ -281,10 +239,6 @@ CREATE TABLE IF NOT EXISTS execution.broker_accounts (
     created_at     TIMESTAMPTZ DEFAULT NOW(),
     updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
-
--- ===========================================================================
--- AUTHENTICATION
--- ===========================================================================
 
 CREATE TABLE IF NOT EXISTS auth.users (
     id            TEXT PRIMARY KEY,
@@ -312,10 +266,6 @@ CREATE TABLE IF NOT EXISTS auth.api_keys (
     FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 
--- ===========================================================================
--- INDEXES
--- IF NOT EXISTS prevents "already exists" errors on container restart
--- ===========================================================================
 CREATE INDEX IF NOT EXISTS idx_ohlcv_symbol
     ON market_data.ohlcv(symbol);
 
@@ -355,9 +305,6 @@ CREATE INDEX IF NOT EXISTS idx_trades_order_id
 CREATE INDEX IF NOT EXISTS idx_trades_symbol
     ON execution.trades(symbol);
 
--- ===========================================================================
--- UPDATED_AT trigger function
--- ===========================================================================
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -366,11 +313,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ===========================================================================
--- TRIGGERS
--- OR REPLACE (PostgreSQL 14+) prevents "already exists" errors on re-run.
--- Running on PostgreSQL 15.6 - confirmed safe.
--- ===========================================================================
 CREATE OR REPLACE TRIGGER update_market_data_symbols_updated_at
     BEFORE UPDATE ON market_data.symbols
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();

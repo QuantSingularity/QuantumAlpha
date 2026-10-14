@@ -1,58 +1,22 @@
-# Shared multi-service Dockerfile for the QuantumAlpha Python services.
-#
-# The build context is the `code/` directory, which contains both `backend/`
-# and `ai_models/`. The specific service to run is selected at build time via
-# the APP_MODULE build argument, for example:
-#   backend.data_service.app:app
-#   backend.risk_service.app:app
-#   backend.execution_service.app:app
-#   ai_models.engine.app:app
-#
-# Each service is a Flask app served by gunicorn. PYTHONPATH is set to /app so
-# that `backend.*` and `ai_models.*` imports resolve.
-
-# ---- Build stage ----
 FROM python:3.11-slim AS builder
-
-WORKDIR /build
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-
-# ---- Runtime stage ----
-FROM python:3.11-slim AS runtime
-
 ARG APP_MODULE="backend.data_service.app:app"
-ENV APP_MODULE=${APP_MODULE}
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
+WORKDIR /build
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
+COPY backend/requirements.txt ./backend-requirements.txt
+COPY ai_models/requirements.txt ai_models/requirements-ml.txt ./ai_models/
+RUN pip install --no-cache-dir --prefix=/install -r backend-requirements.txt \
+    && case "$APP_MODULE" in ai_models.*) pip install --no-cache-dir --prefix=/install -r ai_models/requirements-ml.txt ;; esac
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r -g 1000 appuser \
-    && useradd -r -u 1000 -g appuser -s /sbin/nologin -d /app appuser
-
+FROM python:3.11-slim AS runtime
+ARG APP_MODULE="backend.data_service.app:app"
+ENV APP_MODULE=${APP_MODULE} PYTHONPATH=/app PYTHONUNBUFFERED=1 AI_MODEL_DIR=/app/models
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r -g 1000 appuser && useradd -r -u 1000 -g appuser -s /sbin/nologin -d /app appuser
 WORKDIR /app
-
 COPY --from=builder /install /usr/local
 COPY --chown=appuser:appuser . .
-
-RUN mkdir -p /tmp /var/log/quantumalpha \
-    && chown -R appuser:appuser /tmp /var/log/quantumalpha
-
+RUN mkdir -p /tmp /var/log/quantumalpha /app/models && chown -R appuser:appuser /tmp /var/log/quantumalpha /app/models
 USER 1000:1000
-
 EXPOSE 8080 9090
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# Use a shell-form entrypoint so APP_MODULE is expanded at runtime.
-ENTRYPOINT ["sh", "-c", "exec gunicorn --bind 0.0.0.0:8080 --workers 4 --timeout 120 \"$APP_MODULE\""]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 CMD curl -f http://localhost:8080/health || exit 1
+ENTRYPOINT ["sh", "-c", "case \"$APP_MODULE\" in ai_models.*) W=1; T=960; TH=8;; *) W=4; T=120; TH=1;; esac; exec gunicorn --bind 0.0.0.0:8080 --workers $W --threads $TH --timeout $T \"$APP_MODULE\""]

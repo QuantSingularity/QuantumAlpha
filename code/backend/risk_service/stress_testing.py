@@ -1,7 +1,3 @@
-"""
-Stress testing for QuantumAlpha Risk Service.
-"""
-
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -10,8 +6,6 @@ from backend.common import ServiceError, ValidationError, setup_logger
 
 logger = setup_logger("stress_testing", logging.INFO)
 
-# Well-known date ranges for the named historical scenarios exposed via the
-# scenario_name field of StressTestRequest (see backend/common/validation.py).
 HISTORICAL_SCENARIOS: Dict[str, Dict[str, str]] = {
     "2008_financial_crisis": {"start_date": "2007-10-01", "end_date": "2009-03-01"},
     "covid_crash_2020": {"start_date": "2020-02-01", "end_date": "2020-04-01"},
@@ -21,7 +15,6 @@ HISTORICAL_SCENARIOS: Dict[str, Dict[str, str]] = {
 
 
 class StressTesting:
-    """Stress testing"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
@@ -35,21 +28,10 @@ class StressTesting:
         parameters: Optional[Dict[str, Any]] = None,
         shocks: Optional[Dict[str, float]] = None,
     ) -> Dict[str, Any]:
-        """Dispatch a named stress-test scenario to the right underlying
-        method: a "custom" scenario runs run_custom_scenario with the given
-        per-symbol shocks, and any of the well-known historical scenarios
-        (see HISTORICAL_SCENARIOS) runs run_historical_scenario over that
-        scenario's date range. parameters, if given, can override
-        start_date/end_date for a historical scenario.
-        """
         parameters = parameters or {}
         if scenario_name == "custom":
             if not shocks:
                 raise ValidationError("shocks are required for custom scenarios")
-            # shocks are validated as fractions (-1.0 to 10.0, e.g. -0.3 for
-            # -30%), but run_custom_scenario's price_changes are percentages
-            # (e.g. -30 for -30%) - convert here so callers of this
-            # dispatcher only ever deal in fractions.
             price_changes = {symbol: value * 100.0 for symbol, value in shocks.items()}
             return self.run_custom_scenario(portfolio, scenario_name, price_changes)
 
@@ -75,7 +57,6 @@ class StressTesting:
         start_date: str,
         end_date: str,
     ) -> Dict[str, Any]:
-        """Run a historical stress scenario."""
         try:
             historical_data = self._get_historical_data(scenario, start_date, end_date)
             positions = portfolio.get("positions", [])
@@ -139,7 +120,6 @@ class StressTesting:
         time_horizon: int = 252,
         confidence_level: float = 0.95,
     ) -> Dict[str, Any]:
-        """Run Monte Carlo simulation."""
         try:
             initial_value = self._portfolio_value(portfolio)
             positions = portfolio.get("positions", [])
@@ -189,7 +169,6 @@ class StressTesting:
         portfolio: Dict[str, Any],
         factors: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        """Run sensitivity analysis across factor combinations."""
         try:
             initial_value = self._portfolio_value(portfolio)
             positions = portfolio.get("positions", [])
@@ -233,7 +212,6 @@ class StressTesting:
         scenario_name: str,
         price_changes: Dict[str, float],
     ) -> Dict[str, Any]:
-        """Run a custom stress scenario with explicit per-symbol price changes."""
         try:
             positions = portfolio.get("positions", [])
             cash = portfolio.get("cash", 0.0)
@@ -282,11 +260,9 @@ class StressTesting:
     def _get_historical_data(
         self, scenario: str, start_date: str, end_date: str
     ) -> Dict[str, Any]:
-        """Override in tests via mock."""
         return {}
 
     def _cartesian(self, factors: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Generate Cartesian product of factor values."""
         if not factors:
             return [{}]
         result = [{}]

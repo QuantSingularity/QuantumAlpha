@@ -1,19 +1,17 @@
-"""
-Risk calculator for QuantumAlpha Risk Service.
-"""
-
 import logging
-from typing import Any, Dict, List, Optional
+import os
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from backend.common import ValidationError, setup_logger
 
+AI_REQUEST_TIMEOUT = float(os.getenv("SERVICE_REQUEST_TIMEOUT", "30"))
 logger = setup_logger("risk_calculator", logging.INFO)
 
 
 class RiskCalculator:
-    """Risk calculator"""
 
     def __init__(self, config_manager: object, db_manager: object) -> None:
         self.config_manager = config_manager
@@ -21,7 +19,6 @@ class RiskCalculator:
         logger.info("Risk calculator initialized")
 
     def calculate_portfolio_value(self, portfolio: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate total portfolio value."""
         positions = portfolio.get("positions", [])
         positions_value = sum(p["quantity"] * p["current_price"] for p in positions)
         cash = portfolio.get("cash", 0.0)
@@ -34,7 +31,6 @@ class RiskCalculator:
         }
 
     def calculate_portfolio_returns(self, portfolio: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate portfolio returns."""
         positions = portfolio.get("positions", [])
         positions_return = sum(
             p["quantity"] * (p["current_price"] - p["entry_price"]) for p in positions
@@ -56,7 +52,6 @@ class RiskCalculator:
         confidence_level: float = 0.95,
         time_horizon: int = 1,
     ) -> Dict[str, Any]:
-        """Calculate Value at Risk."""
         if confidence_level <= 0 or confidence_level >= 1:
             raise ValidationError(
                 "confidence_level must be between 0 and 1 (exclusive)"
@@ -86,7 +81,6 @@ class RiskCalculator:
         confidence_level: float = 0.95,
         time_horizon: int = 1,
     ) -> Dict[str, Any]:
-        """Calculate Expected Shortfall (CVaR)."""
         if confidence_level <= 0 or confidence_level >= 1:
             raise ValidationError(
                 "confidence_level must be between 0 and 1 (exclusive)"
@@ -117,7 +111,6 @@ class RiskCalculator:
         risk_free_rate: float = 0.02,
         period: str = "1y",
     ) -> Dict[str, Any]:
-        """Calculate Sharpe Ratio."""
         market_data = self._get_market_data(portfolio)
         portfolio_returns = self._compute_portfolio_returns(portfolio, market_data)
         daily_rf = risk_free_rate / 252
@@ -139,7 +132,6 @@ class RiskCalculator:
         benchmark: str = "SPY",
         period: str = "1y",
     ) -> Dict[str, Any]:
-        """Calculate Beta."""
         market_data = self._get_market_data(portfolio)
         portfolio_returns = self._compute_portfolio_returns(portfolio, market_data)
         benchmark_data = self._get_benchmark_data(benchmark, period)
@@ -163,10 +155,6 @@ class RiskCalculator:
         timeframe: str = "1m",
         include_positions: bool = True,
     ) -> Dict[str, Any]:
-        """Compute a standard bundle of risk metrics for a portfolio: VaR
-        and Expected Shortfall at each requested confidence level, plus
-        the Sharpe ratio - built on top of the individual calculate_var /
-        calculate_expected_shortfall / calculate_sharpe_ratio methods."""
         confidence_levels = confidence_levels or [0.95, 0.99]
         value_info = self.calculate_portfolio_value(portfolio)
         var_by_confidence = {}
@@ -194,8 +182,6 @@ class RiskCalculator:
         return result
 
     def get_portfolio_risk(self, portfolio: Dict[str, Any]) -> Dict[str, Any]:
-        """Quick 'what's my portfolio's risk' snapshot, using the default
-        confidence levels and a 1-month timeframe."""
         return self.calculate_risk_metrics(portfolio)
 
     def get_risk_alerts(
@@ -204,10 +190,6 @@ class RiskCalculator:
         var_threshold_percent: float = 5.0,
         concentration_threshold_percent: float = 25.0,
     ) -> List[Dict[str, Any]]:
-        """Generate threshold-based risk alerts for a portfolio: a VaR
-        alert when 1-day 95% VaR exceeds var_threshold_percent of
-        portfolio value, and a concentration alert for any position
-        exceeding concentration_threshold_percent of portfolio value."""
         alerts: List[Dict[str, Any]] = []
         value_info = self.calculate_portfolio_value(portfolio)
         total_value = value_info["total_value"]
@@ -262,7 +244,6 @@ class RiskCalculator:
         model_id: str,
         ai_engine_url: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Calculate portfolio value and predicted value using AI engine predictions."""
         import requests as _requests
 
         if ai_engine_url is None:
@@ -274,21 +255,35 @@ class RiskCalculator:
             sum(p["quantity"] * p["current_price"] for p in positions) + cash
         )
 
-        predicted_positions_value = 0.0
-        for pos in positions:
-            symbol = pos["symbol"]
-            quantity = pos["quantity"]
+        headers = (
+            {"X-Internal-Key": os.environ["AI_ENGINE_API_KEY"]}
+            if os.environ.get("AI_ENGINE_API_KEY")
+            else {}
+        )
+
+        def predict_price(pos: Dict[str, Any]) -> Tuple[float, Optional[str]]:
             try:
-                resp = _requests.get(f"{ai_engine_url}/api/predict/{model_id}/{symbol}")
+                resp = _requests.get(
+                    f"{ai_engine_url}/api/predict/{model_id}/{pos['symbol']}",
+                    headers=headers,
+                    timeout=AI_REQUEST_TIMEOUT,
+                )
                 if resp.status_code == 200:
-                    pred_data = resp.json()
-                    pred = pred_data.get("prediction", {})
-                    avg_price = pred.get("average", pos["current_price"])
-                else:
-                    avg_price = pos["current_price"]
-            except Exception:
-                avg_price = pos["current_price"]
-            predicted_positions_value += quantity * avg_price
+                    pred = resp.json().get("prediction", {})
+                    return float(pred.get("average", pos["current_price"])), None
+                return pos["current_price"], f"AI engine returned {resp.status_code}"
+            except Exception as exc:
+                return pos["current_price"], str(exc)
+
+        predicted_positions_value = 0.0
+        prediction_errors: List[Dict[str, str]] = []
+        if positions:
+            with ThreadPoolExecutor(max_workers=min(8, len(positions))) as pool:
+                outcomes = list(pool.map(predict_price, positions))
+            for pos, (avg_price, error) in zip(positions, outcomes):
+                predicted_positions_value += pos["quantity"] * avg_price
+                if error:
+                    prediction_errors.append({"symbol": pos["symbol"], "error": error})
 
         predicted_value = predicted_positions_value + cash
         change = predicted_value - current_value
@@ -300,20 +295,19 @@ class RiskCalculator:
             "predicted_value": predicted_value,
             "change": change,
             "change_percent": change_percent,
+            "positions_predicted": len(positions) - len(prediction_errors),
+            "prediction_errors": prediction_errors,
         }
 
     def _get_market_data(self, portfolio: Dict[str, Any]) -> Dict[str, Any]:
-        """Get market data for all positions. Override in tests via mock."""
         return {}
 
     def _get_benchmark_data(self, benchmark: str, period: str) -> pd.DataFrame:
-        """Get benchmark data. Override in tests via mock."""
         return pd.DataFrame({"close": np.ones(100)})
 
     def _compute_portfolio_returns(
         self, portfolio: Dict[str, Any], market_data: Dict[str, Any]
     ) -> np.ndarray:
-        """Compute weighted portfolio returns from market_data dict."""
         positions = portfolio.get("positions", [])
         if not positions:
             return np.zeros(100)

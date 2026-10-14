@@ -1,3 +1,0 @@
-"""
-QuantumAlpha Backend Package.
-"""

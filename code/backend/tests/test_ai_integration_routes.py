@@ -1,14 +1,3 @@
-"""
-HTTP-level tests for the newly-wired ai_models integration routes:
-POST /api/portfolio-value-prediction (risk_service) and
-POST /api/trade-from-model, POST /api/trade-from-signal (execution_service).
-
-Unlike backend/tests/test_integration.py, which mocks `requests` and calls
-it directly (never touching the real Flask apps), these tests drive the
-actual `app.py` modules through Flask's test client, so a wiring mistake in
-the route itself (wrong method name, missing registration) would fail here.
-"""
-
 import os
 import unittest
 from unittest.mock import MagicMock, patch
@@ -17,7 +6,6 @@ os.environ.setdefault("MODEL_REGISTRY_PATH", "/tmp/test_ai_integration_routes")
 
 
 class TestPortfolioValuePredictionRoute(unittest.TestCase):
-    """POST /api/portfolio-value-prediction on the real risk_service app"""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -71,8 +59,6 @@ class TestPortfolioValuePredictionRoute(unittest.TestCase):
 
 
 class TestTradeFromModelRoute(unittest.TestCase):
-    """POST /api/trade-from-model and /api/trade-from-signal on the real
-    execution_service app"""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -101,7 +87,7 @@ class TestTradeFromModelRoute(unittest.TestCase):
         def fake_post(url, json=None, **kwargs):
             if "predict" in url:
                 return fake_predict
-            if "orders" in url:
+            if url.endswith("/api/orders"):
                 return fake_order
             return fake_broker
 
@@ -143,7 +129,7 @@ class TestTradeFromModelRoute(unittest.TestCase):
         fake_broker.json.return_value = {"status": "filled"}
 
         def fake_post(url, json=None, **kwargs):
-            return fake_order if "orders" in url else fake_broker
+            return fake_order if url.endswith("/api/orders") else fake_broker
 
         with patch("requests.post", side_effect=fake_post):
             resp = self.client.post(
@@ -159,3 +145,69 @@ class TestTradeFromModelRoute(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTradingServiceContracts(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        import backend.execution_service.app as exec_app
+
+        cls.client = exec_app.app.test_client()
+
+    def test_hold_signal_does_not_trade(self) -> None:
+        with patch("requests.post") as mock_post:
+            resp = self.client.post(
+                "/api/trade-from-signal",
+                json={
+                    "signal": {"symbol": "AAPL", "type": "hold", "price": 10.0},
+                    "portfolio_id": "p1",
+                },
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json()["status"], "no_action")
+        mock_post.assert_not_called()
+
+    def test_order_and_broker_urls_and_timeouts(self) -> None:
+        fake_order = MagicMock(status_code=201)
+        fake_order.json.return_value = {"id": "o1"}
+        fake_broker = MagicMock(status_code=200)
+        fake_broker.json.return_value = {"status": "filled"}
+        calls = []
+
+        def fake_post(url, json=None, **kwargs):
+            calls.append((url, kwargs))
+            return fake_order if url.endswith("/api/orders") else fake_broker
+
+        with patch("requests.post", side_effect=fake_post):
+            resp = self.client.post(
+                "/api/trade-from-signal",
+                json={
+                    "signal": {
+                        "symbol": "AAPL",
+                        "type": "sell",
+                        "price": 100.0,
+                        "strength": 0.5,
+                    },
+                    "portfolio_id": "p1",
+                },
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(calls[0][0].endswith("/api/orders"))
+        self.assertTrue(calls[1][0].endswith("/orders"))
+        self.assertTrue(all("timeout" in kw for _, kw in calls))
+        self.assertEqual(resp.get_json()["status"], "filled")
+
+    def test_ai_prediction_request_has_timeout_and_no_legacy_period(self) -> None:
+        fake_predict = MagicMock(status_code=200)
+        fake_predict.json.return_value = {
+            "latest_price": 100.0,
+            "prediction": {"direction": "neutral", "change_percent": 0.1},
+        }
+        with patch("requests.post", return_value=fake_predict) as mock_post:
+            self.client.post(
+                "/api/trade-from-model",
+                json={"model_id": "m1", "symbol": "AAPL", "portfolio_id": "p1"},
+            )
+        _, kwargs = mock_post.call_args
+        self.assertIn("timeout", kwargs)
+        self.assertNotIn("period", kwargs["json"])

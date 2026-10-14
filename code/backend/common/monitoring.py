@@ -1,8 +1,3 @@
-"""
-Comprehensive Monitoring and Health Check System for QuantumAlpha
-Implements real-time monitoring, alerting, and system health tracking
-"""
-
 import json
 import threading
 import time
@@ -29,7 +24,6 @@ logger = structlog.get_logger(__name__)
 
 
 class HealthStatus(Enum):
-    """Health status enumeration"""
 
     HEALTHY = "healthy"
     DEGRADED = "degraded"
@@ -38,7 +32,6 @@ class HealthStatus(Enum):
 
 
 class AlertSeverity(Enum):
-    """Alert severity levels"""
 
     INFO = "info"
     WARNING = "warning"
@@ -48,7 +41,6 @@ class AlertSeverity(Enum):
 
 @dataclass
 class HealthCheck:
-    """Health check result"""
 
     name: str
     status: HealthStatus
@@ -60,7 +52,6 @@ class HealthCheck:
 
 @dataclass
 class SystemMetrics:
-    """System performance metrics"""
 
     cpu_usage: float
     memory_usage: float
@@ -74,7 +65,6 @@ class SystemMetrics:
 
 @dataclass
 class Alert:
-    """System alert"""
 
     id: str
     severity: AlertSeverity
@@ -87,14 +77,6 @@ class Alert:
 
 
 class MetricsCollector:
-    """Prometheus metrics collector.
-
-    Implemented as a process-wide singleton. Prometheus raises a "Duplicated
-    timeseries" error if the same metric names are registered against the
-    default registry more than once, which happens when MetricsCollector is
-    constructed at multiple sites (MonitoringService and SystemMonitor). The
-    singleton ensures the metrics are registered exactly once.
-    """
 
     _instance = None
 
@@ -140,36 +122,29 @@ class MetricsCollector:
     def record_request(
         self, method: str, endpoint: str, status: int, duration: float
     ) -> None:
-        """Record HTTP request metrics"""
         self.request_count.labels(method=method, endpoint=endpoint, status=status).inc()
         self.request_duration.labels(method=method, endpoint=endpoint).observe(duration)
 
     def record_order(self, status: str, symbol: str) -> None:
-        """Record order metrics"""
         self.orders_total.labels(status=status, symbol=symbol).inc()
 
     def update_portfolio_value(self, portfolio_id: str, value: float) -> None:
-        """Update portfolio value metric"""
         self.portfolio_value.labels(portfolio_id=portfolio_id).set(value)
 
     def update_system_metrics(self, metrics: SystemMetrics) -> None:
-        """Update system performance metrics"""
         self.cpu_usage.set(metrics.cpu_usage)
         self.memory_usage.set(metrics.memory_usage)
         self.disk_usage.set(metrics.disk_usage)
         self.db_connections.set(metrics.active_connections)
 
     def record_error(self, error_type: str, severity: str) -> None:
-        """Record error metrics"""
         self.error_count.labels(error_type=error_type, severity=severity).inc()
 
     def record_security_event(self, event_type: str) -> None:
-        """Record security event metrics"""
         self.security_events.labels(event_type=event_type).inc()
 
 
 class HealthChecker:
-    """System health monitoring"""
 
     def __init__(self) -> None:
         self.checks = {}
@@ -177,12 +152,10 @@ class HealthChecker:
         self.check_interval = 30
 
     def register_check(self, name: str, check_func: Callable[[], HealthCheck]) -> None:
-        """Register a health check function"""
         self.checks[name] = check_func
         self.last_check_time[name] = None
 
     async def run_check(self, name: str) -> HealthCheck:
-        """Run a specific health check"""
         if name not in self.checks:
             return HealthCheck(
                 name=name,
@@ -210,14 +183,12 @@ class HealthChecker:
             )
 
     async def run_all_checks(self) -> Dict[str, HealthCheck]:
-        """Run all registered health checks"""
         results = {}
         for name in self.checks:
             results[name] = await self.run_check(name)
         return results
 
     def get_overall_status(self, check_results: Dict[str, HealthCheck]) -> HealthStatus:
-        """Determine overall system health status"""
         if not check_results:
             return HealthStatus.UNKNOWN
         statuses = [check.status for check in check_results.values()]
@@ -232,7 +203,6 @@ class HealthChecker:
 
 
 class SystemMonitor:
-    """System performance monitoring"""
 
     def __init__(self) -> None:
         self.metrics_collector = MetricsCollector()
@@ -240,7 +210,6 @@ class SystemMonitor:
         self.monitor_thread = None
 
     def start_monitoring(self) -> None:
-        """Start system monitoring"""
         if not self.monitoring_active:
             self.monitoring_active = True
             self.monitor_thread = threading.Thread(
@@ -250,14 +219,12 @@ class SystemMonitor:
             logger.info("System monitoring started")
 
     def stop_monitoring(self) -> None:
-        """Stop system monitoring"""
         self.monitoring_active = False
         if self.monitor_thread:
             self.monitor_thread.join(timeout=5)
         logger.info("System monitoring stopped")
 
     def _monitor_loop(self) -> object:
-        """Main monitoring loop"""
         while self.monitoring_active:
             try:
                 metrics = self.collect_system_metrics()
@@ -269,7 +236,6 @@ class SystemMonitor:
                 time.sleep(30)
 
     def collect_system_metrics(self) -> SystemMetrics:
-        """Collect current system metrics"""
         try:
             cpu_usage = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
@@ -309,7 +275,6 @@ class SystemMonitor:
             )
 
     def _check_system_alerts(self, metrics: SystemMetrics) -> object:
-        """Check for system alert conditions"""
         alerts = []
         if metrics.cpu_usage > 90:
             alerts.append(
@@ -359,7 +324,6 @@ class SystemMonitor:
             self._send_alert(alert)
 
     def _send_alert(self, alert: Alert) -> object:
-        """Send system alert"""
         try:
             logger.warning(
                 "system_alert",
@@ -381,11 +345,9 @@ class SystemMonitor:
 
 
 class HealthCheckRegistry:
-    """Registry of health check functions"""
 
     @staticmethod
     def database_check() -> HealthCheck:
-        """Check database connectivity"""
         try:
             health_status = db_manager.health_check()
             pg_status = health_status.get("postgresql", {})
@@ -417,7 +379,6 @@ class HealthCheckRegistry:
 
     @staticmethod
     def redis_check() -> HealthCheck:
-        """Check Redis connectivity"""
         try:
             redis_client = get_redis_client()
             if not redis_client:
@@ -449,7 +410,6 @@ class HealthCheckRegistry:
 
     @staticmethod
     def application_check() -> HealthCheck:
-        """Check application health"""
         try:
             from .database import get_db_session
 
@@ -474,7 +434,6 @@ class HealthCheckRegistry:
 
 
 class MonitoringService:
-    """Main monitoring service orchestrator"""
 
     def __init__(self) -> None:
         self.health_checker = HealthChecker()
@@ -489,17 +448,14 @@ class MonitoringService:
         )
 
     def start(self) -> None:
-        """Start monitoring services"""
         self.system_monitor.start_monitoring()
         logger.info("Monitoring service started")
 
     def stop(self) -> None:
-        """Stop monitoring services"""
         self.system_monitor.stop_monitoring()
         logger.info("Monitoring service stopped")
 
     async def get_health_status(self) -> Dict[str, Any]:
-        """Get comprehensive health status"""
         check_results = await self.health_checker.run_all_checks()
         overall_status = self.health_checker.get_overall_status(check_results)
         return {
@@ -510,7 +466,6 @@ class MonitoringService:
         }
 
     def check_health(self) -> Dict[str, Any]:
-        """Synchronous health check returning basic status"""
         try:
             metrics = self.system_monitor.collect_system_metrics()
             return {
@@ -523,7 +478,6 @@ class MonitoringService:
             return {"status": "unhealthy", "error": str(e)}
 
     def get_metrics(self) -> str:
-        """Get Prometheus metrics"""
         return generate_latest()
 
 
@@ -531,26 +485,22 @@ _monitoring_service = None
 
 
 def get_monitoring_service():
-    """Get or create monitoring service instance"""
     global _monitoring_service
     if _monitoring_service is None:
         _monitoring_service = MonitoringService()
     return _monitoring_service
 
 
-# For backward compatibility
 monitoring_service = None
 
 
 def create_monitoring_blueprint() -> None:
-    """Create Flask blueprint for monitoring endpoints"""
     from flask import Blueprint
 
     monitoring_bp = Blueprint("monitoring", __name__, url_prefix="/monitoring")
 
     @monitoring_bp.route("/health", methods=["GET"])
     async def health_endpoint():
-        """Health check endpoint"""
         try:
             health_status = await get_monitoring_service().get_health_status()
             status_code = 200 if health_status["status"] == "healthy" else 503
@@ -570,7 +520,6 @@ def create_monitoring_blueprint() -> None:
 
     @monitoring_bp.route("/metrics", methods=["GET"])
     def metrics_endpoint():
-        """Prometheus metrics endpoint"""
         try:
             metrics = get_monitoring_service().get_metrics()
             return (metrics, 200, {"Content-Type": CONTENT_TYPE_LATEST})
@@ -580,7 +529,6 @@ def create_monitoring_blueprint() -> None:
 
     @monitoring_bp.route("/status", methods=["GET"])
     def status_endpoint():
-        """Detailed status endpoint"""
         try:
             system_metrics = (
                 get_monitoring_service().system_monitor.collect_system_metrics()
@@ -610,14 +558,11 @@ def create_monitoring_blueprint() -> None:
 
 
 def create_request_monitoring_middleware() -> None:
-    """Create middleware for request monitoring"""
 
     def before_request():
-        """Before request handler"""
         request.start_time = time.time()
 
     def after_request(response):
-        """After request handler"""
         try:
             if hasattr(request, "start_time"):
                 duration = time.time() - request.start_time

@@ -1,32 +1,26 @@
 version: "3.9"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# QuantumAlpha – Full Stack Docker Compose
-# ─────────────────────────────────────────────────────────────────────────────
-
 x-backend-env: &backend-env
   PYTHONPATH: /app
   FLASK_DEBUG: "${FLASK_DEBUG:-false}"
-  # Postgres
   POSTGRES_HOST: postgres
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "${POSTGRES_DB:-quantumalpha_db}"
   POSTGRES_USER: "${POSTGRES_USER:-quantumalpha_user}"
   POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-quantumalpha_pass}"
   DATABASE_URL: "postgresql://${POSTGRES_USER:-quantumalpha_user}:${POSTGRES_PASSWORD:-quantumalpha_pass}@postgres:5432/${POSTGRES_DB:-quantumalpha_db}"
-  # Redis
   REDIS_HOST: redis
   REDIS_PORT: "6379"
   REDIS_URL: "redis://redis:6379/0"
-  # Security
   SECRET_KEY: "${SECRET_KEY:-change-me-in-production}"
   JWT_SECRET_KEY: "${JWT_SECRET_KEY:-change-me-jwt-in-production}"
   CORS_ORIGINS: "${CORS_ORIGINS:-*}"
-  # App
   PORT: "8000"
+  AI_ENGINE_URL: "http://ai_engine:8080"
+  AI_ENGINE_API_KEY: "${AI_ENGINE_API_KEY:-}"
+  DATA_SERVICE_URL: "http://data_service:8080"
 
 services:
-  # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
     container_name: quantumalpha_postgres
@@ -53,7 +47,6 @@ services:
     networks:
       - backend
 
-  # ── Redis ───────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: quantumalpha_redis
@@ -76,11 +69,59 @@ services:
     networks:
       - backend
 
-  # ── Backend API ─────────────────────────────────────────────────────────────
+  data_service:
+    build:
+      context: ..
+      dockerfile: Dockerfile.service
+      target: runtime
+      args:
+        APP_MODULE: backend.data_service.app:app
+    container_name: quantumalpha_data_service
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      PORT: "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend
+
+  ai_engine:
+    build:
+      context: ..
+      dockerfile: ai_models/Dockerfile
+    container_name: quantumalpha_ai_engine
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      AI_MODEL_DIR: /app/models
+      DATA_SERVICE_URL: "http://data_service:8080"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-quantumalpha_user}:${POSTGRES_PASSWORD:-quantumalpha_pass}@postgres:5432/${POSTGRES_DB:-quantumalpha_db}"
+      AI_ENGINE_API_KEY: "${AI_ENGINE_API_KEY:-}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-*}"
+    volumes:
+      - ai_models_data:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      data_service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - backend
+
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
       target: runtime
     container_name: quantumalpha_backend
     restart: unless-stopped
@@ -95,6 +136,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ai_engine:
+        condition: service_started
     volumes:
       - ./logs:/app/logs
     healthcheck:
@@ -107,11 +150,10 @@ services:
       - backend
       - frontend
 
-  # ── Mock / Lightweight API (no DB dependencies) ─────────────────────────────
   backend_mock:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
       target: runtime
     container_name: quantumalpha_mock
     restart: unless-stopped
@@ -119,15 +161,17 @@ services:
       PORT: "8080"
       FLASK_DEBUG: "false"
       CORS_ORIGINS: "*"
-    command: ["python", "app.py"]
+      AI_ENGINE_URL: "${AI_ENGINE_URL:-http://ai_engine:8080}"
+      AI_ENGINE_API_KEY: "${AI_ENGINE_API_KEY:-}"
+    command: ["python", "-m", "backend.api.app"]
     ports:
       - "${MOCK_PORT:-8080}:8080"
     profiles:
       - mock
     networks:
       - frontend
+      - backend
 
-  # ── pgAdmin (optional, dev only) ────────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: quantumalpha_pgadmin
@@ -144,7 +188,6 @@ services:
     networks:
       - backend
 
-  # ── Redis Commander (optional, dev only) ────────────────────────────────────
   redis_commander:
     image: rediscommander/redis-commander:latest
     container_name: quantumalpha_redis_ui
@@ -160,10 +203,10 @@ services:
     networks:
       - backend
 
-# ─────────────────────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
   redis_data:
+  ai_models_data:
 
 networks:
   backend:

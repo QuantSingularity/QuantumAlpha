@@ -1,3 +1,1 @@
-"""
-AI Models package for QuantumAlpha.
-"""
+__version__ = "2.0.0"

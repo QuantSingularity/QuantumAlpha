@@ -1,9 +1,3 @@
-"""
-QuantumAlpha Backend API Service
-Main API Gateway providing unified access to all backend services
-
-"""
-
 import logging
 import os
 import random
@@ -12,29 +6,21 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
+from backend.api.ai_gateway import create_ai_gateway_blueprint
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# App factory
-# ---------------------------------------------------------------------------
 app = Flask(__name__)
 
 CORS_ORIGINS: List[str] = os.getenv("CORS_ORIGINS", "*").split(",")
 CORS(app, origins=CORS_ORIGINS, supports_credentials=True)
 
-# ---------------------------------------------------------------------------
-# Mock data  (replace with real DB queries once postgres is healthy)
-# ---------------------------------------------------------------------------
 MOCK_MARKET_DATA: Dict[str, Dict[str, Any]] = {
     "AAPL": {
         "symbol": "AAPL",
@@ -155,7 +141,6 @@ MOCK_PORTFOLIO: Dict[str, Any] = {
     ],
 }
 
-# Mutable mock stores - use list copies so appends don't bleed across tests
 _BASE_STRATEGIES: List[Dict[str, Any]] = [
     {
         "id": "1",
@@ -240,7 +225,6 @@ _BASE_TRADES: List[Dict[str, Any]] = [
     },
 ]
 
-# Runtime-mutable copies (avoids mutating module-level constants)
 MOCK_STRATEGIES: List[Dict[str, Any]] = list(_BASE_STRATEGIES)
 MOCK_TRADES: List[Dict[str, Any]] = list(_BASE_TRADES)
 
@@ -275,9 +259,6 @@ MOCK_RISK_METRICS: Dict[str, Any] = {
     ],
 }
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 _TIMEFRAME_DAYS: Dict[str, int] = {
     "1W": 7,
     "1M": 30,
@@ -288,7 +269,6 @@ _TIMEFRAME_DAYS: Dict[str, int] = {
 
 
 def generate_historical_data(symbol: str, days: int = 30) -> List[Dict[str, Any]]:
-    """Generate deterministic-ish mock historical OHLCV data."""
     base_price: float = MOCK_MARKET_DATA.get(symbol, {}).get("price", 100.0)
     data: List[Dict[str, Any]] = []
     current_price = base_price
@@ -296,7 +276,7 @@ def generate_historical_data(symbol: str, days: int = 30) -> List[Dict[str, Any]
     for i in range(days):
         date = datetime.now() - timedelta(days=days - i)
         change = (random.random() - 0.5) * 10
-        current_price = max(current_price + change, 0.01)  # prevent negative price
+        current_price = max(current_price + change, 0.01)
 
         data.append(
             {
@@ -313,7 +293,6 @@ def generate_historical_data(symbol: str, days: int = 30) -> List[Dict[str, Any]
 
 
 def _ok(data: object, status: int = 200) -> Tuple[object, int]:
-    """Wrap a successful payload in the standard envelope."""
     return (
         jsonify(
             {"success": True, "data": data, "timestamp": datetime.now().isoformat()}
@@ -323,7 +302,6 @@ def _ok(data: object, status: int = 200) -> Tuple[object, int]:
 
 
 def _err(message: str, status: int = 400) -> Tuple[Any, int]:
-    """Wrap an error message in the standard envelope."""
     return (
         jsonify(
             {
@@ -337,7 +315,6 @@ def _err(message: str, status: int = 400) -> Tuple[Any, int]:
 
 
 def _parse_period_days(period: Optional[str], default: int = 30) -> int:
-    """Parse a period string like '30d', '7d' into an integer day count."""
     if not period:
         return default
     try:
@@ -346,27 +323,15 @@ def _parse_period_days(period: Optional[str], default: int = 30) -> int:
         return default
 
 
-# ---------------------------------------------------------------------------
-# Request lifecycle hooks
-# ---------------------------------------------------------------------------
-
-
 @app.before_request
 def attach_request_id() -> None:
-    """Attach a unique request ID to g for structured logging."""
     g.request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
 
 
 @app.after_request
 def set_request_id_header(response: object) -> None:
-    """Echo the request ID back in the response headers."""
     response.headers["X-Request-ID"] = getattr(g, "request_id", "")
     return response
-
-
-# ---------------------------------------------------------------------------
-# Error handlers
-# ---------------------------------------------------------------------------
 
 
 @app.errorhandler(404)
@@ -381,18 +346,12 @@ def method_not_allowed(_error: Exception) -> Tuple[object, int]:
 
 @app.errorhandler(Exception)
 def handle_error(error: Exception) -> Tuple[Any, int]:
-    """Catch-all for unhandled exceptions - never leak tracebacks to clients."""
     logger.error(
         "Unhandled error | request_id=%s | %s",
         getattr(g, "request_id", "?"),
         traceback.format_exc(),
     )
     return _err("Internal server error", 500)
-
-
-# ---------------------------------------------------------------------------
-# Health
-# ---------------------------------------------------------------------------
 
 
 @app.route("/health", methods=["GET"])
@@ -406,11 +365,6 @@ def health_check() -> Tuple[Any, int]:
     )
 
 
-# ---------------------------------------------------------------------------
-# Auth
-# ---------------------------------------------------------------------------
-
-
 @app.route("/api/auth/login", methods=["POST"])
 def login() -> Tuple[Any, int]:
     data = request.get_json(silent=True) or {}
@@ -420,7 +374,6 @@ def login() -> Tuple[Any, int]:
     if not email or not password:
         return _err("Email/username and password are required", 400)
 
-    # TODO: replace with real credential check against postgres users table
     return _ok(
         {
             "token": "mock_jwt_token_12345",
@@ -445,7 +398,6 @@ def register() -> Tuple[Any, int]:
     if not email or not password:
         return _err("Email and password are required", 400)
 
-    # TODO: persist to postgres users table
     return _ok(
         {
             "user": {
@@ -461,7 +413,6 @@ def register() -> Tuple[Any, int]:
 
 @app.route("/api/auth/user", methods=["GET"])
 def get_user() -> Tuple[Any, int]:
-    # TODO: decode JWT and look up real user record
     return _ok(
         {
             "id": "1",
@@ -474,18 +425,11 @@ def get_user() -> Tuple[Any, int]:
 
 @app.route("/api/auth/logout", methods=["POST"])
 def logout() -> Tuple[Any, int]:
-    # TODO: invalidate token in Redis/postgres session store
     return _ok({"message": "Logout successful"})
-
-
-# ---------------------------------------------------------------------------
-# Portfolio
-# ---------------------------------------------------------------------------
 
 
 @app.route("/api/portfolio", methods=["GET"])
 def get_portfolio() -> Tuple[Any, int]:
-    # TODO: query postgres portfolio schema
     return _ok(MOCK_PORTFOLIO)
 
 
@@ -504,7 +448,7 @@ def get_portfolio_history() -> Tuple[Any, int]:
 
     for i in range(days):
         date = datetime.now() - timedelta(days=days - i)
-        change = (random.random() - 0.48) * 5_000  # slight upward bias
+        change = (random.random() - 0.48) * 5_000
         base_value += change
         history.append(
             {
@@ -515,11 +459,6 @@ def get_portfolio_history() -> Tuple[Any, int]:
         )
 
     return _ok(history)
-
-
-# ---------------------------------------------------------------------------
-# Market data
-# ---------------------------------------------------------------------------
 
 
 @app.route("/api/market-data", methods=["GET"])
@@ -537,8 +476,6 @@ def get_market_data(symbol: str) -> Tuple[Any, int]:
     if base:
         data = {**base, "historical": generate_historical_data(symbol, days)}
     else:
-        # Return a plausible stub for unknown symbols rather than an error,
-        # matching the original intent.
         price = round(100 + random.random() * 200, 2)
         data = {
             "symbol": symbol,
@@ -551,11 +488,6 @@ def get_market_data(symbol: str) -> Tuple[Any, int]:
         }
 
     return _ok(data)
-
-
-# ---------------------------------------------------------------------------
-# Strategies
-# ---------------------------------------------------------------------------
 
 
 @app.route("/api/strategies", methods=["GET"])
@@ -602,7 +534,6 @@ def update_strategy(strategy_id: str) -> Tuple[Any, int]:
     if not strategy:
         return _err(f"Strategy '{strategy_id}' not found", 404)
 
-    # Prevent clients from overwriting the immutable id
     data.pop("id", None)
     strategy.update(data)
     return _ok(strategy)
@@ -618,11 +549,6 @@ def delete_strategy(strategy_id: str) -> Tuple[Any, int]:
         return _err(f"Strategy '{strategy_id}' not found", 404)
 
     return _ok({"message": f"Strategy '{strategy_id}' deleted"})
-
-
-# ---------------------------------------------------------------------------
-# Trades
-# ---------------------------------------------------------------------------
 
 
 @app.route("/api/trades", methods=["GET"])
@@ -675,27 +601,15 @@ def place_order() -> Tuple[Any, int]:
     return _ok(new_trade, 201)
 
 
-# ---------------------------------------------------------------------------
-# Risk
-# ---------------------------------------------------------------------------
-
-
 @app.route("/api/risk/metrics", methods=["GET"])
 def get_portfolio_risk_metrics() -> Tuple[Any, int]:
-    # TODO: query risk_service via internal HTTP or postgres risk schema
     return _ok(MOCK_RISK_METRICS)
 
 
 @app.route("/api/risk/metrics/<strategy_id>", methods=["GET"])
 def get_risk_metrics(strategy_id: str) -> Tuple[Any, int]:
-    # visible when wiring up the real risk service.
     logger.debug("Risk metrics requested for strategy_id=%s", strategy_id)
     return _ok(MOCK_RISK_METRICS)
-
-
-# ---------------------------------------------------------------------------
-# Watchlist
-# ---------------------------------------------------------------------------
 
 
 @app.route("/api/watchlist", methods=["GET"])
@@ -703,11 +617,6 @@ def get_watchlist() -> Tuple[Any, int]:
     watchlist = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "NVDA", "META"]
     data = [MOCK_MARKET_DATA.get(s, {"symbol": s, "price": 100.0}) for s in watchlist]
     return _ok(data)
-
-
-# ---------------------------------------------------------------------------
-# News
-# ---------------------------------------------------------------------------
 
 
 @app.route("/api/news", methods=["GET"])
@@ -742,14 +651,8 @@ def get_news() -> Tuple[Any, int]:
     return _ok(news)
 
 
-# ---------------------------------------------------------------------------
-# Analytics
-# ---------------------------------------------------------------------------
-
-
 @app.route("/api/analytics/performance", methods=["GET"])
 def get_performance_analytics() -> Tuple[Any, int]:
-    # TODO: compute from postgres trades / portfolio schema
     return _ok(
         {
             "total_return": 15.7,
@@ -765,9 +668,10 @@ def get_performance_analytics() -> Tuple[Any, int]:
     )
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
+app.register_blueprint(
+    create_ai_gateway_blueprint(envelope=True, name="ai_gateway_open")
+)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))

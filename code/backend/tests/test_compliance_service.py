@@ -1,8 +1,3 @@
-"""
-Unit tests for the QuantumAlpha Compliance Service.
-Covers ComplianceMonitor and RegulatoryReportingEngine.
-"""
-
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
@@ -19,10 +14,6 @@ from backend.compliance_service.regulatory_reporting import (
     RegulatoryReportingEngine,
     ReportType,
 )
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _cfg() -> MagicMock:
@@ -48,7 +39,6 @@ def _rule(
     rule_type: ViolationType = None,
     severity: ViolationSeverity = None,
 ) -> ComplianceRule:
-    """Build a minimal valid ComplianceRule using the actual dataclass fields."""
     return ComplianceRule(
         rule_id=rule_id,
         name="Test Position Limit",
@@ -97,17 +87,10 @@ def _dt(s: str) -> datetime:
     return datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
 
-# ---------------------------------------------------------------------------
-# ComplianceMonitor tests
-# ---------------------------------------------------------------------------
-
-
 class TestComplianceMonitor(unittest.TestCase):
 
     def setUp(self) -> None:
         self.monitor = _monitor()
-
-    # --- Construction -------------------------------------------------------
 
     def test_initialization(self) -> None:
         self.assertIsNotNone(self.monitor)
@@ -120,8 +103,6 @@ class TestComplianceMonitor(unittest.TestCase):
 
     def test_active_violations_initially_empty(self) -> None:
         self.assertIsInstance(self.monitor.active_violations, dict)
-
-    # --- ComplianceRule dataclass ------------------------------------------
 
     def test_compliance_rule_construction(self) -> None:
         rule = _rule("r-001")
@@ -137,8 +118,6 @@ class TestComplianceMonitor(unittest.TestCase):
         self.assertTrue(rule.enabled)
         self.assertEqual(rule.grace_period_minutes, 0)
         self.assertTrue(rule.notification_required)
-
-    # --- add / remove / enable / disable rule ------------------------------
 
     def test_add_rule_increases_count(self) -> None:
         before = len(self.monitor.rules)
@@ -156,7 +135,7 @@ class TestComplianceMonitor(unittest.TestCase):
         self.assertEqual(len(self.monitor.rules), before - 1)
 
     def test_remove_nonexistent_rule_does_not_crash(self) -> None:
-        self.monitor.remove_rule("totally-nonexistent-xyz-999")  # should be silent
+        self.monitor.remove_rule("totally-nonexistent-xyz-999")
 
     def test_disable_rule_sets_enabled_false(self) -> None:
         self.monitor.add_rule(_rule("dis-rule-001"))
@@ -169,8 +148,6 @@ class TestComplianceMonitor(unittest.TestCase):
         self.monitor.enable_rule("en-rule-001")
         self.assertTrue(self.monitor.rules["en-rule-001"].enabled)
 
-    # --- check_compliance --------------------------------------------------
-
     def test_check_compliance_returns_dict(self) -> None:
         result = self.monitor.check_compliance(_portfolio())
         self.assertIsInstance(result, dict)
@@ -178,8 +155,6 @@ class TestComplianceMonitor(unittest.TestCase):
     def test_check_compliance_non_empty(self) -> None:
         result = self.monitor.check_compliance(_portfolio())
         self.assertGreater(len(result), 0)
-
-    # --- get_compliance_metrics --------------------------------------------
 
     def test_compliance_metrics_returns_dict(self) -> None:
         metrics = self.monitor.get_compliance_metrics()
@@ -191,16 +166,11 @@ class TestComplianceMonitor(unittest.TestCase):
 
     def test_metrics_has_rule_counts(self) -> None:
         metrics = self.monitor.get_compliance_metrics()
-        # Should report total rule count somewhere
         flat = str(metrics)
         self.assertIn(str(len(self.monitor.rules)), flat)
 
-    # --- Violation callback -----------------------------------------------
-
     def test_add_violation_callback_does_not_raise(self) -> None:
         self.monitor.add_violation_callback(MagicMock())
-
-    # --- Enums -------------------------------------------------------------
 
     def test_violation_type_enum_values(self) -> None:
         self.assertEqual(ViolationType.POSITION_LIMIT.value, "position_limit")
@@ -222,17 +192,10 @@ class TestComplianceMonitor(unittest.TestCase):
         self.assertIn("concentration_limit", vals)
 
 
-# ---------------------------------------------------------------------------
-# RegulatoryReportingEngine tests
-# ---------------------------------------------------------------------------
-
-
 class TestRegulatoryReportingEngine(unittest.TestCase):
 
     def setUp(self) -> None:
         self.engine = _engine()
-
-    # --- Construction -------------------------------------------------------
 
     def test_initialization(self) -> None:
         self.assertIsNotNone(self.engine)
@@ -243,8 +206,6 @@ class TestRegulatoryReportingEngine(unittest.TestCase):
 
     def test_report_templates_populated(self) -> None:
         self.assertIsInstance(self.engine.report_templates, dict)
-
-    # --- generate_report ---------------------------------------------------
 
     def test_generate_form_13f_returns_dict(self) -> None:
         result = self.engine.generate_report(
@@ -318,8 +279,6 @@ class TestRegulatoryReportingEngine(unittest.TestCase):
                 period_end=_dt("2024-01-31"),
             )
 
-    # --- get_report --------------------------------------------------------
-
     def test_get_report_after_generation(self) -> None:
         generated = self.engine.generate_report(
             report_type="risk_metrics_report",
@@ -332,13 +291,9 @@ class TestRegulatoryReportingEngine(unittest.TestCase):
             fetched = self.engine.get_report(report_id)
             self.assertIsInstance(fetched, dict)
 
-    # --- list_reports ------------------------------------------------------
-
     def test_list_reports_returns_list(self) -> None:
         result = self.engine.list_reports()
         self.assertIsInstance(result, list)
-
-    # --- Enums -------------------------------------------------------------
 
     def test_report_type_enum_values(self) -> None:
         self.assertEqual(ReportType.FORM_13F.value, "form_13f")
@@ -364,8 +319,6 @@ class TestRegulatoryReportingEngine(unittest.TestCase):
         self.assertEqual(RegulatoryJurisdiction.US_CFTC.value, "us_cftc")
         self.assertEqual(RegulatoryJurisdiction.EU_ESMA.value, "eu_esma")
         self.assertEqual(RegulatoryJurisdiction.UK_FCA.value, "uk_fca")
-
-    # --- _calculate helpers ------------------------------------------------
 
     def test_sector_concentration_returns_dict(self) -> None:
         positions = [
