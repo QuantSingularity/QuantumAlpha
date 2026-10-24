@@ -9,6 +9,8 @@
     "test": "jest",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
+    "build:web": "expo export --platform web",
+    "test:ci": "jest --coverage --watchAll=false --forceExit --ci",
     "clean": "react-native clean-project-auto",
     "postinstall": "test -d ios && (cd ios && pod install) || echo \"iOS folder not present, skipping pod install\"",
     "build:android": "cd android && ./gradlew assembleDebug && cd ..",
