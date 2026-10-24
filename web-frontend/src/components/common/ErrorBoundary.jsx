@@ -67,7 +67,7 @@ class ErrorBoundary extends React.Component {
             <AlertTriangle size={26} />
           </Box>
           <Typography variant="h5" sx={{ mb: 1 }}>
-            This view hit a snag
+            Something went wrong
           </Typography>
           <Typography variant="body2" sx={{ mb: 3 }}>
             Something stopped this section from rendering. You can retry, or
@@ -88,7 +88,7 @@ class ErrorBoundary extends React.Component {
               Go home
             </Button>
           </Stack>
-          {import.meta?.env?.DEV && this.state.error && (
+          {process.env.NODE_ENV === "development" && this.state.error && (
             <Box
               component="pre"
               sx={{
