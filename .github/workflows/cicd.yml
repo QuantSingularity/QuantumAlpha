@@ -262,7 +262,7 @@ jobs:
           retention-days: 7
 
   # ============================================================
-  # Job 4 -- Mobile Frontend (Expo) Test & Build
+  # Job 4 -- Mobile Frontend (React Native) Test & Build
   # ============================================================
   mobile_frontend:
     name: Mobile-Frontend Test & Build
@@ -290,13 +290,13 @@ jobs:
       - name: Run Mobile Tests
         run: npm run test:ci
 
-      - name: Build Mobile Web Export
-        run: CI=false npm run build:web
+      - name: Build Mobile JS Bundle
+        run: CI=false npm run build:bundle
 
-      - name: Upload Mobile Web Build
+      - name: Upload Mobile Bundle
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-web-dist
+          name: mobile-android-bundle
           path: mobile-frontend/dist/
           retention-days: 7
