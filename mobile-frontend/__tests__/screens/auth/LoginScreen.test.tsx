@@ -27,21 +27,21 @@ describe("LoginScreen", () => {
       wrapper: Wrapper,
     });
 
-    expect(getByPlaceholderText("Email")).toBeTruthy();
-    expect(getByPlaceholderText("Password")).toBeTruthy();
+    expect(getByPlaceholderText("you@example.com")).toBeTruthy();
+    expect(getByPlaceholderText("••••••••")).toBeTruthy();
   });
 
-  it("renders Sign In button", () => {
-    const { getByTestId } = render(<LoginScreen />, { wrapper: Wrapper });
-    expect(getByTestId("login-button")).toBeTruthy();
+  it("renders Sign in button", () => {
+    const { getByText } = render(<LoginScreen />, { wrapper: Wrapper });
+    expect(getByText("Sign in")).toBeTruthy();
   });
 
   it("shows error when email is empty", async () => {
-    const { getByTestId, getByText } = render(<LoginScreen />, {
+    const { getByText } = render(<LoginScreen />, {
       wrapper: Wrapper,
     });
 
-    fireEvent.press(getByTestId("login-button"));
+    fireEvent.press(getByText("Sign in"));
 
     await waitFor(() => {
       expect(getByText("Email and password are required")).toBeTruthy();
@@ -49,15 +49,15 @@ describe("LoginScreen", () => {
   });
 
   it("shows error when password is empty", async () => {
-    const { getByPlaceholderText, getByTestId, getByText } = render(
-      <LoginScreen />,
-      {
-        wrapper: Wrapper,
-      },
-    );
+    const { getByPlaceholderText, getByText } = render(<LoginScreen />, {
+      wrapper: Wrapper,
+    });
 
-    fireEvent.changeText(getByPlaceholderText("Email"), "user@example.com");
-    fireEvent.press(getByTestId("login-button"));
+    fireEvent.changeText(
+      getByPlaceholderText("you@example.com"),
+      "user@example.com",
+    );
+    fireEvent.press(getByText("Sign in"));
 
     await waitFor(() => {
       expect(getByText("Email and password are required")).toBeTruthy();
@@ -72,7 +72,7 @@ describe("LoginScreen", () => {
 
     const { getByText } = render(<LoginScreen />, { wrapper: Wrapper });
 
-    fireEvent.press(getByText("Create New Account"));
+    fireEvent.press(getByText("Create an account"));
     expect(navigate).toHaveBeenCalledWith("Register");
   });
 
@@ -84,7 +84,7 @@ describe("LoginScreen", () => {
 
     const { getByText } = render(<LoginScreen />, { wrapper: Wrapper });
 
-    fireEvent.press(getByText("Forgot Password?"));
+    fireEvent.press(getByText("Forgot password?"));
     expect(navigate).toHaveBeenCalledWith("ForgotPassword");
   });
 });

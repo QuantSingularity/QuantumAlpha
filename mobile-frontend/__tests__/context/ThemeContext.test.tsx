@@ -21,14 +21,14 @@ const ThemeConsumer = () => {
 };
 
 describe("ThemeContext", () => {
-  it("provides light theme by default", () => {
+  it("provides dark theme by default", () => {
     const { getByTestId } = render(
       <ThemeProvider>
         <ThemeConsumer />
       </ThemeProvider>,
     );
 
-    expect(getByTestId("mode").children[0]).toBe("light");
+    expect(getByTestId("mode").children[0]).toBe("dark");
   });
 
   it("includes required theme properties", () => {
@@ -38,7 +38,7 @@ describe("ThemeContext", () => {
       </ThemeProvider>,
     );
 
-    expect(getByTestId("primary").children[0]).toBe("#1aff92");
+    expect(getByTestId("primary").children[0]).toBe("#22D3EE");
     expect(getByTestId("surface")).toBeTruthy();
     expect(getByTestId("textSecondary")).toBeTruthy();
   });
@@ -50,10 +50,10 @@ describe("ThemeContext", () => {
       </ThemeProvider>,
     );
 
-    expect(getByTestId("mode").children[0]).toBe("light");
-    fireEvent.press(getByTestId("toggle"));
     expect(getByTestId("mode").children[0]).toBe("dark");
     fireEvent.press(getByTestId("toggle"));
     expect(getByTestId("mode").children[0]).toBe("light");
+    fireEvent.press(getByTestId("toggle"));
+    expect(getByTestId("mode").children[0]).toBe("dark");
   });
 });
