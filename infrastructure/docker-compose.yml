@@ -78,7 +78,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./security/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - /tmp/postgres:/tmp
       - /tmp/postgres-run:/var/run/postgresql
     tmpfs:
       - /tmp
