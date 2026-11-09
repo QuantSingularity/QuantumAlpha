@@ -27,25 +27,28 @@ This repository contains a comprehensive infrastructure directory for QuantumAlp
 infrastructure/
 ├── docker-compose.yml                       # Secure multi-service orchestration
 ├── kubernetes/
+│   ├── overlays/                            # Per-environment kustomizations (dev, staging, prod)
+│   ├── platform/
+│   │   ├── kustomization.yaml               # Cluster-wide components (apply once per cluster)
+│   │   ├── monitoring.yaml                  # Prometheus & Grafana stack
+│   │   ├── pod-security-standards.yaml      # Pod security policies & admission control
+│   │   └── security-scanning.yaml           # Automated compliance scanning
 │   └── base/
 │       ├── configmap.yaml                   # Application and security configurations
 │       ├── influxdb.yaml                    # Time-series database with TLS
 │       ├── kafka.yaml                       # Secure messaging with SASL/SSL
 │       ├── kustomization.yaml               # Base configuration
-│       ├── monitoring.yaml                  # Prometheus & Grafana stack
 │       ├── namespace.yaml                   # Namespace with resource quotas
 │       ├── network-policies.yaml            # Comprehensive network segmentation
-│       ├── pod-security-standards.yaml      # Pod security policies & admission control
 │       ├── postgres.yaml                    # Hardened PostgreSQL with encryption
 │       ├── redis.yaml                       # Secure Redis with authentication
-│       ├── secrets.yaml                     # Encrypted secrets management
-│       └── security-scanning.yaml           # Automated compliance scanning
+│       └── secrets.yaml                     # Encrypted secrets management
 ├── security/
-│   ├── kafka_jaas.conf                      # Kafka SASL authentication
+│   ├── kafka_jaas.conf.example              # Kafka SASL authentication (template)
 │   ├── nginx.conf                           # Hardened reverse proxy config
 │   ├── postgres-init.sql                    # Database security initialization
 │   ├── redis.conf                           # Redis security configuration
-│   └── zookeeper_jaas.conf                  # Zookeeper authentication
+│   └── zookeeper_jaas.conf.example          # Zookeeper authentication (template)
 ├── secrets/
 │   ├── influxdb_password.txt                # InfluxDB credentials (template)
 │   ├── influxdb_token.txt                   # InfluxDB API token (template)
@@ -128,8 +131,11 @@ terraform init && terraform plan && terraform apply
 ### 2. Deploy Kubernetes Resources
 
 ```bash
-# Apply base configuration
-kubectl apply -k kubernetes/base/
+# Apply cluster-wide components (monitoring, pod security, scanning) once per cluster
+kubectl apply -k kubernetes/platform/
+
+# Apply the application for an environment (dev, staging or prod)
+kubectl apply -k kubernetes/overlays/prod/
 
 # Verify deployments
 kubectl get pods -n quantumalpha
@@ -200,7 +206,7 @@ metadata:
 
 ### Production Deployment
 
-1. **Change Default Passwords**: Update all default credentials in secrets/
+1. **Change Default Passwords**: Update all default credentials in secrets/, and create security/kafka_jaas.conf and security/zookeeper_jaas.conf from their .example templates with real passwords
 2. **Certificate Management**: Deploy proper TLS certificates
 3. **Network Configuration**: Configure firewall rules and VPN access
 4. **Backup Strategy**: Implement automated backup procedures

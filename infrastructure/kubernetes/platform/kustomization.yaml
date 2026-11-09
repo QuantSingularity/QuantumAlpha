@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: quantumalpha-platform
+
+# Cluster-wide components that are applied once per cluster, independently of the
+# per-environment application overlays. The resources declare their own namespaces
+# (monitoring, security-scanning), so no namespace transformer is set here.
+resources:
+  - pod-security-standards.yaml
+  - monitoring.yaml
+  - security-scanning.yaml

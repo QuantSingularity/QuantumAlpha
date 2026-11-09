@@ -70,7 +70,7 @@ fi
 echo ""
 echo "[ 4/4 ] pylint ───────────────────────────────────────────"
 if command -v pylint &>/dev/null; then
-    find "$TARGET" -name "*.py" | xargs pylint
+    find "$TARGET" -name "*.py" -print0 | xargs -0 pylint
 else
     echo "  pylint not installed - run: pip install pylint"
 fi

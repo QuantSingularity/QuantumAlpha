@@ -19,6 +19,26 @@ QuantumAlpha provides command-line tools for deployment, testing, monitoring, an
 
 ## Setup Scripts
 
+### setup.sh
+
+Install the backend (Python) and frontend (Node.js) dependencies in one step.
+
+| Command    | Arguments | Description                                                    | Example              |
+| ---------- | --------- | -------------------------------------------------------------- | -------------------- |
+| `setup.sh` | None      | Install backend, web-frontend and mobile-frontend dependencies | `./scripts/setup.sh` |
+
+```bash
+./scripts/setup.sh
+
+# What it does:
+# - Installs Python dependencies with pip3 (or pip)
+# - Installs web-frontend dependencies with pnpm (or npm)
+# - Installs mobile-frontend dependencies with pnpm (or npm)
+# - Skips any component whose directory or package manager is missing
+```
+
+---
+
 ### setup_env.sh
 
 Initialize the development environment.
@@ -166,7 +186,7 @@ Execute test suites.
 
 **Test Output:**
 
-```
+```text
 Running unit tests...
 ============================= test session starts ==============================
 collected 145 items
@@ -463,7 +483,7 @@ lsof -i :8080
 sudo netstat -tulpn | grep 8080
 
 # Kill process
-kill -9 <PID>
+kill -9 "$PID"  # PID from the output above
 
 # Or start on different port
 ./scripts/start_service.sh --service ai_engine --port 9000

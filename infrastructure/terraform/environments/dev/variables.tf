@@ -150,8 +150,8 @@ variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
   default = {
-    Project     = "quantumalpha"
-    ManagedBy   = "terraform"
-    Compliance  = "SOX,PCI-DSS,GLBA"
+    Project    = "quantumalpha"
+    ManagedBy  = "terraform"
+    Compliance = "SOX,PCI-DSS,GLBA"
   }
 }

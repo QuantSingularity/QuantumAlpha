@@ -34,19 +34,19 @@ module "eks" {
 module "rds" {
   source = "../../modules/rds"
 
-  project_name           = "quantumalpha"
-  environment            = var.environment
-  vpc_id                 = module.vpc.vpc_id
-  db_subnet_group_name   = module.vpc.database_subnet_group_name
-  instance_class         = var.rds_instance_class
-  allocated_storage      = var.rds_allocated_storage
-  engine_version         = var.rds_engine_version
-  database_name          = "quantumalpha"
-  master_username        = var.rds_master_username
-  master_password        = var.rds_master_password
-  allowed_cidr_blocks    = var.rds_allowed_cidr_blocks
+  project_name            = "quantumalpha"
+  environment             = var.environment
+  vpc_id                  = module.vpc.vpc_id
+  db_subnet_group_name    = module.vpc.database_subnet_group_name
+  instance_class          = var.rds_instance_class
+  allocated_storage       = var.rds_allocated_storage
+  engine_version          = var.rds_engine_version
+  database_name           = "quantumalpha"
+  master_username         = var.rds_master_username
+  master_password         = var.rds_master_password
+  allowed_cidr_blocks     = var.rds_allowed_cidr_blocks
   allowed_security_groups = [module.eks.node_security_group_id]
-  common_tags            = var.common_tags
+  common_tags             = var.common_tags
 }
 
 module "elasticache" {

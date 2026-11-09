@@ -1,0 +1,17 @@
+// Template: copy to kafka_jaas.conf and replace every change_me_* value before use.
+// The real file is gitignored and must never be committed.
+// The admin and quantumalpha passwords must be identical in kafka_jaas.conf and zookeeper_jaas.conf.
+KafkaServer {
+    org.apache.kafka.common.security.plain.PlainLoginModule required
+    username="admin"
+    password="change_me_admin_password"
+    user_admin="change_me_admin_password"
+    user_alice="change_me_alice_password"
+    user_quantumalpha="change_me_quantumalpha_password";
+};
+
+Client {
+    org.apache.kafka.common.security.plain.PlainLoginModule required
+    username="quantumalpha"
+    password="change_me_quantumalpha_password";
+};

@@ -20,13 +20,13 @@ QuantumAlpha uses multiple configuration methods including environment variables
 
 ### Core Application Variables
 
-| Option             | Type   | Default               | Description                                      | Where to set (env/file) |
-| ------------------ | ------ | --------------------- | ------------------------------------------------ | ----------------------- |
-| `FLASK_ENV`        | string | production            | Application environment (development/production) | `.env` file             |
-| `LOG_LEVEL`        | string | INFO                  | Logging level (DEBUG/INFO/WARNING/ERROR)         | `.env` file             |
-| `CORS_ORIGINS`     | string | http://localhost:3000 | Allowed CORS origins (comma-separated)           | `.env` file             |
-| `JWT_SECRET_KEY`   | string | (required)            | Secret key for JWT tokens                        | `.env` file (secure)    |
-| `FLASK_SECRET_KEY` | string | (required)            | Flask session secret key                         | `.env` file (secure)    |
+| Option             | Type   | Default                 | Description                                      | Where to set (env/file) |
+| ------------------ | ------ | ----------------------- | ------------------------------------------------ | ----------------------- |
+| `FLASK_ENV`        | string | production              | Application environment (development/production) | `.env` file             |
+| `LOG_LEVEL`        | string | INFO                    | Logging level (DEBUG/INFO/WARNING/ERROR)         | `.env` file             |
+| `CORS_ORIGINS`     | string | <http://localhost:3000> | Allowed CORS origins (comma-separated)           | `.env` file             |
+| `JWT_SECRET_KEY`   | string | (required)              | Secret key for JWT tokens                        | `.env` file (secure)    |
+| `FLASK_SECRET_KEY` | string | (required)              | Flask session secret key                         | `.env` file (secure)    |
 
 ### Database Configuration
 
@@ -61,12 +61,12 @@ QuantumAlpha uses multiple configuration methods including environment variables
 
 ### InfluxDB Configuration
 
-| Option            | Type   | Default               | Description          | Where to set (env/file) |
-| ----------------- | ------ | --------------------- | -------------------- | ----------------------- |
-| `INFLUXDB_URL`    | string | http://localhost:8086 | InfluxDB URL         | `.env` file             |
-| `INFLUXDB_TOKEN`  | string | (required)            | Authentication token | `.env` file (secure)    |
-| `INFLUXDB_ORG`    | string | quantumalpha          | Organization name    | `.env` file             |
-| `INFLUXDB_BUCKET` | string | market_data           | Default bucket       | `.env` file             |
+| Option            | Type   | Default                 | Description          | Where to set (env/file) |
+| ----------------- | ------ | ----------------------- | -------------------- | ----------------------- |
+| `INFLUXDB_URL`    | string | <http://localhost:8086> | InfluxDB URL         | `.env` file             |
+| `INFLUXDB_TOKEN`  | string | (required)              | Authentication token | `.env` file (secure)    |
+| `INFLUXDB_ORG`    | string | quantumalpha            | Organization name    | `.env` file             |
+| `INFLUXDB_BUCKET` | string | market_data             | Default bucket       | `.env` file             |
 
 ### API Keys (Data Providers)
 
@@ -90,14 +90,14 @@ QuantumAlpha uses multiple configuration methods including environment variables
 
 ### AI/ML Configuration
 
-| Option                          | Type    | Default               | Description                | Where to set (env/file) |
-| ------------------------------- | ------- | --------------------- | -------------------------- | ----------------------- |
-| `MODEL_REGISTRY_PATH`           | string  | ./backend/models      | Model storage path         | `.env` file             |
-| `FEATURE_STORE_PATH`            | string  | ./backend/features    | Feature storage path       | `.env` file             |
-| `EXPERIMENT_TRACKING_URI`       | string  | http://localhost:5000 | MLflow tracking URI        | `.env` file             |
-| `ENABLE_REINFORCEMENT_LEARNING` | boolean | false                 | Enable RL features         | `.env` file             |
-| `GPU_ENABLED`                   | boolean | false                 | Enable GPU acceleration    | `.env` file             |
-| `TENSORFLOW_MEMORY_LIMIT`       | integer | 4096                  | TensorFlow GPU memory (MB) | `.env` file             |
+| Option                          | Type    | Default                 | Description                | Where to set (env/file) |
+| ------------------------------- | ------- | ----------------------- | -------------------------- | ----------------------- |
+| `MODEL_REGISTRY_PATH`           | string  | ./backend/models        | Model storage path         | `.env` file             |
+| `FEATURE_STORE_PATH`            | string  | ./backend/features      | Feature storage path       | `.env` file             |
+| `EXPERIMENT_TRACKING_URI`       | string  | <http://localhost:5000> | MLflow tracking URI        | `.env` file             |
+| `ENABLE_REINFORCEMENT_LEARNING` | boolean | false                   | Enable RL features         | `.env` file             |
+| `GPU_ENABLED`                   | boolean | false                   | Enable GPU acceleration    | `.env` file             |
+| `TENSORFLOW_MEMORY_LIMIT`       | integer | 4096                    | TensorFlow GPU memory (MB) | `.env` file             |
 
 ### Monitoring Configuration
 
@@ -116,7 +116,7 @@ QuantumAlpha uses multiple configuration methods including environment variables
 
 All YAML configuration files are located in `backend/config_files/`:
 
-```
+```text
 backend/config_files/
 ├── database/
 │   ├── postgres.yaml

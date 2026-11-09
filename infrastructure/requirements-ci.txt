@@ -1,0 +1,4 @@
+# Python tooling pinned for the "Infrastructure Validation" job in
+# .github/workflows/cicd.yml. Update the versions here, in one place.
+yamllint==1.38.0
+PyYAML==6.0.3

@@ -30,10 +30,10 @@ All API endpoints (except `/health` and `/auth/*`) require JWT-based authenticat
 POST /api/v1/auth/login
 ```
 
-| Name     | Type   | Required? | Default | Description        | Example          |
-| -------- | ------ | --------- | ------- | ------------------ | ---------------- |
-| username | string | Yes       | -       | User email address | user@example.com |
-| password | string | Yes       | -       | User password      | mypassword123    |
+| Name     | Type   | Required? | Default | Description        | Example            |
+| -------- | ------ | --------- | ------- | ------------------ | ------------------ |
+| username | string | Yes       | -       | User email address | `user@example.com` |
+| password | string | Yes       | -       | User password      | mypassword123      |
 
 **Example Request:**
 
@@ -540,9 +540,11 @@ curl -X POST http://localhost:8083/api/risk-metrics \
   "sharpe_ratio": 1.45,
   "annualized_return": 0.18,
   "annualized_volatility": 0.22,
-  "positions": [/* the request's position list, echoed back */]
+  "positions": []
 }
 ```
+
+The `positions` field echoes the position list from the request (shortened to an empty array above).
 
 ### Run Stress Tests
 

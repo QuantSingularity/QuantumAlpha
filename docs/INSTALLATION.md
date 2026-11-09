@@ -101,11 +101,11 @@ docker-compose logs -f
 
 **Access Points:**
 
-- Dashboard: http://localhost:3000
-- API Gateway: http://localhost:8080
-- API Documentation: http://localhost:8080/api-docs
-- Prometheus Metrics: http://localhost:9090
-- Grafana Dashboard: http://localhost:3001
+- Dashboard: <http://localhost:3000>
+- API Gateway: <http://localhost:8080>
+- API Documentation: <http://localhost:8080/api-docs>
+- Prometheus Metrics: <http://localhost:9090>
+- Grafana Dashboard: <http://localhost:3001>
 
 ---
 

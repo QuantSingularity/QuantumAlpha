@@ -12,8 +12,7 @@ resources:
   - secrets.yaml
   - configmap.yaml
 
-  # Security policies and standards
-  - pod-security-standards.yaml
+  # Network segmentation (cluster-wide policies, monitoring and scanning live in ../platform)
   - network-policies.yaml
 
   # Database services
@@ -31,9 +30,6 @@ resources:
   - risk-service.yaml
   - execution-service.yaml
   - web-frontend.yaml
-
-  # Monitoring stack
-  - monitoring.yaml
 
 commonLabels:
   app.kubernetes.io/name: quantumalpha
@@ -91,6 +87,7 @@ patchesStrategicMerge:
     kind: Deployment
     metadata:
       name: data-service
+      namespace: quantumalpha
     spec:
       template:
         metadata:

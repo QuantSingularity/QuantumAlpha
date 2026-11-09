@@ -4,6 +4,9 @@ metadata:
   name: quantumalpha
   labels:
     name: quantumalpha
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
     compliance.sox: "true"
     compliance.pci-dss: "true"
     compliance.glba: "true"
@@ -12,6 +15,9 @@ metadata:
   annotations:
     scheduler.alpha.kubernetes.io/node-selector: "security=high"
     security.alpha.kubernetes.io/sysctls: "net.core.somaxconn=65535"
+    pod-security.kubernetes.io/enforce-version: "latest"
+    pod-security.kubernetes.io/audit-version: "latest"
+    pod-security.kubernetes.io/warn-version: "latest"
 spec:
   finalizers:
     - kubernetes

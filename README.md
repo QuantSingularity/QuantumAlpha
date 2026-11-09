@@ -32,7 +32,7 @@ QuantumAlpha demonstrates a quantitative trading workflow across a real, runnabl
 
 ## Project Structure
 
-```
+```text
 QuantumAlpha/
 ├── code/
 │   ├── backend/
@@ -107,7 +107,7 @@ QuantumAlpha/
 
 ## Architecture
 
-```
+```text
 Clients
   ├── web-frontend (React)               ── HTTP/JSON ──┐
   └── mobile-frontend (React Native)     ── HTTP/JSON ──┤

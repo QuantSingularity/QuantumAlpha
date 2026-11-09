@@ -87,7 +87,7 @@ lsof -i :8080
 sudo netstat -tulpn | grep 8080
 
 # Kill process
-kill -9 <PID>
+kill -9 "$PID"  # PID from the output above
 
 # Or use different port
 ./scripts/start_service.sh --service ai_engine --port 9000
@@ -326,7 +326,7 @@ rm -rf backend/models/cache/
 
 **Solution:**
 
-```python
+```text
 # Reduce epochs
 "epochs": 50  # Instead of 100
 
@@ -351,7 +351,7 @@ rm -rf backend/models/cache/
 
 ```bash
 # Check logs
-docker-compose logs <service_name>
+docker-compose logs "$SERVICE_NAME"  # name of the failing service
 
 # Common issues:
 # 1. Syntax error in code
@@ -360,8 +360,8 @@ docker-compose logs <service_name>
 # 4. Volume mount issues
 
 # Rebuild container
-docker-compose build --no-cache <service_name>
-docker-compose up -d <service_name>
+docker-compose build --no-cache "$SERVICE_NAME"
+docker-compose up -d "$SERVICE_NAME"
 ```
 
 ### Volume Permission Errors
@@ -465,7 +465,7 @@ python scripts/setup_db.py
 If you can't resolve the issue:
 
 1. **Check logs**: `docker-compose logs -f`
-2. **Search issues**: https://github.com/quantsingularity/QuantumAlpha/issues
+2. **Search issues**: <https://github.com/quantsingularity/QuantumAlpha/issues>
 3. **Ask for help**: Create a new issue with:
    - Error message
    - Steps to reproduce

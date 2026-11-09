@@ -3,11 +3,9 @@ kind: Kustomization
 
 resources:
   - ../../base
+  - configmap.yaml
 
 namespace: quantumalpha
-
-patches:
-  - path: configmap.yaml
 
 replicas:
   - name: data-service

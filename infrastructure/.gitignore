@@ -64,6 +64,8 @@ ansible/**/*.retry
 # =========================
 
 # Real secrets (not examples)
+security/kafka_jaas.conf
+security/zookeeper_jaas.conf
 kubernetes/base/app-secrets.yaml
 kubernetes/*/secrets.yaml
 kubernetes/*/*-secrets.yaml

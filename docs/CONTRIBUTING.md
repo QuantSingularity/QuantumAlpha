@@ -90,7 +90,7 @@ git checkout -b fix/your-bug-fix
 
 Use conventional commits:
 
-```
+```text
 <type>(<scope>): <subject>
 
 <body>
@@ -110,7 +110,7 @@ Use conventional commits:
 
 **Example:**
 
-```
+```text
 feat(ai-engine): add BERT sentiment analysis model
 
 Implement FinBERT-based sentiment analysis for news articles.
@@ -379,7 +379,7 @@ jobs:
 
 ## Project Structure for Contributors
 
-```
+```text
 backend/
 ├── <service_name>/
 │   ├── __init__.py

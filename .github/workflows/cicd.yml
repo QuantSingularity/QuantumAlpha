@@ -394,3 +394,428 @@ jobs:
           name: mobile-android-bundle
           path: mobile-frontend/dist/
           retention-days: 7
+
+  # ============================================================
+  # Job 6 -- Docs Validation
+  # ============================================================
+  docs_validation:
+    name: Docs Validation
+    runs-on: ubuntu-latest
+    needs: code_quality
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Lint Markdown (docs/ and root README)
+        run: |
+          set -euo pipefail
+          # Line length is left to Prettier (code_quality job); inline HTML is
+          # allowed for the badges/images in the README. Repeated headings are
+          # only an error between siblings, so "Python Code" can appear under
+          # several different examples.
+          cat > "$RUNNER_TEMP/markdownlint.jsonc" <<'EOF'
+          {
+            "config": {
+              "default": true,
+              "MD013": false,
+              "MD024": { "siblings_only": true },
+              "MD033": {
+                "allowed_elements": ["img", "div", "p", "br", "a", "picture", "source", "details", "summary"]
+              }
+            }
+          }
+          EOF
+          npx --yes markdownlint-cli2@0.24.0 --config "$RUNNER_TEMP/markdownlint.jsonc" "docs/**/*.md" README.md
+
+      - name: Install lychee (link checker)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar xz -C "$HOME/.local/bin" --strip-components=1 --wildcards '*/lychee'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check internal links and anchors
+        run: |
+          lychee --offline --no-progress --include-fragments \
+            'docs/**/*.md' README.md infrastructure/README.md .github/readme/README.md
+
+      - name: Validate code samples (python, bash, json)
+        run: |
+          python - <<'PY'
+          import ast, json, pathlib, re, subprocess, sys
+
+          FENCE = re.compile(r"^```([A-Za-z0-9_+-]*)[^\n]*\n(.*?)^```", re.S | re.M)
+          failures = checked = 0
+          files = sorted(pathlib.Path("docs").rglob("*.md")) + [pathlib.Path("README.md")]
+          for path in files:
+              text = path.read_text(encoding="utf-8")
+              for m in FENCE.finditer(text):
+                  lang, body = m.group(1).lower(), m.group(2)
+                  line = text.count("\n", 0, m.start()) + 1
+                  err = None
+                  if lang in ("python", "py"):
+                      try:
+                          ast.parse(body)
+                      except SyntaxError as e:
+                          err = f"python: {e.msg} (block line {e.lineno})"
+                  elif lang in ("bash", "sh", "shell"):
+                      r = subprocess.run(["bash", "-n"], input=body, text=True, capture_output=True)
+                      if r.returncode:
+                          err = "bash: " + r.stderr.strip().splitlines()[-1]
+                  elif lang == "json":
+                      try:
+                          json.loads(body)
+                      except ValueError as e:
+                          err = f"json: {e}"
+                  else:
+                      continue
+                  checked += 1
+                  if err:
+                      failures += 1
+                      print(f"::error file={path},line={line}::{err}")
+          print(f"Checked {checked} code blocks, {failures} invalid")
+          sys.exit(1 if failures else 0)
+          PY
+
+      - name: Check docs are consistent with the repository
+        run: |
+          set -euo pipefail
+          status=0
+
+          # Every script in scripts/ must be documented in docs/CLI.md, and vice versa.
+          scripts=$(for f in scripts/*.sh; do basename "$f"; done | sort)
+          # shellcheck disable=SC2016  # the backticks are literal Markdown code spans
+          documented=$(grep -oE '`[A-Za-z0-9_]+\.sh`' docs/CLI.md | tr -d '`' | sort -u)
+          for s in $(comm -23 <(echo "$scripts") <(echo "$documented")); do
+            echo "::error file=docs/CLI.md::scripts/$s exists but is not documented in docs/CLI.md"; status=1
+          done
+          for s in $(comm -13 <(echo "$scripts") <(echo "$documented")); do
+            echo "::error file=docs/CLI.md::docs/CLI.md documents $s but scripts/$s does not exist"; status=1
+          done
+
+          # Every page in docs/ must be reachable from the docs index
+          # (links may be written as (page.md) or (./page.md)).
+          for f in docs/*.md docs/examples/*.md; do
+            name=${f#docs/}
+            [ "$name" = "README.md" ] && continue
+            grep -qE "\((\./)?${name}(#[^)]*)?\)" docs/README.md || { echo "::error file=$f::not linked from docs/README.md"; status=1; }
+          done
+
+          # Large binaries bloat clones; warn only.
+          while IFS= read -r big; do
+            echo "::warning file=$big::file is larger than 5 MB; consider compressing it (e.g. PNG/WebP instead of BMP)"
+          done < <(find docs -type f -size +5M)
+
+          exit "$status"
+
+      - name: Check external links (advisory)
+        continue-on-error: true
+        run: |
+          lychee --no-progress --exclude-loopback --max-retries 2 --timeout 20 --accept '200..=299,429' \
+            'docs/**/*.md' README.md
+
+  # ============================================================
+  # Job 7 -- Infrastructure Validation
+  # (Terraform, Kubernetes, Docker)
+  # ============================================================
+  infrastructure_validation:
+    name: Infrastructure Validation
+    runs-on: ubuntu-latest
+    needs: code_quality
+    timeout-minutes: 30
+
+    env:
+      KUBERNETES_VERSION: "1.28.0"
+      KUBECONFORM_VERSION: "0.8.0"
+      KUSTOMIZE_VERSION: "5.4.3"
+      HADOLINT_VERSION: "2.15.1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: infrastructure/requirements-ci.txt
+
+      - name: Install CI tooling (pinned in infrastructure/requirements-ci.txt)
+        run: python -m pip install -r infrastructure/requirements-ci.txt
+
+      # ---- Terraform ----------------------------------------
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.6"
+          terraform_wrapper: false
+
+      - name: Terraform format check
+        working-directory: infrastructure/terraform
+        run: terraform fmt -check -recursive -diff
+
+      # The dev environment is the root module; it pulls in every module under modules/.
+      - name: Terraform init (no backend)
+        working-directory: infrastructure/terraform/environments/dev
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform validate
+        working-directory: infrastructure/terraform/environments/dev
+        run: terraform validate
+
+      # A toggle that nothing reads silently does nothing, so report it. Advisory
+      # for now: the VPC module declares many enable_* inputs that are not wired up.
+      - name: Check every enable_* toggle is wired up (advisory)
+        continue-on-error: true
+        working-directory: infrastructure/terraform
+        run: |
+          set -uo pipefail
+          status=0
+          for dir in modules/*; do
+            [ -f "$dir/variables.tf" ] || continue
+            while read -r v; do
+              if ! grep -rqE "var\\.${v}\\b" --include='*.tf' --exclude=variables.tf "$dir"; then
+                echo "::warning file=infrastructure/terraform/$dir/variables.tf::variable ${v} is declared but never used in $dir"
+                status=1
+              fi
+            done < <(grep -ohE 'variable "enable_[a-z0-9_]+"' "$dir/variables.tf" | cut -d'"' -f2)
+          done
+          exit "$status"
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.65.0
+
+      - name: TFLint (fails on errors, prints warnings)
+        working-directory: infrastructure/terraform
+        run: tflint --recursive --minimum-failure-severity=error
+
+      # ---- Kubernetes ---------------------------------------
+      - name: Install kubeconform and kustomize
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar xz -C "$HOME/.local/bin" kubeconform
+          curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+            | tar xz -C "$HOME/.local/bin" kustomize
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # Rendered offline, so no cluster is needed (kubectl --dry-run needs an API server).
+      - name: Validate Kubernetes base manifests
+        working-directory: infrastructure/kubernetes
+        run: |
+          set -euo pipefail
+          kustomize build base > "$RUNNER_TEMP/k8s-base.yaml"
+          kubeconform -kubernetes-version "$KUBERNETES_VERSION" -strict -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            "$RUNNER_TEMP/k8s-base.yaml"
+
+      # Monitoring, pod security and scanning are applied once per cluster, not per environment.
+      - name: Validate Kubernetes platform manifests
+        working-directory: infrastructure/kubernetes
+        run: |
+          set -euo pipefail
+          kustomize build platform > "$RUNNER_TEMP/k8s-platform.yaml"
+          kubeconform -kubernetes-version "$KUBERNETES_VERSION" -strict -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            "$RUNNER_TEMP/k8s-platform.yaml"
+          python - <<'PY'
+          import os, sys, yaml
+
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "k8s-platform.yaml")) as f:
+              docs = [d for d in yaml.safe_load_all(f) if d]
+          cluster_scoped = {"Namespace", "ClusterRole", "ClusterRoleBinding", "ClusterPolicy"}
+          namespaces = {d["metadata"]["name"] for d in docs if d["kind"] == "Namespace"}
+          problems = []
+          if namespaces != {"monitoring", "security-scanning"}:
+              problems.append(f"platform: expected Namespaces monitoring and security-scanning, found {sorted(namespaces)}")
+          for d in docs:
+              ns = d["metadata"].get("namespace")
+              if d["kind"] not in cluster_scoped and ns not in namespaces:
+                  problems.append(f"platform: {d['kind']}/{d['metadata']['name']} is in namespace {ns}, which the platform does not create")
+          for p in problems:
+              print(f"::error::{p}")
+          print("Platform OK" if not problems else f"{len(problems)} problem(s)")
+          sys.exit(1 if problems else 0)
+          PY
+
+      - name: Validate Kubernetes environment overlays
+        working-directory: infrastructure/kubernetes
+        run: |
+          set -euo pipefail
+          for env in dev staging prod; do
+            kustomize build "overlays/$env" > "$RUNNER_TEMP/k8s-$env.yaml"
+            kubeconform -kubernetes-version "$KUBERNETES_VERSION" -strict -summary -ignore-missing-schemas \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+              "$RUNNER_TEMP/k8s-$env.yaml"
+          done
+          python - <<'PY'
+          import os, sys, yaml
+
+          expected = {"dev": "quantumalpha-dev", "staging": "quantumalpha-staging", "prod": "quantumalpha"}
+          cluster_scoped = {"Namespace", "ClusterRole", "ClusterRoleBinding"}
+          problems = []
+          for env, ns in expected.items():
+              with open(os.path.join(os.environ["RUNNER_TEMP"], f"k8s-{env}.yaml")) as f:
+                  docs = [d for d in yaml.safe_load_all(f) if d]
+              names = [d["metadata"]["name"] for d in docs if d["kind"] == "Namespace"]
+              if names != [ns]:
+                  problems.append(f"{env}: expected exactly one Namespace {ns}, found {names}")
+              for d in docs:
+                  if d["kind"] not in cluster_scoped and d["metadata"].get("namespace") != ns:
+                      problems.append(f"{env}: {d['kind']}/{d['metadata']['name']} is not in namespace {ns}")
+              # Service hostnames in the ConfigMap must match Services that exist
+              services = {d["metadata"]["name"] for d in docs if d["kind"] == "Service"}
+              config = next(d for d in docs if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "quantumalpha-config")["data"]
+              for key in ("DB_HOST", "REDIS_HOST", "INFLUXDB_URL", "KAFKA_BOOTSTRAP_SERVERS"):
+                  host = config[key].split("://")[-1].split(":")[0]
+                  if host not in services:
+                      problems.append(f"{env}: ConfigMap {key}={config[key]} does not match any Service {sorted(services)}")
+          for p in problems:
+              print(f"::error::{p}")
+          print("Overlays OK" if not problems else f"{len(problems)} problem(s)")
+          sys.exit(1 if problems else 0)
+          PY
+
+      - name: yamllint (all tracked YAML under infrastructure/)
+        working-directory: infrastructure
+        run: git ls-files -z '*.yml' '*.yaml' | xargs -0 yamllint -c .yamllint
+
+      # ---- Docker -------------------------------------------
+      - name: Validate Docker Compose file
+        working-directory: infrastructure
+        run: |
+          set -euo pipefail
+          # Compose reads variables from .env and the services' env_file from .env.local;
+          # neither is tracked, so use the example values.
+          cp .env.example .env
+          cp .env.example .env.local
+          docker compose config --quiet
+
+      - name: Lint Dockerfiles (fails on errors, prints warnings)
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$HOME/.local/bin/hadolint" \
+            "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-x86_64"
+          chmod +x "$HOME/.local/bin/hadolint"
+          hadolint --failure-threshold error \
+            infrastructure/docker/*/Dockerfile web-frontend/Dockerfile
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # The backend and AI images are built in the Backend and AI Models jobs; build the frontend one here.
+      - name: Build frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: web-frontend
+          file: web-frontend/Dockerfile
+          push: false
+          tags: quantumalpha/web-frontend:ci-${{ github.sha }}
+          cache-from: type=gha,scope=frontend-image
+          cache-to: type=gha,mode=max,scope=frontend-image
+
+      # ---- Secrets ------------------------------------------
+      - name: Scan infrastructure for hard-coded secrets
+        working-directory: infrastructure
+        run: |
+          set -uo pipefail
+          found=0
+          for pattern in 'password\s*=\s*"[^"]{8,}"' 'secret\s*=\s*"[^"]{8,}"' 'api[_-]key\s*=\s*"[^"]{8,}"' 'BEGIN (RSA|EC|OPENSSH) PRIVATE KEY'; do
+            hits=$(grep -rEIin "$pattern" terraform kubernetes database services monitoring security docker docker-compose.yml logging.yaml \
+              | grep -v '\.example' \
+              | grep -viE 'placeholder|change_?me|:[0-9]+:\s*#' || true)
+            if [ -n "$hits" ]; then
+              echo "::error::possible hard-coded secret matching /$pattern/"
+              echo "$hits"
+              found=1
+            fi
+          done
+          exit "$found"
+
+  # ============================================================
+  # Job 8 -- Scripts Validation
+  # ============================================================
+  scripts_validation:
+    name: Scripts Validation
+    runs-on: ubuntu-latest
+    needs: code_quality
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ShellCheck
+        run: python -m pip install shellcheck-py==0.11.0.1
+
+      - name: ShellCheck all tracked shell scripts (fails on warnings and errors)
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck --severity=warning
+
+      - name: ShellCheck stricter style findings (advisory)
+        continue-on-error: true
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck --severity=info
+
+      - name: Check syntax and shebang of all tracked shell scripts
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' f; do
+            bash -n "$f"
+            head -n 1 "$f" | grep -qE '^#!.*(bash|sh)' || { echo "::error file=$f::missing shebang"; exit 1; }
+          done < <(git ls-files -z '*.sh')
+
+      - name: Check shell scripts are executable in git
+        run: |
+          missing=$(git ls-files -s '*.sh' | awk '$1 != "100755" {print $4}')
+          if [ -n "$missing" ]; then
+            while IFS= read -r f; do
+              echo "::error file=$f::not executable in git. Fix: git update-index --chmod=+x $f"
+            done <<< "$missing"
+            exit 1
+          fi
+
+      # Only scripts with a real --help handler are listed: the others
+      # (setup.sh, start.sh, stop.sh) would install dependencies or start and
+      # stop services instead of printing usage.
+      - name: Smoke test --help on CLI scripts
+        run: |
+          set -uo pipefail
+          status=0
+          before=$(git status --porcelain)
+          for s in backup deploy k8s_deploy lint monitor_setup restore run_tests setup_env start_dev start_service stop_services; do
+            if out=$(timeout 30 bash "scripts/$s.sh" --help </dev/null 2>&1) && grep -qi 'usage' <<< "$out"; then
+              echo "OK   $s.sh --help"
+            else
+              echo "::error file=scripts/$s.sh::--help did not exit 0 with a usage message"
+              status=1
+            fi
+          done
+          after=$(git status --porcelain)
+          if [ "$before" != "$after" ]; then
+            echo "::error::--help modified the working tree:"; git status --porcelain; status=1
+          fi
+          exit "$status"

@@ -112,7 +112,7 @@ graph TB
 
 ### Service Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                         API Gateway :8080                        │
 │  ┌───────────────┬────────────────┬──────────────────────────┐  │
@@ -257,7 +257,7 @@ sequenceDiagram
 
 ### Backend Technologies
 
-```
+```text
 Application Layer:
 ├── Python 3.10+ (Primary language)
 ├── Flask 2.3 (Web framework)
@@ -285,7 +285,7 @@ Financial Libraries:
 
 ### Frontend Technologies
 
-```
+```text
 Web Frontend:
 ├── React 18 (UI framework)
 ├── TypeScript (Type safety)
@@ -302,7 +302,7 @@ Mobile Frontend:
 
 ### Data Storage
 
-```
+```text
 Databases:
 ├── PostgreSQL 14 + TimescaleDB (Relational + time series)
 ├── Redis 7 (Cache + sessions)
@@ -315,7 +315,7 @@ Message Broker:
 
 ### Infrastructure
 
-```
+```text
 Containerization:
 ├── Docker (Containers)
 └── Docker Compose (Local orchestration)
@@ -341,7 +341,7 @@ CI/CD:
 
 ### Local Development
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │         Developer Workstation            │
 │  ┌────────────────────────────────────┐  │
@@ -358,7 +358,7 @@ CI/CD:
 
 ### Staging/Production (Kubernetes)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                  Kubernetes Cluster                      │
 │                                                          │
@@ -401,7 +401,7 @@ CI/CD:
 
 ### Network Architecture
 
-```
+```text
                     Internet
                        │
                        ▼
@@ -437,21 +437,21 @@ CI/CD:
 
 ### Synchronous Communication (REST API)
 
-```
+```text
 Client → API Gateway → Service → Database
          (HTTP/HTTPS)
 ```
 
 ### Asynchronous Communication (Kafka)
 
-```
+```text
 Service A → Kafka Topic → Service B
           (Event Stream)
 ```
 
 ### WebSocket (Real-time Updates)
 
-```
+```text
 Client ←─── WebSocket ───→ Service
         (Bidirectional)
 ```
@@ -475,7 +475,7 @@ Client ←─── WebSocket ───→ Service
 
 ## Security Architecture
 
-```
+```text
 ┌────────────────────────────────────────────┐
 │            Security Layers                  │
 │                                             │
@@ -514,7 +514,7 @@ Client ←─── WebSocket ───→ Service
 
 ## File Structure
 
-```
+```text
 QuantumAlpha/
 ├── backend/
 │   ├── ai_engine/

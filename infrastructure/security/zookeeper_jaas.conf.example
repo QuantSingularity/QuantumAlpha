@@ -1,0 +1,19 @@
+// Template: copy to zookeeper_jaas.conf and replace every change_me_* value before use.
+// The real file is gitignored and must never be committed.
+// The admin and quantumalpha passwords must be identical in kafka_jaas.conf and zookeeper_jaas.conf.
+Server {
+    org.apache.zookeeper.server.auth.DigestLoginModule required
+    user_admin="change_me_admin_password"
+    user_quantumalpha="change_me_quantumalpha_password";
+};
+
+QuorumServer {
+    org.apache.zookeeper.server.auth.DigestLoginModule required
+    user_admin="change_me_admin_password";
+};
+
+QuorumLearner {
+    org.apache.zookeeper.server.auth.DigestLoginModule required
+    username="admin"
+    password="change_me_admin_password";
+};

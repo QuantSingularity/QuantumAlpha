@@ -23,7 +23,7 @@ This guide covers typical usage patterns for QuantumAlpha, including CLI operati
 
 QuantumAlpha follows a typical quantitative trading workflow:
 
-```
+```text
 Data Ingestion → Feature Engineering → Model Training →
 Signal Generation → Risk Analysis → Order Execution → Monitoring
 ```

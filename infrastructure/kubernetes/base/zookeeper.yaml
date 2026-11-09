@@ -63,6 +63,10 @@ spec:
               value: "mntr,conf,ruok"
             - name: ZOOKEEPER_LOG4J_ROOT_LOGLEVEL
               value: "INFO"
+            - name: ZOOKEEPER_TOOLS_LOG4J_LOGLEVEL
+              value: "ERROR"
+            - name: ZOOKEEPER_JAAS_LOGIN_RENEW
+              value: "3600000"
             - name: KAFKA_OPTS
               value: "-Djava.security.auth.login.config=/etc/kafka/secrets/zookeeper_jaas.conf"
             - name: ZOOKEEPER_AUTH_PROVIDER_1

@@ -87,8 +87,8 @@ QuantumAlpha consists of five primary microservices:
 
 ## Support & Resources
 
-- **GitHub Repository**: https://github.com/quantsingularity/QuantumAlpha
-- **Issue Tracker**: https://github.com/quantsingularity/QuantumAlpha/issues
+- **GitHub Repository**: <https://github.com/quantsingularity/QuantumAlpha>
+- **Issue Tracker**: <https://github.com/quantsingularity/QuantumAlpha/issues>
 - **License**: MIT
 
 ---
