@@ -1,7 +1,7 @@
 # Implements security best practices for SOX, PCI DSS, and GLBA compliance
 
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.2"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -272,6 +272,13 @@ resource "aws_db_instance" "main" {
     aws_db_parameter_group.main,
     aws_db_option_group.main
   ]
+
+  lifecycle {
+    precondition {
+      condition     = var.max_allocated_storage >= var.allocated_storage
+      error_message = "Max allocated storage must be greater than or equal to allocated storage."
+    }
+  }
 }
 
 # Read Replica for disaster recovery and read scaling

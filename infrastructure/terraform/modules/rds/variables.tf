@@ -87,10 +87,9 @@ variable "max_allocated_storage" {
   description = "Maximum allocated storage for autoscaling in GB"
   type        = number
   default     = 1000
-  validation {
-    condition     = var.max_allocated_storage >= var.allocated_storage
-    error_message = "Max allocated storage must be greater than or equal to allocated storage."
-  }
+  # Must be >= allocated_storage; that cross-variable check lives in a precondition on
+  # aws_db_instance.main because variable validation may only reference its own variable
+  # before Terraform 1.9.
 }
 
 variable "storage_type" {
