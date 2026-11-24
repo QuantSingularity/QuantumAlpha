@@ -64,27 +64,16 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detail.
 
 ## Project Structure
 
-| Path                               | Purpose                                                                                                    |
-| :--------------------------------- | :--------------------------------------------------------------------------------------------------------- |
-| `code/backend/api/`                | API gateway: auth, portfolio, trading, admin, and system endpoints                                         |
-| `code/backend/data_service/`       | Separate Flask app: market and alternative data                                                            |
-| `code/backend/risk_service/`       | Separate Flask app: VaR, stress testing, position sizing                                                   |
-| `code/backend/execution_service/`  | Separate Flask app: orders and broker adapter                                                              |
-| `code/backend/portfolio_service/`  | In-process module imported by the API gateway                                                              |
-| `code/backend/trading_engine/`     | In-process module imported by the API gateway                                                              |
-| `code/backend/analytics_service/`  | Performance attribution and factor analysis                                                                |
-| `code/backend/compliance_service/` | Compliance monitoring and regulatory reporting                                                             |
-| `code/backend/common/`             | Shared auth, database, messaging, and monitoring code                                                      |
-| `code/backend/tests/`              | Backend test suite (pytest)                                                                                |
-| `code/ai_models/`                  | AI engine: API, core, data, models, training, evaluation, inference, registry, RL, monitoring, persistence |
-| `code/ai_models/tests/`            | AI engine test suite (pytest)                                                                              |
-| `code/Dockerfile.service`          | Shared service image selected by the `APP_MODULE` build arg                                                |
-| `web-frontend/`                    | React (Vite) dashboard                                                                                     |
-| `mobile-frontend/`                 | React Native app, with an `e2e/` directory for end-to-end tests                                            |
-| `infrastructure/`                  | Docker, Kubernetes, Terraform, monitoring, and security configuration                                      |
-| `scripts/`                         | Setup, run, test, deploy, backup, and restore scripts                                                      |
-| `docs/`                            | Project documentation                                                                                      |
-| `.github/`                         | CI/CD workflow and its documentation                                                                       |
+| Path              | Purpose                                                                                         |
+| :---------------- | :---------------------------------------------------------------------------------------------- |
+| `code/backend`    | API gateway, the data, risk, and execution services, in-process modules, shared code, and tests |
+| `code/ai_models`  | AI engine: models, training, inference, registry, RL, monitoring, and tests                     |
+| `web-frontend`    | React (Vite) dashboard                                                                          |
+| `mobile-frontend` | React Native app, with an `e2e/` directory for end-to-end tests                                 |
+| `infrastructure`  | Docker, Kubernetes, Terraform, monitoring, and security configuration                           |
+| `scripts`         | Setup, run, test, deploy, backup, and restore scripts                                           |
+| `docs`            | Project documentation                                                                           |
+| `.github`         | CI/CD workflow and its documentation                                                            |
 
 ## Feature Status
 
@@ -94,9 +83,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detail.
 | **Data service**         | Market and alternative data backed by PostgreSQL, InfluxDB (time series), MongoDB (alternative data), and Redis.                                                                                                   |
 | **AI engine**            | Full model lifecycle for deep, classical, and RL models. Routes are Flask blueprints (system, models, predictions, signals, RL) tested through the same HTTP layer. Also generates signals and monitors drift.     |
 | **Risk service**         | VaR, Expected Shortfall, Sharpe ratio, stress tests (historical, Monte Carlo, sensitivity, custom), position sizing, risk alerts, and an online-learning risk updater. Inputs are schema-validated on every route. |
-| **Execution service**    | Order management, execution strategies, and a generic HTTP broker adapter against a configurable `broker.url`. Alpaca key fields exist in configuration, but there is no Alpaca-specific SDK integration.          |
-| **Messaging**            | Kafka producer and consumer classes (`confluent-kafka`) in the shared `common` module. `alpaca-trade-api` and `pika` are listed in `requirements.txt` but are not imported anywhere.                               |
-| **Auth**                 | JWT sessions via Flask-JWT-Extended, with MFA-related user fields. The signing key falls back to a placeholder default when `SECRET_KEY` is unset, and nothing rejects the placeholder in production.              |
+| **Execution service**    | Order management, execution strategies, and a generic HTTP broker adapter against a configurable `broker.url`.                                                                                                     |
+| **Messaging**            | Kafka producer and consumer classes (`confluent-kafka`) in the shared `common` module.                                                                                                                             |
+| **Auth**                 | JWT sessions via Flask-JWT-Extended, with MFA-related user fields.                                                                                                                                                 |
 | **Compliance/analytics** | In-process modules (not separately deployed) for compliance monitoring, regulatory reporting, performance attribution, and factor analysis.                                                                        |
 | **Web dashboard**        | React (JavaScript) with Redux Toolkit, Material-UI, and Recharts.                                                                                                                                                  |
 | **Mobile app**           | React Native (TypeScript and JavaScript) with React Navigation, Zustand, and `react-native-chart-kit`.                                                                                                             |
@@ -196,14 +185,14 @@ Every service exposes its own `/health` check. Full request and response shapes 
 
 ## Testing
 
-| Suite     | Directory         | Command                       | Notes                                              |
-| :-------- | :---------------- | :---------------------------- | :------------------------------------------------- |
-| Backend   | `code/backend`    | `pytest tests/`               | CI adds `--cov=.` and uploads `coverage.xml`       |
-| AI engine | `code/ai_models`  | `PYTHONPATH=.. pytest tests/` | `deep` and `rl` markers need `requirements-ml.txt` |
-| Web       | `web-frontend`    | `npm test`                    | Jest                                               |
-| Mobile    | `mobile-frontend` | `npm run test:ci`             | Jest with coverage; `e2e/` holds end-to-end tests  |
+| Suite     | Directory         | Run locally                   |
+| :-------- | :---------------- | :---------------------------- |
+| Backend   | `code/backend`    | `pytest tests/`               |
+| AI engine | `code/ai_models`  | `PYTHONPATH=.. pytest tests/` |
+| Web       | `web-frontend`    | `npm test`                    |
+| Mobile    | `mobile-frontend` | `npm run test:ci`             |
 
-All four suites run in CI. See [CI/CD Pipeline](#cicd-pipeline).
+Run each command from the directory shown. All four suites run in CI, and the backend and AI engine jobs upload coverage reports. The AI engine `deep` and `rl` tests need `requirements-ml.txt` installed. See [CI/CD Pipeline](#cicd-pipeline).
 
 ## CI/CD Pipeline
 
@@ -224,20 +213,22 @@ Coverage reports (`backend-coverage-report`, `ai-models-coverage-report`) are ke
 
 ## Documentation
 
-| Document                                                     | Contents                               |
-| :----------------------------------------------------------- | :------------------------------------- |
-| [docs/README.md](docs/README.md)                             | Documentation index                    |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                 | System architecture                    |
-| [docs/API.md](docs/API.md)                                   | REST API reference                     |
-| [docs/INSTALLATION.md](docs/INSTALLATION.md)                 | Setup for all components               |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md)               | Environment variables and config       |
-| [docs/USAGE.md](docs/USAGE.md)                               | Running and using the platform         |
-| [docs/CLI.md](docs/CLI.md)                                   | Helper scripts reference               |
-| [docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md)             | Feature status, implemented vs planned |
-| [docs/ML_MODEL_PERFORMANCE.md](docs/ML_MODEL_PERFORMANCE.md) | Model evaluation methodology           |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)           | Common issues and fixes                |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)                 | Contribution guide                     |
-| [docs/examples/](docs/examples/)                             | Worked examples                        |
+| Document                                                                                 | Contents                               |
+| :--------------------------------------------------------------------------------------- | :------------------------------------- |
+| [docs/README.md](docs/README.md)                                                         | Documentation index                    |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                             | System architecture                    |
+| [docs/API.md](docs/API.md)                                                               | REST API reference                     |
+| [docs/INSTALLATION.md](docs/INSTALLATION.md)                                             | Setup for all components               |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md)                                           | Environment variables and config       |
+| [docs/USAGE.md](docs/USAGE.md)                                                           | Running and using the platform         |
+| [docs/CLI.md](docs/CLI.md)                                                               | Helper scripts reference               |
+| [docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md)                                         | Feature status, implemented vs planned |
+| [docs/ML_MODEL_PERFORMANCE.md](docs/ML_MODEL_PERFORMANCE.md)                             | Model evaluation methodology           |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)                                       | Common issues and fixes                |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)                                             | Contribution guide                     |
+| [docs/examples/ai-engine-example.md](docs/examples/ai-engine-example.md)                 | Worked example: AI engine              |
+| [docs/examples/execution-service-example.md](docs/examples/execution-service-example.md) | Worked example: execution service      |
+| [docs/examples/risk-management-example.md](docs/examples/risk-management-example.md)     | Worked example: risk management        |
 
 ## Contributing
 
